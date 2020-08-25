@@ -122,12 +122,11 @@ def loadPositions(folder):
 
 def configMatch(config1, config2):
     allowedDifferent = ["AUDIOFILENAME", "SOURCETYPE", 
-                        "NOISEFREQ", "NOISEBANDWIDTH",
-                        "LEARNINGFACTOR", "BLOCKSIZE", 
-                        "MCPOINTS", "KERNFILTLEN", "KERNELREG",
+                        "NOISEFREQ", "NOISEBANDWIDTH", "BLOCKSIZE", 
+                        "MCPOINTS", "KERNFILTLEN",
                         "SPMFILTLEN", "SAVERAWDATA",
                         "PLOTOUTPUT", "LOADSESSION", 
-                        "SAVERAWDATAFREQUENCY"]
+                        "SAVERAWDATAFREQUENCY", "SOURCEAMP"]
 
     confView1 = {key:value for key,value in config1.items() if not key in allowedDifferent}
     confView2 = {key:value for key,value in config2.items() if not key in allowedDifferent}
@@ -135,9 +134,9 @@ def configMatch(config1, config2):
     return confView1 == confView2
 
 def settingsMatch(settings1, settings2):
-    # allowedDifferent = ["BETA0", "ENDTIMESTEP", "ERRORMICNOISE", "FILTLENGTH", "GENSOUNDFIELDATCHUNK", 
-    #                     "INTEGRATIONORDER", "KERNELTRUNCORDER", "PLOTFREQUENCY", "OUTPUTSMOOTHING", "REFMICNOISE",
-    #                     "SIMBUFFER", "SIMCHUNKSIZE", "SOURCEAMP"]
+    # allowedDifferent = [ "ENDTIMESTEP", "ERRORMICNOISE", "FILTLENGTH", "GENSOUNDFIELDATCHUNK", 
+    #                     "", "PLOTFREQUENCY", "OUTPUTSMOOTHING", "REFMICNOISE",
+    #                     "SIMBUFFER", "SIMCHUNKSIZE"]
 
     entriesToCheck = ["ERRORMICRANDOMNESS", "SPEAKERDIM", "SPEAKERANGLEOFFSET", 
                         "ERRORMICANGLEOFFSET", "SAMPLERATE", "C", 

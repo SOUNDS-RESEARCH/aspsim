@@ -114,7 +114,7 @@ class FilterMD_Freqdomain():
             assert(tf.shape[0] % 2 == 0)
             self.tf = tf
         elif ir is not None:
-            self.tf = fdf.fftWithTranspose(np.concatenate((ir,np.zeros_like(ir)), axis=-1), addEmptyDim=False)
+            self.tf = fdf.fftWithTranspose(np.concatenate((ir,np.zeros_like(ir)), axis=-1))
         elif filtDim is not None:
             if numFreq is not None:
                 self.tf = np.zeros((numFreq, *filtDim), dtype=np.complex128)
@@ -136,11 +136,8 @@ class FilterMD_Freqdomain():
 
     def process(self, samplesToProcess):
         assert(samplesToProcess.shape == (*self.dataDims, self.irLen))
-        outputSamples = fdf.convolveEuclidianFT(self.tf, np.concatenate((self.buffer, samplesToProcess), axis=-1))
-        # freqsToProcess = fdf.fftWithTranspose(np.concatenate((self.buffer, samplesToProcess), axis=-1))
-        # outputSamples = np.expand_dims(self.tf,np.arange(self.tf.ndim,self.tf.ndim+freqsToProcess.ndim-1)) * \
-        #                                 np.expand_dims(freqsToProcess,np.arange(1,self.tf.ndim-1))
-        # outputSamples = fdf.ifftWithTranspose(outputSamples)
+        outputSamples = fdf.convolveEuclidianFT(
+            self.tf, np.concatenate((self.buffer, samplesToProcess), axis=-1))
 
         self.buffer[...] = samplesToProcess
         return outputSamples
@@ -205,9 +202,11 @@ class FilterSum_Freqdomain():
 
     def process(self, samplesToProcess):
         assert(samplesToProcess.shape == self.buffer.shape)
-        freqsToProcess = fdf.fftWithTranspose(np.concatenate((self.buffer, samplesToProcess), axis=-1))
+        freqsToProcess = fdf.fftWithTranspose(np.concatenate(
+            (self.buffer, samplesToProcess), axis=-1), addEmptyDim=True)
         tfNewShape = self.tf.shape[0:1] + (1,)*self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifftWithTranspose(self.tf.reshape(tfNewShape) @ freqsToProcess)
+        outputSamples = fdf.ifftWithTranspose(self.tf.reshape(tfNewShape) @ freqsToProcess, 
+                                removeEmptyDim=True)
 
         self.buffer[...] = samplesToProcess
         return np.real(outputSamples[...,self.irLen:])
@@ -217,9 +216,11 @@ class FilterSum_Freqdomain():
             Assumes padding is already applied correctly. """
         assert(freqsToProcess.shape == (self.numFreq, self.numIn, 1))
         tfNewShape = self.tf.shape[0:1] + (1,)*self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifftWithTranspose(self.tf.reshape(tfNewShape) @ freqsToProcess)
+        outputSamples = fdf.ifftWithTranspose(self.tf.reshape(tfNewShape) @ freqsToProcess,
+                            removeEmptyDim=True)
 
-        self.buffer[...] = fdf.ifftWithTranspose(freqsToProcess)[...,self.irLen:]
+        self.buffer[...] = fdf.ifftWithTranspose(freqsToProcess, 
+                                removeEmptyDim=True)[...,self.irLen:]
         return np.real(outputSamples[...,self.irLen:])
 
     def setFilter(self, tfNew):
@@ -231,61 +232,6 @@ class FilterSum_Freqdomain():
             self.buffer = np.zeros_like(self.buffer)
         self.ir = irNew
 
-
-class FilterSum_Freqdomain_old():
-    """ir is the time domain impulse response, with shape (numIn, numOut, irLen)
-        tf is frequency domain transfer function, with shape (2*irLen, numOut, numIn), 
-        it is also possible to only provide the dimensions of the filter, numIn and numOut, 
-        together with either number of frequencies or ir length, where 2*irLen==numFreq
-        
-        If you give to many arguments, it will propritize tf -> ir -> numFreq -> irLen"""
-    def __init__(self,tf=None,ir=None, numIn=None, numOut=None,irLen=None,numFreq=None):
-        #assert(tf or ir or (numIn and numOut and irLen) is not None)
-        if tf is not None:
-            assert(tf.shape[0] % 2 == 0)
-            self.tf = tf
-        elif ir is not None:
-            self.tf = np.transpose(np.fft.fft(np.concatenate((ir,np.zeros_like(ir)), axis=-1), axis=-1),(2,1,0))
-        elif (numIn is not None and numOut is not None):
-            if numFreq is not None:
-                self.tf = np.zeros((numFreq, numOut, numIn), dtype=np.complex128)
-            elif irLen is not None:
-                self.tf = np.zeros((2*irLen, numOut, numIn), dtype=np.complex128)
-        else:
-            raise ValueError("Arguments missing for valid initialization")
-        
-        self.irLen = self.tf.shape[0] // 2
-        self.numFreq = self.tf.shape[0]
-        self.numOut = self.tf.shape[1]
-        self.numIn = self.tf.shape[2]
-
-        self.buffer = np.zeros((self.numIn, self.irLen))
-
-    def process(self, samplesToProcess):
-        assert(samplesToProcess.shape == (self.numIn, self.irLen))
-        freqsToProcess = fdf.fftWithTranspose(np.concatenate((self.buffer, samplesToProcess), axis=-1))
-        outputSamples = fdf.ifftWithTranspose(self.tf @ freqsToProcess)
-
-        self.buffer[:,:] = samplesToProcess
-        return np.real(outputSamples[:,self.irLen:])
-
-    def processFreq(self, freqsToProcess):
-        """Can be used if the fft of the input signal is already available. 
-            Assumes padding is already applied correctly. """
-        assert(freqsToProcess.shape == (self.numFreq, self.numIn, 1))
-        outputSamples = fdf.ifftWithTranspose(self.tf @ freqsToProcess)
-
-        self.buffer[:,:] = fdf.ifftWithTranspose(freqsToProcess)[:,self.irLen:]
-        return np.real(outputSamples[:,self.irLen:])
-
-    def setFilter(self, tfNew):
-        if tfNew.shape != self.tf.shape:
-            self.irLen = tfNew.shape[0] // 2
-            self.numFreq = tfNew.shape[0]
-            self.numOut = tfNew.shape[1]
-            self.numIn = tfNew.shape[2]
-            self.buffer = np.zeros((self.numIn, self.numOut, self.irLen))
-        self.ir = irNew
 
 
 class FilterIndividualInputs:

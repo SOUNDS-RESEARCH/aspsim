@@ -1,11 +1,4 @@
-#possibleTests = ["1d","2d","3dDiscFreespace","3dDiscFreespaceb","3dRectFreespace", "3dRectReverb"]
-#TESTSETTING = possibleTests[5]
-
-INTEGRATIONORDER = 16               #For 2d intergration
-
-#TARGET_RADIUS = 1                   #If disc/circle
 ERRORMICRANDOMNESS = 1.2
-
 SPEAKERDIM = 3
 
 SPEAKERANGLEOFFSET = "distribute"
@@ -24,13 +17,8 @@ C = 343.0 # DO NOT CHANGE THIS FROM 343 WITH REVERBERANT ROOM SIMULATIONS. CREAT
 
 FILTLENGTH = 1024
 
-BETA0 = 0.001
-
-SOURCEAMP = (50, 100, 50, 25, 20, 15)
 ERRORMICNOISE = -40
-REFMICNOISE = -60
-
-KERNELTRUNCORDER = 20
+REFMICNOISE = -40
 
 NUMREF = 1
 NUMERROR = 16

@@ -12,39 +12,32 @@ def getConfig():
     config["SOURCETYPE"] = possibleSources[1]
     config["NOISEFREQ"] = 150
     config["NOISEBANDWIDTH"] = 200
+    config["SOURCEAMP"] = (50, 100, 50, 25, 20, 15)
 
     #ROOM AND SETTING
-    possibleTests = ["1d","2d","3dDiscFreespace","3dDiscFreespaceb","3dRectFreespace", "3dRectReverb"]
-    config["TESTSETTING"] = possibleTests[5]
-
     possibleShapes = ["circle", "rectangle"]
     config["ARRAYSHAPES"] = possibleShapes[1]
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
 
     config["SPATIALDIMENSIONS"] = 3
-    config["REFDIRECTLYOBTAINED"] = True
     config["REVERBERATION"] = True
-        
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
     config["RT60"] = 0.24
-
     config["MAXROOMIRLENGTH"] = 1024
 
+    config["REFDIRECTLYOBTAINED"] = True
 
     #ADAPTIVE FILTER PARAMETERS
-    config["LEARNINGFACTOR"] = 1
-
     config["BLOCKSIZE"] = 1024
 
     #KERNEL INTERPOLATION
     config["MCPOINTS"] = 100
     config["KERNFILTLEN"] = 155
-    config["KERNELREG"] = 0.0001
 
     #SECONDARY PATH MODELLING
-    config["SPMFILTLEN"] = 1024#config["MAXROOMIRLENGTH"]
+    config["SPMFILTLEN"] = 1024
 
     #PLOTS AND MISC
     config["SAVERAWDATA"] = False

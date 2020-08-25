@@ -85,17 +85,17 @@ def setupPos(config):
 def setupSource(config):
     print("Setup Source")
     if config["SOURCETYPE"] == "sine":
-        noiseSource = SourceArray(SineSource, s.NUMSOURCE, s.SOURCEAMP, config["NOISEFREQ"], s.SAMPLERATE)
+        noiseSource = SourceArray(SineSource, s.NUMSOURCE, config["SOURCEAMP"], config["NOISEFREQ"], s.SAMPLERATE)
     elif config["SOURCETYPE"] == "noise":
-        noiseSource = SourceArray(BandlimitedNoiseSource, s.NUMSOURCE, s.SOURCEAMP, 
+        noiseSource = SourceArray(BandlimitedNoiseSource, s.NUMSOURCE, config["s.SOURCEAMP"], 
                                 [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], s.SAMPLERATE)
     elif config["SOURCETYPE"] == "chirp":
-        noiseSource = SourceArray(LinearChirpSource, s.NUMSOURCE, s.SOURCEAMP, 
+        noiseSource = SourceArray(LinearChirpSource, s.NUMSOURCE, config["SOURCEAMP"], 
                                   [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, s.SAMPLERATE)
     elif config["SOURCETYPE"] == "recorded":
         assert(s.NUMSOURCE == 1)
         packageDir = Path(__file__).parent
-        noiseSource = RecordedNoiseSource(s.SOURCEAMP[0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]))
+        noiseSource = RecordedNoiseSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]))
     else:
         raise ValueError
     return noiseSource

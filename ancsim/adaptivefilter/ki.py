@@ -137,7 +137,7 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
         self.kiDelay = kiFilt.shape[-1]//2 - numSamplesRemoved
         self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize,addEmptyDim=False), 
+        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize), 
                                             dataDims=(s.NUMSPEAKER, s.NUMREF))
 
         self.normFunc = self.xfNormalization
@@ -172,8 +172,7 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
                     self.buffers["kixf"][:,:,:,self.idx-(2*self.blockSize)-self.kiDelay:self.idx-self.kiDelay])
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = self.xfNormalization()
         # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
         # norm = 1 / (np.mean(powerPerFreq) + self.beta)

@@ -116,7 +116,7 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
                                 self.buffers["v"][:,self.idx-(2*self.blockSize):self.idx])
         
         grad = fdf.fftWithTranspose(np.concatenate(
-                (grad, np.zeros_like(grad)),axis=-1),addEmptyDim=False)
+                (grad, np.zeros_like(grad)),axis=-1))
         norm = 1 / (np.sum(self.buffers["v"][:,self.updateIdx:self.idx]**2) + 1e-3)
 
         self.secPathEstimate.tf += self.muSPM * norm * grad
@@ -138,8 +138,7 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
                         (1,2,0,3)))
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
         # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
         # norm = 1 / (np.mean(powerPerFreq) + self.beta)
@@ -250,7 +249,7 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
         crossCorr = fdf.correlateEuclidianTT(self.e[:,self.updateIdx:self.idx], 
             self.buffers["v"][:,self.idx-2*self.blockSize:self.idx])
         crossCorr = fdf.fftWithTranspose(np.concatenate(
-            (crossCorr,np.zeros_like(crossCorr)),axis=-1),addEmptyDim=False) 
+            (crossCorr,np.zeros_like(crossCorr)),axis=-1)) 
 
         # eBlock = np.concatenate((np.zeros_like(self.e[:,self.updateIdx:self.idx]),self.e[:,self.updateIdx:self.idx]),axis=-1)
         # E = np.fft.fft(eBlock, axis=-1).T[:,:,None]
@@ -282,8 +281,7 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
                         (1,2,0,3)))
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
         self.controlFilt.tf -= self.mu * norm * grad
         self.updateIdx += self.blockSize

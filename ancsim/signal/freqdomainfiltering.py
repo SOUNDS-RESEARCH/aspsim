@@ -1,19 +1,17 @@
 import numpy as np
 
 
-def fftWithTranspose(timeSignal, n=None, addEmptyDim=True):
+def fftWithTranspose(timeSignal, n=None, addEmptyDim=False):
     freqSignal = np.fft.fft(timeSignal, n=n, axis=-1)
 
     newAxisOrder = np.concatenate(([timeSignal.ndim-1], np.arange(timeSignal.ndim-1)))
     freqSignal = np.transpose(freqSignal, newAxisOrder)
     if addEmptyDim:
-        #if len(freqSignal.shape) == 2:
         freqSignal = np.expand_dims(freqSignal,-1)
     return freqSignal
 
-def ifftWithTranspose(freqSignal, removeEmptyDim=True):
+def ifftWithTranspose(freqSignal, removeEmptyDim=False):
     if removeEmptyDim:
-        #if len(freqSignal.shape) == 3:
         freqSignal = np.squeeze(freqSignal,axis=-1)
     timeSignal = np.fft.ifft(freqSignal, axis=0)
     newAxisOrder = np.concatenate((np.arange(1,freqSignal.ndim), [0]))
@@ -45,7 +43,7 @@ def correlateSumFF(freqFilter, freqSignal):
     assert(freqFilter.shape[0] == freqSignal.shape[0])
     assert(freqFilter.shape[0] % 2 == 0)
     outputLen = freqFilter.shape[0] // 2
-    filteredSignal = ifftWithTranspose(np.sum(freqFilter * freqSignal.conj(),axis=-1), removeEmptyDim=False)
+    filteredSignal = ifftWithTranspose(np.sum(freqFilter * freqSignal.conj(),axis=-1))
     return np.real(filteredSignal[...,:outputLen])
 
 def correlateEuclidianTT(timeFilter, timeSignal):
@@ -72,7 +70,7 @@ def correlateEuclidianFF(freqFilter, freqSignal):
 
     filteredSignal = freqFilter.reshape(freqFilter.shape + (1,)*(freqSignal.ndim-1)) * \
                     freqSignal.reshape(freqSignal.shape[0:1] + (1,)*(freqFilter.ndim-1) + freqSignal.shape[1:]).conj()
-    filteredSignal = ifftWithTranspose(filteredSignal, removeEmptyDim=False)
+    filteredSignal = ifftWithTranspose(filteredSignal)
     return np.real(filteredSignal[...,:outputLen])
 
 def convolveSum(freqFilter, timeSignal):
@@ -85,7 +83,7 @@ def convolveSum(freqFilter, timeSignal):
     outputLen = freqFilter.shape[0] // 2
 
     filteredSignal = freqFilter @ fftWithTranspose(timeSignal)
-    filteredSignal = ifftWithTranspose(filteredSignal)
+    filteredSignal = ifftWithTranspose(filteredSignal, removeEmptyDim=True)
     return np.real(filteredSignal[...,outputLen:])
 
 def convolveEuclidianFF(freqFilter, freqSignal):
@@ -97,7 +95,7 @@ def convolveEuclidianFF(freqFilter, freqSignal):
 
     filteredSignal = freqFilter.reshape(freqFilter.shape + (1,)*(freqSignal.ndim-1)) * \
                     freqSignal.reshape(freqSignal.shape[0:1] + (1,)*(freqFilter.ndim-1) + freqSignal.shape[1:])
-    filteredSignal = ifftWithTranspose(filteredSignal, removeEmptyDim=False)
+    filteredSignal = ifftWithTranspose(filteredSignal)
     return np.real(filteredSignal[...,outputLen:])
     
 def convolveEuclidianFT(freqFilter, timeSignal):

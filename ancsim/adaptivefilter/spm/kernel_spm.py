@@ -25,7 +25,7 @@ class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFilt.shape[-1]//2
         self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize,addEmptyDim=False), 
+        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize), 
                                             dataDims=(s.NUMSPEAKER, s.NUMREF))
 
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
@@ -50,8 +50,7 @@ class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
                     self.buffers["kixf"][:,:,:,self.idx-(2*self.blockSize)-self.kiDelay:self.idx-self.kiDelay])
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["kixf"][:,:,:,self.updateIdx-self.kiDelay:self.idx-self.kiDelay]**2) + self.beta)
 
         self.controlFilt.tf -= self.mu * norm * grad
@@ -71,7 +70,7 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
         assert(kiFiltLen <= blockSize)
         assert(kiFiltLen % 1 == 0)
         kiFiltFir = getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, mcNumPoints)
-        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFiltFir,n=2*blockSize,addEmptyDim=False), 
+        self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFiltFir,n=2*blockSize), 
                                             dataDims=(s.NUMSPEAKER, s.NUMREF))
         self.kiFiltSecPathEst = FilterSum_Freqdomain(tf=self.kiFilt.tf)
 
@@ -79,9 +78,6 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFiltFir.shape[-1]//2
         self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
         self.buffers["kif"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-
-        # self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize,addEmptyDim=False), 
-        #                                     dataDims=(s.NUMSPEAKER, s.NUMREF))
 
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["kiFiltLength"] = int(kiFiltLen)
@@ -105,7 +101,7 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
                                 self.buffers["v"][:,self.idx-self.kiDelay-(2*self.blockSize):self.idx-self.kiDelay])
         
         grad = fdf.fftWithTranspose(np.concatenate(
-                (grad, np.zeros_like(grad)),axis=-1),addEmptyDim=False)
+                (grad, np.zeros_like(grad)),axis=-1))
         norm = 1 / (np.sum(self.buffers["v"][:,self.updateIdx-self.kiDelay:self.idx-self.kiDelay]**2) + 1e-3)
 
         self.secPathEstimate.tf += self.muSPM * norm * grad
@@ -129,8 +125,7 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
                     self.buffers["kixf"][:,:,:,self.idx-(2*self.blockSize)-self.kiDelay:self.idx-self.kiDelay])
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["kixf"][:,:,:,self.updateIdx-self.kiDelay:self.idx-self.kiDelay]**2) + self.beta)
 
         self.controlFilt.tf -= self.mu * norm * grad
@@ -406,7 +401,7 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
 
             kiFreq = fdf.fftWithTranspose(np.concatenate((kiFIR, 
                 np.zeros((kiFIR.shape[:-1]+(2*self.blockSize-kiFiltLen,)))), 
-                axis=-1), addEmptyDim=False)
+                axis=-1))
             kiParams[:,m:m+1,np.arange(s.NUMERROR)!=m] = kiFreq
 
             kiFirAll[m:m+1,np.arange(s.NUMERROR)!=m,:] = kiFIR
@@ -474,7 +469,7 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
                 self.buffers["vIP"][...,self.idx-(2*self.blockSize):self.idx])
         grad = np.transpose(grad, (1,0,2))
         grad = fdf.fftWithTranspose(np.concatenate(
-                (grad, np.zeros_like(grad)),axis=-1), addEmptyDim=False)
+                (grad, np.zeros_like(grad)),axis=-1))
 
         norm = 1 / (np.sum(self.buffers["vIP"][...,self.updateIdx:self.idx]**2) + 1e-3)
         return grad * norm
@@ -490,7 +485,7 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
                                 self.buffers["v"][:,self.idx-(2*self.blockSize):self.idx])
         
         grad = fdf.fftWithTranspose(np.concatenate(
-                (grad, np.zeros_like(grad)),axis=-1),addEmptyDim=False)
+                (grad, np.zeros_like(grad)),axis=-1))
         norm = 1 / (np.sum(self.buffers["v"][:,self.updateIdx:self.idx]**2) + 1e-3)
         return grad * norm
 
@@ -542,7 +537,7 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
 
         kiFreq = fdf.fftWithTranspose(np.concatenate((kiFIR, 
             np.zeros((kiFIR.shape[:-1]+(2*self.blockSize-kiFiltLen,)))), 
-            axis=-1), addEmptyDim=False)
+            axis=-1))
         return kiFreq
 
     def forwardPassImplement(self, numSamples): 
@@ -583,7 +578,7 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
                 self.buffers["vIP"][...,self.idx-(2*self.blockSize):self.idx])
         grad = np.transpose(grad, (1,0,2))
         grad = fdf.fftWithTranspose(np.concatenate(
-                (grad, np.zeros_like(grad)),axis=-1), addEmptyDim=False)
+                (grad, np.zeros_like(grad)),axis=-1))
 
         norm = 1 / (np.sum(self.buffers["vIP"][...,self.updateIdx:self.idx]**2) + 1e-3)
         return grad * norm
@@ -644,8 +639,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
                         (1,2,0,3)))
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
         # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
         # norm = 1 / (np.mean(powerPerFreq) + self.beta)
@@ -667,7 +661,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
 
             kiFreq = fdf.fftWithTranspose(np.concatenate((kiFIR, 
                 np.zeros((kiFIR.shape[:-1]+(2*self.blockSize-kiFiltLen,)))), 
-                axis=-1), addEmptyDim=False)
+                axis=-1))
             kiParams[:,m:m+1,np.arange(s.NUMERROR)!=m] = kiFreq
 
             kiFirAll[m:m+1,np.arange(s.NUMERROR)!=m,:] = kiFIR

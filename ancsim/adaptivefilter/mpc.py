@@ -104,8 +104,7 @@ class FastBlockFxLMS(AdaptiveFilterFFComplex):
                         (1,2,0,3)))
 
         grad = fdf.fftWithTranspose(np.concatenate(
-            (tdGrad, np.zeros_like(tdGrad)), axis=-1), 
-            addEmptyDim=False)
+            (tdGrad, np.zeros_like(tdGrad)), axis=-1))
         norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
         # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
         # norm = 1 / (np.mean(powerPerFreq) + self.beta)

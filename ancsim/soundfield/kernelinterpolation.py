@@ -326,22 +326,6 @@ def getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, mcVolume, m
     A = np.concatenate((A, np.flip(A[1:-1,:,:], axis=0)), axis=0)
     return A
 
-# def getAKernelFreqDomain3d(errorPos, numFreq, config, samplerate = s.SAMPLERATE, randomState=None):
-#     """Filter length will be 2*numFreq. The parameter sets the number of positive frequency bins"""
-#     numError = errorPos.shape[0]
-#     freqs = ((samplerate / (2*numFreq)) * np.arange(numFreq+1))[:,None,None]
-#     waveNum = freqs * 2*np.pi/s.C
-
-#     func = integrableAFunc(waveNum, errorPos)
-#     pointGen, volume = gen.selectPointGen(config, randomState)
-#     integralVal = mc.integrate(func, pointGen, config["MCPOINTS"], volume)
-
-#     distMat = distfuncs.cdist(errorPos, errorPos)[None,:,:]
-#     K = special.spherical_jn(0,distMat*waveNum)
-#     Kinv = np.linalg.inv(K + config["KERNELREG"] * np.eye(numError))
-#     A = Kinv @ integralVal @ Kinv
-#     A = np.concatenate((A, np.flip(A[1:-1,:,:], axis=0)), axis=0)
-#     return A
 
 def getAKernelTimeDomain3d(errorPos, filtLen, kernelReg, mcPointGen, 
                            mcVolume, mcNumPoints, numFreq=2048, samplerate=s.SAMPLERATE):
@@ -458,8 +442,8 @@ def getTimeDomainARect3d_even(errorPos, filtLen, numMCSamples, targetDim, height
 # DERIVATION 12
 
 
-def getKernel12TimeDomain3d(errorPos, filtLen, config, numFreq = 2048, samplerate=s.SAMPLERATE):
-    func = kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, config["KERNELREG"], samplerate)
+def getKernel12TimeDomain3d(errorPos, filtLen, config, kernelReg=1e-3, numFreq = 2048, samplerate=s.SAMPLERATE):
+    func = kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelReg, samplerate)
     pointGen, volume = gen.selectPointGen(config)
     integralVal = mc.integrate(func, pointGen, config["MCPOINTS"], volume)
     return integralVal
@@ -502,21 +486,12 @@ def kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelreg, samp
         outputFilt *= sig.windows.hamming(filtLen)[None,None,None,:]
         outputFilt = np.transpose(outputFilt, (1,2,3,0))
         return outputFilt
-        #tdA = sig.windows.hamming(filtLen)[:,None,None] * tdA
-        #funcVal = kappa[:,:,None,:] * kappa[:,None,:,:]
-
-        
-        #A = Kinv @ integralVal @ Kinv
-        #A = np.concatenate((A, np.flip(A[1:-1,:,:], axis=0)), axis=0)
-
     return kernelFilter
 
 #=====================================================================================
 def findNecessaryKernLen(errorPos, radius, height):
     maxLen = 415
     allowedError = 0.1
-    #radius = s.TARGET_RADIUS
-    #height = s.TARGET_HEIGHT
     numError = errorPos.shape[0]
 
     f = getIntegrableFunc3d(errorPos, filtLen=maxLen)
