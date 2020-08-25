@@ -1,0 +1,60 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from enum import Enum
+
+from ancsim.experiment.plotscripts import outputPlot
+
+
+class SCALINGTYPE(Enum):
+    linear = 1
+    dbPower = 2
+    dbAmp = 3
+    ln = 4
+
+def scaleData(scalingType, data):
+    if scalingType == SCALINGTYPE.linear:
+        return data
+    elif scalingType == SCALINGTYPE.dbPower:
+        return 10*np.log10(data)
+    elif scalingType == SCALINGTYPE.dbAmp:
+        return 20*np.log10(data)
+    elif scalingType == SCALINGTYPE.ln:
+        return np.log(data)
+
+def functionOfTimePlot(name, diagSet, timeIdx, folder, printMethod="pdf"):
+    metadata = diagSet[list(diagSet.keys())[0]].metadata
+
+    fig, ax = plt.subplots(1,1, figsize=(14,8))
+    fig.tight_layout(pad=4)
+    
+    xValues = np.arange(timeIdx)[None,:]
+    for algoName, diagnostic in diagSet.items():
+        output = diagnostic.getOutput()
+
+        if output.ndim == 1:
+            output = output[None,:timeIdx]
+        elif output.ndim == 2:
+            output = output[:,:timeIdx]
+        else:
+            raise NotImplementedError
+
+        filterArray = np.logical_not(np.isnan(output))
+        assert(np.isclose(filterArray, filterArray[0,:]).all())
+        filterArray = filterArray[0,:]
+
+        ax.plot(xValues[:,filterArray].T, output[:,filterArray].T, alpha=0.8, label=algoName)
+
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.grid(True)
+    ax.legend(loc="upper right")
+
+    ax.set_xlabel(metadata["xlabel"])
+    ax.set_ylabel(metadata["ylabel"])
+    ax.set_title(metadata["title"] + " - " + name)
+    outputPlot(printMethod,folder, name+"_" + str(timeIdx))
+
+
+
+def soundfieldPlot(name, diagSet, timeIdx, folder, printMethod="pdf"):
+    print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
