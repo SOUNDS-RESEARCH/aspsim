@@ -191,6 +191,33 @@ def runSimMultiProcessing(mainFolder, filterClasses, config, filterArguments):
 
 
 
+
+def generateFullExpData(multiExpFolder):
+    for singleSetFolder in multiExpFolder.iterdir():
+        if singleSetFolder.is_dir():
+            generateSingleExpData(multiExpFolder.joinpath(singleSetFolder))
+
+def generateSingleExpData(singleSetFolder):
+    meu.extractSettings(singleSetFolder)
+    meu.extractSummaries(singleSetFolder, "latest")
+    meu.extractAllSummaries(singleSetFolder)
+    meu.extractConfigs(singleSetFolder)
+    meu.extractFilterParameters(singleSetFolder)
+    
+    summary, settings, config, filtParams = meu.openData(singleSetFolder)
+    entries = meu.findChangingEntries(config)
+    for entry in entries:
+        mep.plotSingleEntryMetrics(entry, summary, config, singleSetFolder)
+        
+    filtEntries = meu.findFilterChangingEntries(filtParams)
+    for filtName, entries in filtEntries.items():
+        for entry in entries:
+            mep.plotSingleEntryMetrics(entry, summary, filtParams[filtName], singleSetFolder)
+
+    if "NOISEFREQ" in entries:
+        mep.reductionByFrequency(singleSetFolder, "latest")
+
+    #sfp.generateSoundfieldForFolder(singleSetFolder)
         
         
         

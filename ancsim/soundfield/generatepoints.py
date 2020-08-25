@@ -11,7 +11,6 @@ def concentricalCircles(numPoints, numCircles, radius, angleOffset="random", zDi
     else:
         zValues = [None for i in range(numCircles)]
 
-
     pointsPerCircle = [numPoints // numCircles for _ in range(numCircles)]
     for i in range(numPoints - numCircles * (numPoints // numCircles)):
         pointsPerCircle[i] += 1
