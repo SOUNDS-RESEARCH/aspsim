@@ -128,7 +128,7 @@ class BandlimitedNoiseSource():
         return filtNoise[None,:]
 
 
-class RecordedNoiseSource():
+class AudioFileSource():
     def __init__ (self, amplitude, samplerate, filename, verbose=False):
         #filename = "noise_bathroom_fan.wav"
         #filename = "song_assemble.wav"
@@ -144,7 +144,7 @@ class RecordedNoiseSource():
             self.audioSamples = spsig.resample_poly(self.audioSamples,up=1, down=downsamplingFactor, axis=-1)
             #srAudio = srAudio // downsamplingFactor
             if verbose:
-                print("RecordedNoiseSource downsampled audio file from ", srAudio, " to ", srAudio//downsamplingFactor, " Hz")
+                print("AudioFileSource downsampled audio file from ", srAudio, " to ", srAudio//downsamplingFactor, " Hz")
 
         #assert(srAudio == samplerate)
         assert(s.ENDTIMESTEP < self.audioSamples.shape[0])
