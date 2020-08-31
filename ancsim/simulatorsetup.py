@@ -5,7 +5,7 @@ import ancsim.settings as s
 import ancsim.soundfield.setuparrays as setup
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.roomimpulseresponse as rir
-from ancsim.signal.sources import SourceArray, SineSource, RecordedNoiseSource, LinearChirpSource, BandlimitedNoiseSource
+from ancsim.signal.sources import SourceArray, SineSource, AudioFileSource, LinearChirpSource, BandlimitedNoiseSource
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 
 def setupIR(pos, config):
@@ -95,7 +95,7 @@ def setupSource(config):
     elif config["SOURCETYPE"] == "recorded":
         assert(s.NUMSOURCE == 1)
         packageDir = Path(__file__).parent
-        noiseSource = RecordedNoiseSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]))
+        noiseSource = AudioFileSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), verbose=True)
     else:
         raise ValueError
     return noiseSource
