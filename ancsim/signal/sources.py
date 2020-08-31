@@ -1,6 +1,6 @@
 import numpy as np
 import pathlib
-import scipy.signal as signal
+import scipy.signal as spsig
 import soundfile as sf
 
 import ancsim.settings as s
@@ -113,30 +113,40 @@ class BandlimitedNoiseSource():
 
         wp = [freq for freq in freqLim]
 
-        self.filtCoef = signal.butter(16, wp, btype='bandpass', output='sos', fs=samplerate)
+        self.filtCoef = spsig.butter(16, wp, btype='bandpass', output='sos', fs=samplerate)
 
-        testSig = signal.sosfilt(self.filtCoef, self.rng.normal(size=10000))
+        testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=10000))
         testSigPow = np.mean(testSig**2)
         self.normFactor = np.sqrt(0.5) / np.sqrt(testSigPow)
 
-        self.zi = signal.sosfilt_zi(self.filtCoef)
+        self.zi = spsig.sosfilt_zi(self.filtCoef)
 
     def getSamples(self, numSamples):
         noise = self.rng.normal(size=numSamples) * self.amplitude
-        filtNoise, self.zi = signal.sosfilt(self.filtCoef, noise, zi=self.zi)
+        filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi)
         filtNoise *= self.normFactor
         return filtNoise[None,:]
 
 
 class RecordedNoiseSource():
-    def __init__ (self, amplitude, sampleRate, filename):
+    def __init__ (self, amplitude, samplerate, filename, verbose=False):
         #filename = "noise_bathroom_fan.wav"
         #filename = "song_assemble.wav"
-        self.audioSamples, sr = sf.read(filename)
-        self.currentSample = 0
         self.amplitude = amplitude
+        self.samplerate = samplerate
+        self.audioSamples, srAudio = sf.read(filename)
+        self.currentSample = 0
+        
+        if srAudio != samplerate:
+            assert(srAudio % samplerate == 0)
+            assert(srAudio > samplerate)
+            downsamplingFactor = srAudio // samplerate
+            self.audioSamples = spsig.resample_poly(self.audioSamples,up=1, down=downsamplingFactor, axis=-1)
+            #srAudio = srAudio // downsamplingFactor
+            if verbose:
+                print("RecordedNoiseSource downsampled audio file from ", srAudio, " to ", srAudio//downsamplingFactor, " Hz")
 
-        assert(sr == sampleRate)
+        #assert(srAudio == samplerate)
         assert(s.ENDTIMESTEP < self.audioSamples.shape[0])
 
     def getSamples(self, numSamples):
@@ -154,7 +164,7 @@ class MLS():
         self.state = None
         
     def getSamples(self, numSamples):
-        seq, self.state = signal.max_len_seq(self.order, state=self.state, length=numSamples, taps=self.poly)
+        seq, self.state = spsig.max_len_seq(self.order, state=self.state, length=numSamples, taps=self.poly)
         return seq * 2 - 1
 
 

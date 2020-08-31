@@ -95,7 +95,7 @@ def setupSource(config):
     elif config["SOURCETYPE"] == "recorded":
         assert(s.NUMSOURCE == 1)
         packageDir = Path(__file__).parent
-        noiseSource = RecordedNoiseSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]))
+        noiseSource = RecordedNoiseSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), verbose=True)
     else:
         raise ValueError
     return noiseSource
