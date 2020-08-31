@@ -10,6 +10,7 @@ import ancsim.utilities as util
 from ancsim.simulatorsetup import setupPos, setupIR
 from ancsim.simulatorlogging import addToSimMetadata
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
+import ancsim.experiment.multiexperimentutils as meu
 
 import importlib.util
 
@@ -51,6 +52,18 @@ def searchForMatchingSession(sessionsPath, newConfig, newSettings):
             return currentSess
     raise ValueError("No matching saved sessions")
 
+def saveRawData(filters, timeIdx, folderPath):
+    controlFiltDict = {}
+    for filt in filters:
+        controlFiltDict[filt.name] = filt.outputRawData()
+        
+    np.savez_compressed(file=folderPath.joinpath("controlFilter_"+str(timeIdx)), **controlFiltDict)
+
+def loadControlFilter(sessionPath):
+    filePath = meu.getHighestNumberedFile(sessionPath, "controlFilter_", ".npy")
+    controlFilt = np.load(sessionPath.joinpath("controlFilter"))
+    return controlFilt
+
 def saveSettings(pathToSave):
     packageDir = Path(__file__).parent
     shutil.copy(packageDir.joinpath("settings.py"), pathToSave.joinpath("settings.py"))
@@ -72,6 +85,7 @@ def loadConfig(sessionPath):
     with open(sessionPath.joinpath("configfile.json"),"r") as f:
         conf = json.load(f)
     return conf
+
 # def loadConfig(sessionPath):
 #     spec = importlib.util.spec_from_file_location("loadedConfigModule", str(sessionPath.joinpath("configfile.py")))
 #     loadedConfig = importlib.util.module_from_spec(spec)

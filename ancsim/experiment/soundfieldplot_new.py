@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import ancsim.experiment.multiexperimentutils as meu
+import ancsim.saveloadsession as sess
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.soundfield.roomimpulseresponse as rir
 import ancsim.signal.sources
@@ -16,7 +17,8 @@ def generateSoundfieldForFolder(singleSetFolder):
         makeSoundfieldPlot(singleSetFolder+singleRunFolder)
 
 def makeSoundfieldPlot(singleRunFolder):
-    failed, config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints = loadSession(singleRunFolder)
+    failed, config, s, pos, pointsToSim, source, 
+        filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints = loadSession(singleRunFolder)
     if failed:
         print("Session Load Failed")
         return
@@ -113,24 +115,26 @@ def genSpeakerSignals(s, totNumSamples, refSig, filterCoeffs, sourceToRef):
 
 
 def loadSession(singleRunFolder):
-    s = {}
-    s["SAMPLERATE"] = 4000
-    s["BLOCKSIZE"] = 512
-    try:
-        with open(singleRunFolder+"configfile.json") as f:
-            config = json.load(f)
-    except FileNotFoundError:
-        return True,None,None,None,None,None,None,None,None,None
+    # s = {}
+    # s["SAMPLERATE"] = 4000
+    # s["BLOCKSIZE"] = 512
+    with open(singleRunFolder+"configfile.json") as f:
+        config = json.load(f)
+
+    if config["LOADSESSION"]:
+        pos, srcFilt, spkFilt = sess.loadSession(config, settings, path, singleRunFolder)
+    else:
+        raise NotImplementedError
     
     filterCoeffsFile = meu.getHighestNumberedFile(singleRunFolder, "filterCoeffs_", ".npz")
     filterCoeffs = np.load(singleRunFolder+filterCoeffsFile)
     filterNames  = [names for names in filterCoeffs.keys()]
     filterCoeffs = [val for names,val in filterCoeffs.items()]
     
-    pos = loadPositions(singleRunFolder+"pos.npz")
-    irGenPos = loadPositions("savedsession/pos.npz")
-    assert(posEqual(pos, irGenPos))
-    pointsToSim = irGenPos.evals2
+    #pos = loadPositions(singleRunFolder+"pos.npz")
+    #irGenPos = loadPositions("savedsession/pos.npz")
+    #assert(posEqual(pos, irGenPos))
+    pointsToSim = irGenPos.evals
     
     loadedEvalsIr = np.load("savedsession/evals_ir_close.npz")
     sourceToPoints = loadedEvalsIr["sourceToEvals2"]

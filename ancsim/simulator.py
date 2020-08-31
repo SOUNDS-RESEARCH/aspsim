@@ -14,7 +14,7 @@ from ancsim.configfile import configPreprocessing
 #from ancsim.experiment.saveloadsession import loadSession
 from ancsim.simulatorsetup import setupIR, setupPos, setupSource
 from ancsim.simulatorlogging import getFolderName, addToSimMetadata, writeFilterMetadata
-from ancsim.saveloadsession import saveSettings, saveConfig, loadSession
+from ancsim.saveloadsession import saveSettings, saveConfig, loadSession, saveRawData
 
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
@@ -96,21 +96,14 @@ class Simulator:
                 if n_tot % s.SIMCHUNKSIZE == 0 and n_tot > 0:# and bufferIdx % s.PLOTFREQUENCY == 0:
                     if self.config["PLOTOUTPUT"] != "none":
                         self.plotDispatcher.dispatch(self.filters, n_tot, bufferIdx, self.folderPath)
-                    if self.config["SAVERAWDATA"] and (bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0 or bufferIdx-1 == 0):
-                            meu.saveRawData(self.filters, n_tot, self.folderPath)
+                    if self.config["SAVERAWDATA"] and (
+                        bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0 \
+                            or bufferIdx-1 == 0):
+                        saveRawData(self.filters, n_tot, self.folderPath)
 
                 n_tot += 1
                 
-        # if self.config["PLOTOUTPUT"] != "none":
-        #     meu.generateSummary(self.filters, n_tot, self.folderPath)
-
-
-# def sim(filters, noiseSource, speakerFilters, 
-#                 sourceFilters, pos, config,
-#                 folderForPlots="figs"):
-    #if config["LOADSESSION"]:
-    #    loadSession(config, s, Path(__file__).parent.parent.joinpath("sessionfolder"))
-
+                
 def printInfo(config, folderPath):
     print("Session folder: ", folderPath.name)
     print("Number of mics: ", s.NUMERROR)
@@ -127,7 +120,6 @@ def setUniqueFilterNames(filters):
             i += 1
         names.append(newName)
         filt.name = newName
-
 
 
 def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):

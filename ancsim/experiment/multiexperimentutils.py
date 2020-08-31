@@ -117,49 +117,42 @@ def generateSummary(filters, timeIdx, folder):
     with open(folder.joinpath("anc_summary_"+str(timeIdx)+".json"), "w") as writeFile:
         json.dump(fullSummary, writeFile, indent=4)
         
-        
-def saveRawData(filters, timeIdx, folderPath):
-    controlFiltDict = {}
-    for filt in filters:
-        controlFiltDict[filt.name] = filt.outputRawData()
-        
-    np.savez_compressed(file=folderPath.joinpath("controlFilter_"+str(timeIdx)), **controlFiltDict)
-
+    
         
 
-def saveRawData_old(filters, timeIdx, folderName):
-    fileName = "rawreductiondata_"
+# def saveRawData_old(filters, timeIdx, folderName):
+#     fileName = "rawreductiondata_"
 
-    if len(filters) == 4:
-        names = ["mpc", "freq", "kernel11", "kernel10"]
-        for filt, name in zip(filters, names):
-            np.savez(folderName + fileName+name+"_"+str(timeIdx), 
-                    micsEPow = filt.diag.micsEPow[:timeIdx],
-                    micsNoise = filt.diag.micsNoise[:timeIdx],
-                    targEPow = filt.diag.targEPow[:timeIdx],
-                    targNoise = filt.diag.targNoise[:timeIdx])
-        np.savez_compressed(file=folderName+"filterCoeffs_"+str(timeIdx), 
-                            mpc=filters[0].H, 
-                            freq=filters[1].H,
-                            kernel10=filters[2].H,
-                            kernel11=filters[3].H)
-    else:
-        print("WARNING: CANT SAVE RAW DATA, NOT IMPLEMENTED FOR CURRENT SETUP")
+#     if len(filters) == 4:
+#         names = ["mpc", "freq", "kernel11", "kernel10"]
+#         for filt, name in zip(filters, names):
+#             np.savez(folderName + fileName+name+"_"+str(timeIdx), 
+#                     micsEPow = filt.diag.micsEPow[:timeIdx],
+#                     micsNoise = filt.diag.micsNoise[:timeIdx],
+#                     targEPow = filt.diag.targEPow[:timeIdx],
+#                     targNoise = filt.diag.targNoise[:timeIdx])
+#         np.savez_compressed(file=folderName+"filterCoeffs_"+str(timeIdx), 
+#                             mpc=filters[0].H, 
+#                             freq=filters[1].H,
+#                             kernel10=filters[2].H,
+#                             kernel11=filters[3].H)
+#     else:
+#         print("WARNING: CANT SAVE RAW DATA, NOT IMPLEMENTED FOR CURRENT SETUP")
 
-def saveSetupData(folderName, pos, sourceFilters, speakerToEvals2):
-    print("WARNING: Deprecated - Please use saveloadsession.py functionality instead")
-    np.savez(file=folderName+"pos",
-                ref = pos.ref,
-                error = pos.error,
-                source = pos.source,
-                speaker = pos.speaker,
-                target = pos.target,
-                evals = pos.evals,
-                evals2 = pos.evals2)
+# def saveSetupData(folderName, pos, sourceFilters, speakerToEvals2):
+#     print("WARNING: Deprecated - Please use saveloadsession.py functionality instead")
+#     np.savez(file=folderName+"pos",
+#                 ref = pos.ref,
+#                 error = pos.error,
+#                 source = pos.source,
+#                 speaker = pos.speaker,
+#                 target = pos.target,
+#                 evals = pos.evals,
+#                 evals2 = pos.evals2)
 
-    np.savez_compressed(file=folderName+"evals_ir_close", 
-                        sourceToEvals2=sourceFilters[-1].ir, 
-                        speakerToEvals2=speakerToEvals2)
+#     np.savez_compressed(file=folderName+"evals_ir_close", 
+#                         sourceToEvals2=sourceFilters[-1].ir, 
+#                         speakerToEvals2=speakerToEvals2)
 
 def extractFilterParameters(expFolder):
     allParameters = {}
@@ -184,7 +177,8 @@ def extractSummaries(expFolder, summaryIdx="latest"):
     for dirName in expDirs[:]:
         try:
             if summaryIdx == "latest":
-                summaryName = getLatestSummary(expFolder.joinpath(dirName))
+                #summaryName = getLatestSummary(expFolder.joinpath(dirName))
+                summaryName = getHighestNumberedFile(expFolder.joinpath(dirName), "summary_", ".json")
             else:
                 summaryName ="summary_" + str(summaryIdx) + ".json"
 

@@ -4,8 +4,6 @@ import json
 
 
 
-
-
 def addToSummary(diagName, summaryValues, timeIdx, folderPath):
     fullPath = folderPath.joinpath("summary_"+str(timeIdx)+".json")
     try:

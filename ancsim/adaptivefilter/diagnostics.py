@@ -7,8 +7,8 @@ import ancsim.utilities as util
 import ancsim.settings as s
 import ancsim.experiment.plotscripts as psc
 from ancsim.signal.filterclasses import Filter_IntBuffer, FilterSum_IntBuffer, FilterMD_IntBuffer
-from ancsim.experiment.diagnosticplots import functionOfTimePlot, soundfieldPlot
-import ancsim.experiment.diagnosticsummary as dsum
+from ancsim.adaptivefilter.diagnosticplots import functionOfTimePlot, soundfieldPlot
+import ancsim.adaptivefilter.diagnosticsummary as dsum
 
 class DIAGNOSTICTYPE (Enum):
     perSimBuffer = 1
