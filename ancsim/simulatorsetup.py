@@ -1,5 +1,5 @@
 import numpy as np
-
+from pathlib import Path
 
 import ancsim.settings as s
 import ancsim.soundfield.setuparrays as setup
@@ -7,6 +7,7 @@ import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.roomimpulseresponse as rir
 from ancsim.signal.sources import SourceArray, SineSource, AudioFileSource, LinearChirpSource, BandlimitedNoiseSource
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
+
 
 def setupIR(pos, config):
     print("Computing Room IR...")

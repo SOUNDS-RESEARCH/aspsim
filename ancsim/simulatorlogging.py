@@ -8,7 +8,8 @@ def getFolderName(config, folderForPlots, generateSubFolder=True, safeNaming=Fal
     packageDir = Path(__file__).parent
     if config["PLOTOUTPUT"] != "none":
         if generateSubFolder:
-            folderName = createFigFolder(packageDir.parent.joinpath(folderForPlots), safeNaming)
+            #folderName = createFigFolder(packageDir.parent.joinpath(folderForPlots), safeNaming)
+            folderName = createFigFolder(folderForPlots, safeNaming)
         else:
             folderName = folderForPlots
             if not folderName.exists():

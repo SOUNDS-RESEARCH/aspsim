@@ -22,6 +22,7 @@ from ancsim.adaptivefilter.diagnostics import PlotDiagnosticDispatcher
 
 class Simulator:
     def __init__(self, config, folderForPlots=Path(__file__).parent.parent.joinpath("figs"), 
+                    sessionFolder=None,
                     generateSubFolder=True):
         #PREPREPARATION
         self.filters = []
@@ -41,7 +42,7 @@ class Simulator:
         #CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
             self.pos, self.sourceFilters, self.speakerFilters = \
-                loadSession(config, s, Path(__file__).parent.parent.joinpath("savedsessions"), self.folderPath)
+                loadSession(config, s, sessionFolder, self.folderPath)
         else:
             self.pos = setupPos(config)
             self.sourceFilters, self.speakerFilters, irMetadata = setupIR(self.pos, config)
