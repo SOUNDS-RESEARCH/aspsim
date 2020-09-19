@@ -144,7 +144,7 @@ def configMatch(config1, config2):
 
     confView1 = {key:value for key,value in config1.items() if not key in allowedDifferent}
     confView2 = {key:value for key,value in config2.items() if not key in allowedDifferent}
-    print("Config ", confView1 == confView2)
+    #print("Config ", confView1 == confView2)
     return confView1 == confView2
 
 def settingsMatch(settings1, settings2):
@@ -158,5 +158,5 @@ def settingsMatch(settings1, settings2):
                         "NUMSOURCE", "NUMEVALS", "NUMTARGET"]
     sView1 = {key:value for key, value in settings1.__dict__.items() if key in entriesToCheck}
     sView2 = {key:value for key, value in settings2.__dict__.items() if key in entriesToCheck}
-    print("Settings ", sView1 == sView2)
+    #print("Settings ", sView1 == sView2)
     return sView1 == sView2

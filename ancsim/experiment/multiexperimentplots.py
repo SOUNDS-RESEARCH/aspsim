@@ -9,7 +9,7 @@ import ancsim.settings as s
 
 #selectPlots accepts "latest" and "all" or an index, "all" not yet implemented
 def reductionByFrequency(expFolder, selectPlots="latest", plotMethod="tikz"):
-    summary, settings, config = openData(expFolder, selectPlots)
+    summary, settings, config, filtParams = openData(expFolder, selectPlots)
     fig, axes = plt.subplots(1,2, figsize=(12,5))
 
     indices = np.argsort(config["NOISEFREQ"])
@@ -198,7 +198,7 @@ def plotTwoEntries(entry1, entry2, summary, settings, expFolder):
         #plt.plot("o")
 
 
-def plotSingleEntryMetrics(entry, summary, settings, expFolder, filtName="all"):
+def plotSingleEntryMetrics(entry, summary, settings, expFolder, outputMethod="pdf", filtName="all"):
     paramVals = settings[entry]
 
     numMetrics = len(summary)
@@ -222,9 +222,10 @@ def plotSingleEntryMetrics(entry, summary, settings, expFolder, filtName="all"):
     plt.legend()
 
     #plt.show()
-    plt.savefig(expFolder.joinpath("metricsOver" + entry +".pdf"), dpi=300, facecolor='w', edgecolor='w',
-    orientation='portrait', papertype=None, format="pdf",
-    transparent=False, bbox_inches=None, pad_inches=0.1)
+    outputPlot(outputMethod, expFolder, "metricsOver" + entry +".pdf")
+    # plt.savefig(expFolder.joinpath("metricsOver" + entry +".pdf"), dpi=300, facecolor='w', edgecolor='w',
+    # orientation='portrait', papertype=None, format="pdf",
+    # transparent=False, bbox_inches=None, pad_inches=0.1)
 
 # def plotSingleEntryMetrics(entry, summary, settings, expFolder):
 #     paramVals = settings[entry]

@@ -82,6 +82,7 @@ def getPositionsRectangle3d(config):
     #                             gp.stackedEquidistantRectangles(numErrorOuter, 2, 
     #                                 [config["TARGETWIDTH"]+0.05, config["TARGETWIDTH"]+0.05], config["TARGETHEIGHT"])), axis=0)
 
+
     pos.error = gp.FourEquidistantRectangles(s.NUMERROR, config["TARGETWIDTH"], 0.03, 
                                         -config["TARGETHEIGHT"]/2, config["TARGETHEIGHT"]/2)
     pos.speaker = gp.stackedEquidistantRectangles(s.NUMSPEAKER,2, [s.SPEAKERDIM, s.SPEAKERDIM], config["TARGETHEIGHT"])

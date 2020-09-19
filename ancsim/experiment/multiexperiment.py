@@ -17,8 +17,6 @@ import ancsim.utilities as util
 from ancsim.configfile import getConfig
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.experiment.multiexperimentplots as mep
-from ancsim.experimentspec import allDefinedSpecs
-from ancsim.experiment.multiexperimentplotrunner import generateFullExpData
 
 class DictIterator():
     def __init__(self, numDicts):
@@ -147,12 +145,13 @@ def insertSimAttributes(listOfParamDicts, sim):
 #         with mp.ProcessingPool(ncpu) as p:
 #             p.map(runSimMultiProcessing,*mpArgs)
 
-def runExperiment(spec, filterClasses, parentFolder=Path(__file__).parent.parent.parent.joinpath("multi_experiments/")):
+def runExperiment(spec, filterClasses, parentFolder=Path(__file__).parent.parent.parent.joinpath("multi_experiments/"),
+                                        sessionFolder=None):
     mainFolder = util.getUniqueFolderName("full_exp_", parentFolder)
     mainFolder.mkdir()
-    ncpu = mp.cpu_count() - 1
+    ncpu = mp.cpu_count() - 2
 
-    mpArgs = [[] for _ in range(4)]
+    mpArgs = [[] for _ in range(5)]
     for newConfigs, newParams in spec.genExperimentSets():
         setFolder = util.getUniqueFolderName("single_set_", mainFolder)
         setFolder.mkdir()
@@ -162,11 +161,12 @@ def runExperiment(spec, filterClasses, parentFolder=Path(__file__).parent.parent
             mpArgs[1].append(filterClasses)
             mpArgs[2].append(conf)
             mpArgs[3].append(params)
+            mpArgs[4].append(sessionFolder)
             if len(mpArgs[1]) == ncpu:
                 mpArgs[0] = util.getMultipleUniqueFolderNames("figs_",setFolder,ncpu)
                 with mp.ProcessingPool(ncpu) as p:
                     p.map(runSimMultiProcessing,*mpArgs)
-                    mpArgs = [[] for _ in range(4)]
+                    mpArgs = [[] for _ in range(5)]
 
     if len(mpArgs[1]) > 0:
         mpArgs[0] = util.getMultipleUniqueFolderNames("figs_",setFolder,len(mpArgs[1]))
@@ -174,8 +174,8 @@ def runExperiment(spec, filterClasses, parentFolder=Path(__file__).parent.parent
             p.map(runSimMultiProcessing,*mpArgs)
     generateFullExpData(mainFolder)
 
-def runSimMultiProcessing(mainFolder, filterClasses, config, filterArguments):
-    sim = Simulator(config, mainFolder, generateSubFolder=False)
+def runSimMultiProcessing(mainFolder, filterClasses, config, filterArguments, sessionFolder):
+    sim = Simulator(config, mainFolder, sessionFolder, generateSubFolder=False)
     
     filterArguments = insertSimAttributes(filterArguments, sim)
     # for i, filtArg in enumerate(filterArguments):
@@ -192,12 +192,12 @@ def runSimMultiProcessing(mainFolder, filterClasses, config, filterArguments):
 
 
 
-def generateFullExpData(multiExpFolder):
+def generateFullExpData(multiExpFolder, outputMethod="pdf"):
     for singleSetFolder in multiExpFolder.iterdir():
         if singleSetFolder.is_dir():
-            generateSingleExpData(multiExpFolder.joinpath(singleSetFolder))
+            generateSingleExpData(multiExpFolder.joinpath(singleSetFolder), outputMethod)
 
-def generateSingleExpData(singleSetFolder):
+def generateSingleExpData(singleSetFolder, outputMethod="pdf"):
     meu.extractSettings(singleSetFolder)
     meu.extractSummaries(singleSetFolder, "latest")
     meu.extractAllSummaries(singleSetFolder)
@@ -207,15 +207,17 @@ def generateSingleExpData(singleSetFolder):
     summary, settings, config, filtParams = meu.openData(singleSetFolder)
     entries = meu.findChangingEntries(config)
     for entry in entries:
-        mep.plotSingleEntryMetrics(entry, summary, config, singleSetFolder)
+        mep.plotSingleEntryMetrics(entry, summary, config, singleSetFolder, outputMethod)
+
+    # if "NOISEFREQ" in entries:
+    #     mep.reductionByFrequency(singleSetFolder, "latest")
         
     filtEntries = meu.findFilterChangingEntries(filtParams)
     for filtName, entries in filtEntries.items():
         for entry in entries:
-            mep.plotSingleEntryMetrics(entry, summary, filtParams[filtName], singleSetFolder)
+            mep.plotSingleEntryMetrics(entry, summary, filtParams[filtName], singleSetFolder, outputMethod)
 
-    if "NOISEFREQ" in entries:
-        mep.reductionByFrequency(singleSetFolder, "latest")
+    
 
     #sfp.generateSoundfieldForFolder(singleSetFolder)
         

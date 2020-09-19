@@ -9,9 +9,9 @@ def getConfig():
     possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav"]
 
     config["AUDIOFILENAME"] = possibleAudioFiles[0]
-    config["SOURCETYPE"] = possibleSources[3]
-    config["NOISEFREQ"] = 150
-    config["NOISEBANDWIDTH"] = 200
+    config["SOURCETYPE"] = possibleSources[1]
+    config["NOISEFREQ"] = 200
+    config["NOISEBANDWIDTH"] = 50
     config["SOURCEAMP"] = (50, 100, 50, 25, 20, 15)
 
     #ROOM AND SETTING
@@ -33,7 +33,7 @@ def getConfig():
     config["BLOCKSIZE"] = 1024
 
     #KERNEL INTERPOLATION
-    config["MCPOINTS"] = 100
+    config["MCPOINTS"] = 1000
     config["KERNFILTLEN"] = 155
 
     #SECONDARY PATH MODELLING
@@ -42,7 +42,7 @@ def getConfig():
     #PLOTS AND MISC
     config["SAVERAWDATA"] = False
     config["SAVERAWDATAFREQUENCY"] = 5
-    config["PLOTOUTPUT"] = "pdf"
+    config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
 
     configInstantCheck(config)

@@ -88,7 +88,7 @@ def setupSource(config):
     if config["SOURCETYPE"] == "sine":
         noiseSource = SourceArray(SineSource, s.NUMSOURCE, config["SOURCEAMP"], config["NOISEFREQ"], s.SAMPLERATE)
     elif config["SOURCETYPE"] == "noise":
-        noiseSource = SourceArray(BandlimitedNoiseSource, s.NUMSOURCE, config["s.SOURCEAMP"], 
+        noiseSource = SourceArray(BandlimitedNoiseSource, s.NUMSOURCE, config["SOURCEAMP"], 
                                 [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], s.SAMPLERATE)
     elif config["SOURCETYPE"] == "chirp":
         noiseSource = SourceArray(LinearChirpSource, s.NUMSOURCE, config["SOURCEAMP"], 
