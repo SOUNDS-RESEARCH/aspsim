@@ -8,8 +8,8 @@ def getConfig():
     possibleSources = ["sine","noise", "chirp", "recorded"]
     possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav"]
 
-    config["AUDIOFILENAME"] = possibleAudioFiles[0]
-    config["SOURCETYPE"] = possibleSources[1]
+    config["AUDIOFILENAME"] = possibleAudioFiles[1]
+    config["SOURCETYPE"] = possibleSources[3]
     config["NOISEFREQ"] = 200
     config["NOISEBANDWIDTH"] = 50
     config["SOURCEAMP"] = (50, 100, 50, 25, 20, 15)
@@ -20,6 +20,7 @@ def getConfig():
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
 
+    config["REALIMPULSERESPONSES"] = True
     config["SPATIALDIMENSIONS"] = 3
     config["REVERBERATION"] = True
     config["ROOMSIZE"] = [7, 5, 2.5]
@@ -55,6 +56,9 @@ def configInstantCheck(conf):
 
     assert(conf["KERNFILTLEN"] % 2 == 1)
 
+    if conf["REALIMPULSERESPONSES"]:
+        assert(conf["LOADSESSION"])
+
 
 def configPreprocessing(conf, numFilt):
     if isinstance(conf["BLOCKSIZE"], int):
@@ -63,6 +67,7 @@ def configPreprocessing(conf, numFilt):
     conf["LARGESTBLOCKSIZE"] = int(np.max(conf["BLOCKSIZE"]))
 
     configSimCheck(conf, numFilt)
+    configInstantCheck(conf)
     return conf
     
 def configSimCheck(conf, numFilt):

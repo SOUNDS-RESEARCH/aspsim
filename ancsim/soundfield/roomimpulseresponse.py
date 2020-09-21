@@ -205,9 +205,6 @@ def showRT60(multiChannelIR):
             print("RT60 is: ", rt)
 
 
-def rt60 (singleIR):
-    pass
-
 if __name__ == "__main__":
     import setupfunctions as setup
     import matplotlib.pyplot as plt

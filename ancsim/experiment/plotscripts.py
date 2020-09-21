@@ -34,7 +34,42 @@ def outputPlot(printMethod, folder="",name=""):
         raise ValueError
     plt.close("all")
 
-def plotPos(pos, folder, config, printMethod="pdf"):
+def setBasicPlotLook(ax):
+    ax.grid(True)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+def plot3Din2D(ax, posData, symbol="x", name=""):
+    uniqueZValues = np.unique(posData[:,2].round(decimals=4))
+    
+    if len(uniqueZValues) == 1:
+        alpha = np.array([1])
+    else:
+        alpha = np.linspace(0.4, 1, len(uniqueZValues))
+
+    for i, zVal in enumerate(uniqueZValues):
+        idx = np.where(posData[:,2] == zVal)
+
+        ax.plot(posData[idx,0], posData[idx,1], symbol, label=name+": z = " + zVal, alpha=alpha[i])
+
+    
+
+def plotPos(pos, folder, printMethod="pdf"):
+    [fig, ax] = plt.subplots(1,1, figsize=(8,8))
+    ax.set_title("Positions")
+
+    plot3Din2D(ax, pos.speaker, "o", "loudspeaker")
+    plot3Din2D(ax, pos.source, "o", "source")
+    plot3Din2D(ax, pos.error, "x", "error mic")
+    if hasattr(pos, "ref"):
+        plot3Din2D(ax, pos.ref, "x", "reference")
+
+    ax.autoscale()
+    outputPlot(printMethod, folder, "positions")
+
+    
+
+def plotPos2dDisc(pos, folder, config, printMethod="pdf"):
     def setLook(ax, config):
         ax.grid(True)
         ax.spines['right'].set_visible(False)

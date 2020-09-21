@@ -171,7 +171,7 @@ def plotAnyPos(pos, folderPath, config):
             if config["REFDIRECTLYOBTAINED"]:
                 raise NotImplementedError
             else:
-                psc.plotPos(pos, folderPath, config, config["PLOTOUTPUT"])
+                psc.plotPos2dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
         else:
             raise NotImplementedError
     else:
