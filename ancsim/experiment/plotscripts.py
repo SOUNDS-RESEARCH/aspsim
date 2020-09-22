@@ -7,8 +7,41 @@ import pathlib
 import ancsim.settings as s
 import ancsim.utilities as util
 
+def deleteEarlierTikzPlot(folder, name):
+    currentIdx = []
+    for ch in reversed(name):
+        if ch.isdigit():
+            currentIdx.append(ch)
+        else:
+            break
+    if len(currentIdx) == 0:
+        return 
+    currentIdx = int("".join(currentIdx[::-1]))
+    assert(name.endswith(str(currentIdx)))
 
-def outputPlot(printMethod, folder="",name=""):
+    startName = name[:-len(str(currentIdx))]
+    
+    for f in folder.iterdir():
+        if f.stem.startswith(startName):
+            if f.is_dir():
+                fIdx = int(f.stem[len(startName):])
+                if fIdx > currentIdx:
+                    raise ValueError
+                elif currentIdx == fIdx:
+                    continue
+                for plotFile in f.iterdir():
+                    assert(plotFile.stem.startswith(startName))
+                    if plotFile.suffix == ".pdf":
+                        plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+                    else:
+                        assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+                        plotFile.unlink()
+                f.rmdir()
+                
+        
+
+
+def outputPlot(printMethod, folder="",name="", keepOnlyLatestTikz=True):
     if printMethod == "show":
         plt.show()
     elif printMethod == "tikz":
@@ -20,10 +53,12 @@ def outputPlot(printMethod, folder="",name=""):
         tikzplotlib.save(str(nestedFolder.joinpath(name +".tex")), 
                          externalize_tables=True, 
                          tex_relative_path_to_data="../figs/"+name+"/", 
-                         float_format= ".8g")
+                         float_format= ".4g")
         plt.savefig(str(nestedFolder.joinpath(name +".pdf")), dpi=300, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format="pdf",
         transparent=False, bbox_inches=None, pad_inches=0.2)
+        if keepOnlyLatestTikz:
+            deleteEarlierTikzPlot(folder, name)
     elif printMethod == "pdf":
         plt.savefig(str(folder.joinpath(name +".pdf")), dpi=300, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format="pdf",
