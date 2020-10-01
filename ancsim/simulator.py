@@ -47,7 +47,7 @@ class Simulator:
             self.pos = setupPos(config)
             self.sourceFilters, self.speakerFilters, irMetadata = setupIR(self.pos, config)
             addToSimMetadata(self.folderPath, irMetadata)
-        self.noiseSource = setupSource(config)
+        self.noiseSource = setupSource(config, s.SAMPLERATE)
 
         #LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)

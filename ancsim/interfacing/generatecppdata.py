@@ -5,10 +5,9 @@ import json
 import ancsim.settings as s
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.setupfunctions as setup
-from ancsim.configfile import config
 
 
-def saveRealtimeSimSetup():
+def saveRealtimeSimSetup(config):
 
     posData = {}
     irData = {}
@@ -38,7 +37,7 @@ def saveRealtimeSimSetup():
     metaData["numError"] = s.NUMERROR
     metaData["numRef"] = s.NUMREF
     metaData["numSpeaker"] = s.NUMSPEAKER
-    metaData["numSource"] = s.NUMSOURCE
+    metaData["numSource"] = config["NUMSOURCE"]
     metaData["numTarget"] = s.NUMTARGET
     metaData["numEvals"] = s.NUMEVALS
 
@@ -73,7 +72,7 @@ def appendCppConstant(name, value, typeName, fileName, path):
         f.write("static constexpr " + typeName + " " + name.upper() + " { " + str(value) + " }; \n")
 
 
-def saveRealtimeSimSetup_2():
+def saveRealtimeSimSetup_2(config):
     fullPath = "../real_time_anc/data/"
     posData = {}
     irData = {}
@@ -105,7 +104,7 @@ def saveRealtimeSimSetup_2():
     appendCppConstant("numError", s.NUMERROR, "int", fName, fullPath)
     appendCppConstant("numRef", s.NUMREF, "int", fName, fullPath)
     appendCppConstant("numSpeaker", s.NUMSPEAKER, "int", fName, fullPath)
-    appendCppConstant("numSource", s.NUMSOURCE, "int", fName, fullPath)
+    appendCppConstant("numSource", config["NUMSOURCE"], "int", fName, fullPath)
     appendCppConstant("numTarget", s.NUMTARGET, "int", fName, fullPath)
     appendCppConstant("numEvals", s.NUMEVALS, "int", fName, fullPath)
 

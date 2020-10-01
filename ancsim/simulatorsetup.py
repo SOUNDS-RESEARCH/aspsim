@@ -51,8 +51,8 @@ def setupIR(pos, config):
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals)
 
     if config["REFDIRECTLYOBTAINED"]:
-        assert(s.NUMREF == s.NUMSOURCE)
-        sourceFilters[1] = FilterSum_IntBuffer(np.ones((s.NUMREF, s.NUMSOURCE, 1)))
+        assert(s.NUMREF == config["NUMSOURCE"])
+        sourceFilters[1] = FilterSum_IntBuffer(np.ones((s.NUMREF, config["NUMSOURCE"], 1)))
     return sourceFilters, speakerFilters, metadata
 
 def setupPos(config):
@@ -83,20 +83,20 @@ def setupPos(config):
     return pos
 
 
-def setupSource(config):
+def setupSource(config, samplerate):
     print("Setup Source")
     if config["SOURCETYPE"] == "sine":
-        noiseSource = SourceArray(SineSource, s.NUMSOURCE, config["SOURCEAMP"], config["NOISEFREQ"], s.SAMPLERATE)
+        noiseSource = SourceArray(SineSource, config["NUMSOURCE"], config["SOURCEAMP"], config["NOISEFREQ"], samplerate)
     elif config["SOURCETYPE"] == "noise":
-        noiseSource = SourceArray(BandlimitedNoiseSource, s.NUMSOURCE, config["SOURCEAMP"], 
-                                [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], s.SAMPLERATE)
+        noiseSource = SourceArray(BandlimitedNoiseSource, config["NUMSOURCE"], config["SOURCEAMP"], 
+                                [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], samplerate)
     elif config["SOURCETYPE"] == "chirp":
-        noiseSource = SourceArray(LinearChirpSource, s.NUMSOURCE, config["SOURCEAMP"], 
-                                  [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, s.SAMPLERATE)
+        noiseSource = SourceArray(LinearChirpSource, config["NUMSOURCE"], config["SOURCEAMP"], 
+                                  [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, samplerate)
     elif config["SOURCETYPE"] == "recorded":
-        assert(s.NUMSOURCE == 1)
+        assert(config["NUMSOURCE"] == 1)
         packageDir = Path(__file__).parent
-        noiseSource = AudioFileSource(config["SOURCEAMP"][0], s.SAMPLERATE, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), verbose=True)
+        noiseSource = AudioFileSource(config["SOURCEAMP"][0], samplerate, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), verbose=True)
     else:
         raise ValueError
     return noiseSource

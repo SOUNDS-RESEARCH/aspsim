@@ -53,7 +53,7 @@ def outputPlot(printMethod, folder="",name="", keepOnlyLatestTikz=True):
         tikzplotlib.save(str(nestedFolder.joinpath(name +".tex")), 
                          externalize_tables=True, 
                          tex_relative_path_to_data="../figs/"+name+"/", 
-                         float_format= ".4g")
+                         float_format= ".8g")
         plt.savefig(str(nestedFolder.joinpath(name +".pdf")), dpi=300, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format="pdf",
         transparent=False, bbox_inches=None, pad_inches=0.2)

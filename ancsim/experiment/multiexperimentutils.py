@@ -44,7 +44,7 @@ def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
 
 
 
-def getHighestNumberedFile(folder, prefix, suffix):
+def getHighestNumberedFile_string(folder, prefix, suffix):
     highestFileIdx = -1
     for filename in os.listdir(folder):
         if filename.startswith(prefix) and filename.endswith(suffix):
@@ -61,6 +61,24 @@ def getHighestNumberedFile(folder, prefix, suffix):
     else:
         fname = prefix + str(highestFileIdx) + suffix
         return fname
+
+def getHighestNumberedFile(folder, prefix, suffix):
+    highestFileIdx = -1
+    for filePath in folder.iterdir():
+        if filePath.name.startswith(prefix) and filePath.name.endswith(suffix):
+            summaryIdx = filePath.name[len(prefix):len(filePath.name)-len(suffix)]
+            try:
+                summaryIdx = int(summaryIdx)
+                if summaryIdx > highestFileIdx:
+                    highestFileIdx = summaryIdx
+            except ValueError:
+                print("Warning: check prefix and suffix")
+    
+    if highestFileIdx == -1:
+        return None
+    else:
+        fname = prefix + str(highestFileIdx) + suffix
+        return folder.joinpath(fname)
 
 
 def getLatestSummary(folder):

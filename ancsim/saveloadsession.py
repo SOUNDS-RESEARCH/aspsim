@@ -155,7 +155,7 @@ def settingsMatch(settings1, settings2):
     entriesToCheck = ["ERRORMICRANDOMNESS", "SPEAKERDIM", "SPEAKERANGLEOFFSET", 
                         "ERRORMICANGLEOFFSET", "SAMPLERATE", "C", 
                         "NUMREF", "NUMERROR", "NUMSPEAKER", 
-                        "NUMSOURCE", "NUMEVALS", "NUMTARGET"]
+                        "NUMEVALS", "NUMTARGET"]
     sView1 = {key:value for key, value in settings1.__dict__.items() if key in entriesToCheck}
     sView2 = {key:value for key, value in settings2.__dict__.items() if key in entriesToCheck}
     #print("Settings ", sView1 == sView2)

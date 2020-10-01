@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.signal as spsig
-
+import ancsim.utilities as util
 
 
 
@@ -66,3 +66,21 @@ def reduceSize(filePath, decimation=1, precision=3, decimationSections=tuple()):
 
 
 
+def periodical_mean(filePath, calc_at_time, mean_len, decibel=False):
+    orig_data = loadPGFPlotData(filePath)
+    #assert np.all(orig_data[:-1,0] <= orig_data[1:,0]), "Time indices must be sorted"
+    assert np.all(orig_data[:-1,0] == orig_data[1:,0]-1), "One sample per entry"
+    #assert np.all(np.isin(calc_at_time, orig_data[:,0])), "Time indices must exist"
+
+    calc_at_idx = np.searchsorted(orig_data[:,0], calc_at_time)
+    new_data = np.zeros(len(calc_at_idx), 2)
+    for n, idx in enumerate(calc_at_idx):
+        new_data[n,0] = idx
+        new_data[n,1] = util.pow2db(np.mean(util.db2pow(orig_data[idx-mean_len+1:idx+1,1])))
+
+    fmt = createFormatString(findColumnTypes(data), precision)
+    savePGFPlotData(filePath, new_data, suffix="mean_line", fmt=fmt)
+    
+
+
+    
