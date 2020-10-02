@@ -43,7 +43,7 @@ def getConfig():
     #PLOTS AND MISC
     config["SAVERAWDATA"] = False
     config["SAVERAWDATAFREQUENCY"] = 3
-    config["PLOTOUTPUT"] = "pdf"
+    config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
 
     #configInstantCheck(config)

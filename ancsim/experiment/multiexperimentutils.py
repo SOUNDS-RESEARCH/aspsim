@@ -80,6 +80,46 @@ def getHighestNumberedFile(folder, prefix, suffix):
         fname = prefix + str(highestFileIdx) + suffix
         return folder.joinpath(fname)
 
+def findIndexInName(name):
+    idx = []
+    for ch in reversed(name):
+        if ch.isdigit():
+            idx.append(ch)
+        else:
+            break
+    if len(idx) == 0:
+        return None
+    idx = int("".join(idx[::-1]))
+    assert(name.endswith(str(idx)))
+    return idx
+
+def findAllEarlierFiles(folder, name, currentIdx, nameIncludesIdx=True, errorIfFutureFilesExist=True):
+    if nameIncludesIdx:
+        name = name[:-len(str(currentIdx))]
+    else:
+        name = name + "_"
+
+    earlierFiles = []
+    for f in folder.iterdir():
+        if f.stem.startswith(name):
+            fIdx = int(f.stem[len(name):])
+            if fIdx > currentIdx:
+                if errorIfFutureFilesExist:
+                    raise ValueError
+                else:
+                    continue
+            elif fIdx == currentIdx:
+                continue
+            earlierFiles.append(f)
+    return earlierFiles
+
+
+
+
+
+
+
+
 
 def getLatestSummary(folder):
     latestSummaryIdx = -1

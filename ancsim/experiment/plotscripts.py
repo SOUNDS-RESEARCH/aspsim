@@ -6,37 +6,48 @@ import os
 import pathlib
 import ancsim.settings as s
 import ancsim.utilities as util
+import ancsim.experiment.multiexperimentutils as meu
+
 
 def deleteEarlierTikzPlot(folder, name):
-    currentIdx = []
-    for ch in reversed(name):
-        if ch.isdigit():
-            currentIdx.append(ch)
-        else:
-            break
-    if len(currentIdx) == 0:
-        return 
-    currentIdx = int("".join(currentIdx[::-1]))
-    assert(name.endswith(str(currentIdx)))
+    currentIdx = meu.findIndexInName(name)
+    if currentIdx is None:
+        return
 
-    startName = name[:-len(str(currentIdx))]
+    earlierFiles = meu.findAllEarlierFiles(folder, name, currentIdx)
+    for f in earlierFiles:
+        if f.is_dir():
+            for plotFile in f.iterdir():
+                #assert(plotFile.stem.startswith(startName))
+                if plotFile.suffix == ".pdf":
+                    plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+                else:
+                    assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+                    plotFile.unlink()
+            f.rmdir()
+
+# def deleteEarlierTikzPlot(folder, name):
+#     currentIdx = findIndexInName(name)
+#     if currentIdx is None:
+#         return
+#     startName = name[:-len(str(currentIdx))]
     
-    for f in folder.iterdir():
-        if f.stem.startswith(startName):
-            if f.is_dir():
-                fIdx = int(f.stem[len(startName):])
-                if fIdx > currentIdx:
-                    raise ValueError
-                elif currentIdx == fIdx:
-                    continue
-                for plotFile in f.iterdir():
-                    assert(plotFile.stem.startswith(startName))
-                    if plotFile.suffix == ".pdf":
-                        plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
-                    else:
-                        assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
-                        plotFile.unlink()
-                f.rmdir()
+#     for f in folder.iterdir():
+#         if f.stem.startswith(startName):
+#             if f.is_dir():
+#                 fIdx = int(f.stem[len(startName):])
+#                 if fIdx > currentIdx:
+#                     raise ValueError
+#                 elif currentIdx == fIdx:
+#                     continue
+#                 for plotFile in f.iterdir():
+#                     assert(plotFile.stem.startswith(startName))
+#                     if plotFile.suffix == ".pdf":
+#                         plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+#                     else:
+#                         assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+#                         plotFile.unlink()
+#                 f.rmdir()
                 
         
 

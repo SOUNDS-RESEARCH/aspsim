@@ -2,12 +2,13 @@ import numpy as np
 from copy import deepcopy
 from enum import Enum
 from abc import ABC, abstractmethod
+from functools import partial
 
 import ancsim.utilities as util
 import ancsim.settings as s
 import ancsim.experiment.plotscripts as psc
 from ancsim.signal.filterclasses import Filter_IntBuffer, FilterSum_IntBuffer, FilterMD_IntBuffer
-from ancsim.adaptivefilter.diagnosticplots import functionOfTimePlot, soundfieldPlot
+import ancsim.adaptivefilter.diagnosticplots as dplot
 import ancsim.adaptivefilter.diagnosticsummary as dsum
 
 class DIAGNOSTICTYPE (Enum):
@@ -18,6 +19,7 @@ class DIAGNOSTICTYPE (Enum):
 class OUTPUTFUNCTION (Enum):
     functionoftime = 1
     soundfield = 2
+    savenpz = 3
     
 class SUMMARYFUNCTION(Enum):
     none = 0
@@ -51,23 +53,43 @@ class PlotDiagnosticDispatcher:
                 self.dispatchSummary(funcInfo, diagName, diagSet, timeIdx, folder)
                 
     def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if funcInfo.outputType == OUTPUTFUNCTION.functionoftime:
-            functionOfTimePlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
-        elif funcInfo.outputType == OUTPUTFUNCTION.soundfield:
-            soundfieldPlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
-        else:
-            raise NotImplementedError
+        
+        if not isinstance(funcInfo.outputType, (list, tuple)):
+            funcInfo.outputType = [funcInfo.outputType]
+        for i, outType in enumerate(funcInfo.outputType):
+            if len(funcInfo.outputType) == 1:
+                outputs = {key:diag.getOutput() for key, diag in diagSet.items()}
+            elif len(funcInfo.outputType) > 1:
+                outputs = {key:diag.getOutput()[i] for key, diag in diagSet.items()}
+            metadata = diagSet[list(diagSet.keys())[0]].metadata
+            outType(diagName, outputs, metadata, timeIdx, folder, self.outputFormat)
+        
+        # if funcInfo.outputType == OUTPUTFUNCTION.functionoftime:
+        #     dplot.functionOfTimePlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
+        # elif funcInfo.outputType == OUTPUTFUNCTION.soundfield:
+        #     dplot.soundfieldPlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
+        # else:
+        #     raise NotImplementedError
     
     def dispatchSummary(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if funcInfo.summaryType == SUMMARYFUNCTION.none:
-            return
-        elif funcInfo.summaryType == SUMMARYFUNCTION.lastValue:
-            summaryValues = dsum.lastValue(diagSet, timeIdx)
-        elif funcInfo.summaryType == SUMMARYFUNCTION.meanNearTimeIdx:
-            summaryValues = dsum.meanNearTimeIdx(diagSet, timeIdx)
-        else:
-            raise NotImplementedError
-        dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
+        if not isinstance(funcInfo.summaryType, (list, tuple)):
+            funcInfo.summaryType = [funcInfo.summaryType]
+
+        for i, sumType in enumerate(funcInfo.summaryType):
+            if len(funcInfo.summaryType) == 1:
+                outputs = {key:diag.getOutput() for key, diag in diagSet.items()}
+            elif len(funcInfo.summaryType) > 1:
+                outputs = {key:diag.getOutput()[i] for key, diag in diagSet.items()}
+
+            if sumType == SUMMARYFUNCTION.none:
+                return
+            elif sumType == SUMMARYFUNCTION.lastValue:
+                summaryValues = dsum.lastValue(outputs, timeIdx)
+            elif sumType == SUMMARYFUNCTION.meanNearTimeIdx:
+                summaryValues = dsum.meanNearTimeIdx(outputs, timeIdx)
+            else:
+                raise NotImplementedError
+            dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
     
         
     def getDiagnosticSet(self, diagnosticName, filters):
@@ -158,7 +180,7 @@ class DiagnosticFunctionalityInfo():
 class SoundfieldImage():
     def __init__(self, numPoints, acousticPath, beginAtBuffer=0, plotFrequency=1):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSimBuffer,
-                                                OUTPUTFUNCTION.soundfield,
+                                                dplot.soundfieldPlot,
                                                 SUMMARYFUNCTION.none,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -190,7 +212,7 @@ class SoundfieldImage():
 class RecordSpectrum():
     def __init__(self, numPoints, acousticPath, beginAtBuffer=0, plotFrequency=1):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSimBuffer,
-                                                OUTPUTFUNCTION.soundfield,
+                                                dplot.soundfieldPlot,
                                                 SUMMARYFUNCTION.none,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -221,7 +243,7 @@ class RecordSpectrum():
 class PerBlockDiagnostic(ABC):
     def __init__(self, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perBlock, 
-                                                OUTPUTFUNCTION.functionoftime,
+                                                dplot.functionOfTimePlot,
                                                 SUMMARYFUNCTION.meanNearTimeIdx,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -314,7 +336,7 @@ class SignalEstimateNMSE():
     def __init__(self, smoothingLen=s.OUTPUTSMOOTHING, beginAtBuffer=0, plotFrequency=1, **kwargs):
         """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
-                                                OUTPUTFUNCTION.functionoftime,
+                                                dplot.functionOfTimePlot,
                                                 SUMMARYFUNCTION.meanNearTimeIdx,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -349,7 +371,7 @@ class SignalEstimateNMSE():
 class RecordScalar():
     def __init__(self, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perBlock,
-                                                OUTPUTFUNCTION.functionoftime,
+                                                dplot.functionOfTimePlot,
                                                 SUMMARYFUNCTION.meanNearTimeIdx,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -373,7 +395,7 @@ class RecordScalar():
 class RecordVector():
     def __init__(self, vectorLength, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perBlock,
-                                                OUTPUTFUNCTION.functionoftime,
+                                                dplot.functionOfTimePlot,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
 
@@ -395,10 +417,18 @@ class RecordVector():
 
 
 class NoiseReduction():
-    def __init__(self, numPoints, acousticPath, beginAtBuffer=0, plotFrequency=1, **kwargs):
+    def __init__(self, numPoints, acousticPath, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
+        self.saveRawData = saveRawData
+        if saveRawData:
+            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
+            summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
+        else:
+            outputFunc = dplot.functionOfTimePlot
+            summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
+
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
-                                                OUTPUTFUNCTION.functionoftime,
-                                                SUMMARYFUNCTION.meanNearTimeIdx,
+                                                outputFunc,
+                                                summaryFunc,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
         self.pathFilter = FilterSum_IntBuffer(acousticPath)
@@ -420,20 +450,27 @@ class NoiseReduction():
             self.metadata[key] = value
     
     def getOutput(self):
-        return self.noiseReduction
+        if self.saveRawData:
+            return [self.noiseReduction, {"Total Noise Power" : self.totalNoisePower, 
+                                        "Primary Noise Power" : self.primaryNoisePower}]
+        else:
+            return self.noiseReduction
 
     def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, y):
         secondaryNoise = self.pathFilter.process(y[:,startIdx:endIdx])
         self.totalNoise[:,startIdx:endIdx] = self.primaryNoise[:,startIdx:endIdx] + secondaryNoise
 
         totalNoisePower = np.mean(self.totalNoise[:,startIdx:endIdx]**2, axis=0,keepdims=True)
-        totalNoisePower = self.totalNoiseSmoother.process(totalNoisePower)
         primaryNoisePower = np.mean(self.primaryNoise[:,startIdx:endIdx]**2, axis=0,keepdims=True)
-        primaryNoisePower = self.primaryNoiseSmoother.process(primaryNoisePower)
-        
-        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(totalNoisePower / primaryNoisePower)
+
         self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
         self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+
+        smoothTotalNoisePower = self.totalNoiseSmoother.process(totalNoisePower)
+        smoothPrimaryNoisePower = self.primaryNoiseSmoother.process(primaryNoisePower)
+        
+        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(smoothTotalNoisePower / smoothPrimaryNoisePower)
+        
     
     def resetBuffers(self):
         self.totalNoise = np.concatenate((self.totalNoise[:,-s.SIMBUFFER:],np.zeros((self.totalNoise.shape[0], s.SIMCHUNKSIZE))) ,axis=-1)
@@ -450,7 +487,7 @@ class NoiseReduction():
 class NoiseReductionExternalSignals():
     def __init__(self, numPoints, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
-                                                OUTPUTFUNCTION.functionoftime,
+                                                dplot.functionOfTimePlot,
                                                 SUMMARYFUNCTION.meanNearTimeIdx,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
@@ -491,3 +528,30 @@ class NoiseReductionExternalSignals():
 
 
 
+class saveTotalPower():
+    def __init__(self, acousticPath=None):
+        self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
+                                                OUTPUTFUNCTION.savenpz,
+                                                SUMMARYFUNCTION.none,
+                                                beginAtBuffer=beginAtBuffer,
+                                                plotFrequency=plotFrequency)
+        self.noisePower = np.zeros(s.ENDTIMESTEP)
+        if acousticPath is not None:
+            self.pathFilter = FilterSum_IntBuffer(acousticPath)
+        else:
+            self.pathFilter = FilterSum_IntBuffer(np.ones((1,1,1)))
+
+    def getOutput(self):
+        return self.noisePower
+
+    def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, e):
+        totalNoisePower = np.mean(e[:,startIdx:endIdx]**2, axis=0, keepdims=True)
+        
+        self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+
+    def resetBuffers(self):
+        pass
+
+    def saveBlockData(self, idx, newPrimaryNoise):
+        numSamples = newPrimaryNoise.shape[-1]
+        self.primaryNoise[:,idx:idx+numSamples] = newPrimaryNoise
