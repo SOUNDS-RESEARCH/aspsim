@@ -5,8 +5,10 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer, Filter_IntBuffer, \
     FilterSum_Freqdomain, FilterMD_IntBuffer, FilterMD_Freqdomain
 import ancsim.soundfield.setuparrays as setup
 import pytest
+import ancsim.signal.filterclasses_new as fcn
 
 import matplotlib.pyplot as plt
+import time
 
 @pytest.fixture
 def setupconstants():
@@ -96,3 +98,78 @@ def test_freq_time_md_filter_equal_results(irLen, dataDim, filtDim, numBlocks):
         fdOut[...,i*irLen:(i+1)*irLen] = fdFilt.process(signal[...,i*irLen:(i+1)*irLen])
         tdOut[...,i*irLen:(i+1)*irLen] = tdFilt.process(signal[...,i*irLen:(i+1)*irLen])
     assert(np.allclose(tdOut, fdOut))
+
+
+# def test_same_output():
+#     numIn = 10
+#     numOut = 10
+#     irLen = 4096
+#     sigLen = 4096
+#     ir = np.random.standard_normal((numIn, numOut, irLen))
+
+#     sig = np.random.standard_normal((numIn, sigLen))
+#     newFilt = fcn.FilterSum_IntBuffer(ir = ir)
+#     oldFilt = FilterSum_IntBuffer(ir = ir)
+
+#     s = time.time()
+#     newOut = newFilt.process(sig)
+#     print("new algo: ", time.time()-s)
+#     s = time.time()
+#     oldOut = oldFilt.process(sig)
+#     print("old algo: ", time.time()-s)
+#     #assert np.allclose(newOut, oldOut)
+#     assert False
+
+# def test_incremental_filtering():
+#     numIn = 5
+#     numOut = 5
+#     irLen = 1024
+#     sigLen = 1024
+#     ir = np.random.standard_normal((numIn, numOut, irLen))
+#     sig = np.random.standard_normal((numIn, sigLen))
+
+#     incrFilt = fcn.FilterSum_IntBuffer(ir = ir)
+#     fullFilt = fcn.FilterSum_IntBuffer(ir = ir)
+
+#     incrementalOut = np.zeros((numOut, sigLen))
+#     fullOut = np.zeros((numOut, sigLen))
+
+#     s = time.time()
+#     for i in range(sigLen):
+#         incrementalOut[:,i:i+1] = incrFilt.process(sig[:,i:i+1])
+#     print("Incremental algo time: ", time.time()-s)
+
+#     s = time.time()
+#     fullOut[:,:] = fullFilt.process(sig)
+#     print("Full algo time: ", time.time()-s)
+
+#     assert np.allclose(fullOut, incrementalOut)
+#     #assert False
+
+
+# def test_filt_time():
+#     numIn = 5
+#     numOut = 5
+#     irLen = 1024
+#     sigLen = 1024
+#     ir = np.random.standard_normal((numIn, numOut, irLen))
+#     sig = np.random.standard_normal((numIn, sigLen))
+
+#     newFilt = fcn.FilterSum_IntBuffer(ir = ir)
+#     oldFilt = FilterSum_IntBuffer(ir = ir)
+
+#     newOut = np.zeros((numOut, sigLen))
+#     oldOut = np.zeros((numOut, sigLen))
+
+#     s = time.time()
+#     for i in range(sigLen):
+#         oldOut[:,i:i+1] = oldFilt.process(sig[:,i:i+1])
+#     print("old algo time: ", time.time()-s)
+
+#     s = time.time()
+#     for i in range(sigLen):
+#         newOut[:,i:i+1] = newFilt.process(sig[:,i:i+1])
+#     print("new algo time: ", time.time()-s)
+#     #assert np.allclose(oldOut, newOut)
+#     assert False
+

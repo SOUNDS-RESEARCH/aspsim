@@ -10,8 +10,8 @@ def getConfig():
 
     config["AUDIOFILENAME"] = possibleAudioFiles[2]
     config["SOURCETYPE"] = possibleSources[3]
-    config["NOISEFREQ"] = 200
-    config["NOISEBANDWIDTH"] = 50
+    config["NOISEFREQ"] = 100
+    config["NOISEBANDWIDTH"] = 400
     config["NUMSOURCE"] = 1
     config["SOURCEAMP"] = 50
 
@@ -41,8 +41,8 @@ def getConfig():
     config["SPMFILTLEN"] = 1024
 
     #PLOTS AND MISC
-    config["SAVERAWDATA"] = False
-    config["SAVERAWDATAFREQUENCY"] = 3
+    config["SAVERAWDATA"] = True
+    config["SAVERAWDATAFREQUENCY"] = 5
     config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
 

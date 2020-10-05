@@ -56,7 +56,7 @@ def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     """Keeps only the latest save. 
         Assumes that the data in previous 
         saves is present in the current data"""
-    flatOutputs = flattenDict(outputs)
+    flatOutputs = flattenDict(outputs, sep="~")
     np.savez_compressed(folder.joinpath(name + "_" + str(timeIdx)), **flatOutputs)
 
     earlierFiles = meu.findAllEarlierFiles(folder, name, timeIdx, nameIncludesIdx=False)

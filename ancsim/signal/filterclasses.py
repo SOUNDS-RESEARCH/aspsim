@@ -31,7 +31,8 @@ class FilterSum_IntBuffer:
         filtered = np.zeros((self.numOut, numSamples))
         for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
             #filtered[outIdx,:] += np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
-            filtered[outIdx,:] += sig.fftconvolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            filtered[outIdx,:] += sig.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            #filtered[outIdx,:] += sig.fftconvolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
             
         self.buffer[:,:] = bufferedInput[:, bufferedInput.shape[-1] -self.irLen+1:]
         return filtered
@@ -84,7 +85,7 @@ class FilterMD_IntBuffer:
         for idxs in it.product(*[range(d) for d in self.outputDims]):
             # filtered[idxs+(slice(None),)] = np.convolve(self.ir[idxs[0:self.numIrDims]+(slice(None),)], 
             #                                             bufferedInput[idxs[-self.numDataDims:]+(slice(None),)], "valid")
-            filtered[idxs+(slice(None),)] = sig.fftconvolve(self.ir[idxs[0:self.numIrDims]+(slice(None),)], 
+            filtered[idxs+(slice(None),)] = sig.convolve(self.ir[idxs[0:self.numIrDims]+(slice(None),)], 
                                                         bufferedInput[idxs[-self.numDataDims:]+(slice(None),)], "valid")
 
         self.buffer[...,:] = bufferedInput[...,-self.irLen+1:]
@@ -261,7 +262,7 @@ class FilterIndividualInputs:
         
         filtered = np.zeros((self.numIn, self.numOut, numSamples))
         for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[inIdx, outIdx,:] = np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            filtered[inIdx, outIdx,:] = sig.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
             
         self.buffer[:,:] = bufferedInput[:, bufferedInput.shape[-1]-self.irLen+1:]
         return filtered
@@ -308,7 +309,7 @@ class FilterSum_ExtBuffer:
         filtered = np.zeros((self.numOut, numSamples))
         
         for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[outIdx] += np.convolve(self.ir[inIdx, outIdx, :], 
+            filtered[outIdx] += sig.convolve(self.ir[inIdx, outIdx, :], 
                                            dataBlock[inIdx,:],
                                            "valid", axis=-1)
             
@@ -336,7 +337,7 @@ class Filter_IntBuffer:
         bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
         filtered = np.zeros((self.numIn, numSamples))
         for i in range(self.numIn):
-            filtered[i,:] = np.convolve(self.ir, bufferedInput[i,:], "valid")
+            filtered[i,:] = sig.convolve(self.ir, bufferedInput[i,:], "valid")
             
         #self.buffer[:,:] = bufferedInput[:,-self.irLen+1:]
         self.buffer[:,:] = bufferedInput[:, bufferedInput.shape[-1] -self.irLen+1:]
@@ -409,7 +410,7 @@ def applyFilterSum(data, ir):
     out = np.zeros((numOut,data.shape[1]+filtLen-1))
     for outIdx in range(numOut):
         for inIdx in range(numIn):
-            out[outIdx,:] += np.convolve(data[inIdx,:], ir[inIdx,outIdx,:], "full")
+            out[outIdx,:] += sig.convolve(data[inIdx,:], ir[inIdx,outIdx,:], "full")
     return out
     
     
