@@ -135,6 +135,8 @@ class AudioFileSource():
         self.amplitude = amplitude
         self.samplerate = samplerate
         self.audioSamples, srAudio = sf.read(filename)
+        if self.audioSamples.ndim == 2:
+            self.audioSamples = self.audioSamples[:,0]
         self.currentSample = 0
         
         if srAudio != samplerate:

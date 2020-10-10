@@ -4,6 +4,7 @@ from enum import Enum
 
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.experiment.multiexperimentutils as meu
+import ancsim.utilities as util
 
 
 class SCALINGTYPE(Enum):
@@ -56,7 +57,7 @@ def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     """Keeps only the latest save. 
         Assumes that the data in previous 
         saves is present in the current data"""
-    flatOutputs = flattenDict(outputs, sep="~")
+    flatOutputs = util.flattenDict(outputs, sep="~")
     np.savez_compressed(folder.joinpath(name + "_" + str(timeIdx)), **flatOutputs)
 
     earlierFiles = meu.findAllEarlierFiles(folder, name, timeIdx, nameIncludesIdx=False)
@@ -68,14 +69,4 @@ def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
 
-def flattenDict(dictToFlatten, parentKey="", sep="_"):
-    items = []
-    for key, value in dictToFlatten.items():
-        newKey = parentKey + sep+ key if parentKey else key
-        if isinstance(value, dict):
-            items.extend(flattenDict(value, newKey, sep).items())
-        else:
-            items.append((newKey, value))
-    newDict = dict(items)
-    return newDict
 

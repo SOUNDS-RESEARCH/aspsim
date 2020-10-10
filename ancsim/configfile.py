@@ -6,9 +6,14 @@ def getConfig():
 
     #SOURCES
     possibleSources = ["sine","noise", "chirp", "recorded"]
-    possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav", "arctic_a_speech_tight.wav"]
+    possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav", "arctic_a_speech_tight.wav",
+                            "secret_mountains_high_horse.wav","secret_mountains_high_horse_instruments.wav",
+                            "port_st_willow_stay_even.wav", "port_st_willow_stay_even_instruments.wav",
+                            "night_panther_fire.wav", "night_panther_fire_instruments.wav", 
+                            "leaf_come_around.wav", "leaf_come_around_instruments.wav",
+                            "james_may_all_souls_moon.wav", "james_may_all_souls_moon_instruments.wav"]
 
-    config["AUDIOFILENAME"] = possibleAudioFiles[2]
+    config["AUDIOFILENAME"] = "secret_mountains_high_horse_instruments.wav"
     config["SOURCETYPE"] = possibleSources[3]
     config["NOISEFREQ"] = 100
     config["NOISEBANDWIDTH"] = 400
@@ -42,7 +47,7 @@ def getConfig():
 
     #PLOTS AND MISC
     config["SAVERAWDATA"] = True
-    config["SAVERAWDATAFREQUENCY"] = 5
+    config["SAVERAWDATAFREQUENCY"] = 6
     config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
 

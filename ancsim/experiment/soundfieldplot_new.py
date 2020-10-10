@@ -11,19 +11,22 @@ import ancsim.soundfield.roomimpulseresponse as rir
 from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
+import ancsim.utilities as util
 
 
 def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
     for singleRunFolder in os.listdir(singleSetFolder):
         makeSoundfieldPlot(singleSetFolder+singleRunFolder, sessionFolder)
 
-def makeSoundfieldPlot(singleRunFolder, sessionFolder):
+def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
     config, settings, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(singleRunFolder, sessionFolder)
     pointsToSim = pos.evals
     
     avgSoundfields = soundSim(config, settings, pos, pos.evals, source, filterCoeffs, sourceRIR[1], sourceRIR[3], speakerRIR["evals"])
 
-    maxVal = np.max([np.max(sf) for sf in avgSoundfields])
+    zeroValue = np.mean(util.db2pow(avgSoundfields[0]))
+    avgSoundfields = [util.pow2db(util.db2pow(sf) / zeroValue) for sf in avgSoundfields]
+    maxVal = np.max([np.max(sf) for sf in avgSoundfields])-10
     minVal = np.min([np.min(sf) for sf in avgSoundfields])
 
     fig, axes = plt.subplots(1, len(filterCoeffs)+1, figsize = (30, 7))
@@ -34,7 +37,7 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder):
         clr = ax.pcolormesh(pointsToSim[:,0].reshape(imAxisLen, imAxisLen), 
                             pointsToSim[:,1].reshape(imAxisLen, imAxisLen), 
                         avgSoundfields[i].reshape(imAxisLen, imAxisLen), 
-                        vmin=minVal, vmax=maxVal, cmap="magma")
+                        vmin=minVal, vmax=maxVal, cmap="pink")
         fig.colorbar(clr, ax=ax)
 
         ax.plot(pos.speaker[:,0], pos.speaker[:,1], "o")
@@ -46,7 +49,7 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder):
     outputPlot("tikz", singleRunFolder, "soundfield")
 
 def soundSim(config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints):
-    minSamplesToAverage = 5000
+    minSamplesToAverage = 1000
     numTotPoints = pointsToSim.shape[0]
     refFiltLen = sourceToRef.ir.shape[-1]
     #blockSize = np.max([np.max(coefs.shape) for coefs in filterCoeffs])
@@ -64,6 +67,7 @@ def soundSim(config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sou
     maxPointsInIter = 500
     avgSoundfield = []
 
+    #Empty soundfield
     soundfield = np.zeros((numTotPoints))
     i = 0
     while i < numTotPoints:
@@ -75,6 +79,7 @@ def soundSim(config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sou
         i += numPoints
     avgSoundfield.append(soundfield)
 
+    #Soundfield for each set of filtercoefficients
     for speakerSig in speakerSigs:
         soundfield = np.zeros((numTotPoints))
         i = 0
