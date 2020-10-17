@@ -44,7 +44,7 @@ def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
 
 
 
-def getHighestNumberedFile(folder, prefix, suffix):
+def getHighestNumberedFile_string(folder, prefix, suffix):
     highestFileIdx = -1
     for filename in os.listdir(folder):
         if filename.startswith(prefix) and filename.endswith(suffix):
@@ -61,6 +61,64 @@ def getHighestNumberedFile(folder, prefix, suffix):
     else:
         fname = prefix + str(highestFileIdx) + suffix
         return fname
+
+def getHighestNumberedFile(folder, prefix, suffix):
+    highestFileIdx = -1
+    for filePath in folder.iterdir():
+        if filePath.name.startswith(prefix) and filePath.name.endswith(suffix):
+            summaryIdx = filePath.name[len(prefix):len(filePath.name)-len(suffix)]
+            try:
+                summaryIdx = int(summaryIdx)
+                if summaryIdx > highestFileIdx:
+                    highestFileIdx = summaryIdx
+            except ValueError:
+                print("Warning: check prefix and suffix")
+    
+    if highestFileIdx == -1:
+        return None
+    else:
+        fname = prefix + str(highestFileIdx) + suffix
+        return folder.joinpath(fname)
+
+def findIndexInName(name):
+    idx = []
+    for ch in reversed(name):
+        if ch.isdigit():
+            idx.append(ch)
+        else:
+            break
+    if len(idx) == 0:
+        return None
+    idx = int("".join(idx[::-1]))
+    assert(name.endswith(str(idx)))
+    return idx
+
+def findAllEarlierFiles(folder, name, currentIdx, nameIncludesIdx=True, errorIfFutureFilesExist=True):
+    if nameIncludesIdx:
+        name = name[:-len(str(currentIdx))]
+    else:
+        name = name + "_"
+
+    earlierFiles = []
+    for f in folder.iterdir():
+        if f.stem.startswith(name):
+            fIdx = int(f.stem[len(name):])
+            if fIdx > currentIdx:
+                if errorIfFutureFilesExist:
+                    raise ValueError
+                else:
+                    continue
+            elif fIdx == currentIdx:
+                continue
+            earlierFiles.append(f)
+    return earlierFiles
+
+
+
+
+
+
+
 
 
 def getLatestSummary(folder):

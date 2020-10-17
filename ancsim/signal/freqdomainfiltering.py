@@ -82,7 +82,11 @@ def convolveSum(freqFilter, timeSignal):
     assert(freqFilter.shape[0] % 2 == 0)
     outputLen = freqFilter.shape[0] // 2
 
-    filteredSignal = freqFilter @ fftWithTranspose(timeSignal)
+    # print("shapes")
+    # print(freqFilter.shape)
+    # print(timeSignal.shape)
+
+    filteredSignal = freqFilter @ fftWithTranspose(timeSignal, addEmptyDim=True)
     filteredSignal = ifftWithTranspose(filteredSignal, removeEmptyDim=True)
     return np.real(filteredSignal[...,outputLen:])
 

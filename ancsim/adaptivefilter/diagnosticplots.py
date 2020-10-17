@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from enum import Enum
 
 from ancsim.experiment.plotscripts import outputPlot
+import ancsim.experiment.multiexperimentutils as meu
+import ancsim.utilities as util
 
 
 class SCALINGTYPE(Enum):
@@ -21,16 +23,12 @@ def scaleData(scalingType, data):
     elif scalingType == SCALINGTYPE.ln:
         return np.log(data)
 
-def functionOfTimePlot(name, diagSet, timeIdx, folder, printMethod="pdf"):
-    metadata = diagSet[list(diagSet.keys())[0]].metadata
-
+def functionOfTimePlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     fig, ax = plt.subplots(1,1, figsize=(14,8))
     fig.tight_layout(pad=4)
     
     xValues = np.arange(timeIdx)[None,:]
-    for algoName, diagnostic in diagSet.items():
-        output = diagnostic.getOutput()
-
+    for algoName, output in outputs.items():
         if output.ndim == 1:
             output = output[None,:timeIdx]
         elif output.ndim == 2:
@@ -55,6 +53,20 @@ def functionOfTimePlot(name, diagSet, timeIdx, folder, printMethod="pdf"):
     outputPlot(printMethod,folder, name+"_" + str(timeIdx))
 
 
+def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
+    """Keeps only the latest save. 
+        Assumes that the data in previous 
+        saves is present in the current data"""
+    flatOutputs = util.flattenDict(outputs, sep="~")
+    np.savez_compressed(folder.joinpath(name + "_" + str(timeIdx)), **flatOutputs)
 
-def soundfieldPlot(name, diagSet, timeIdx, folder, printMethod="pdf"):
+    earlierFiles = meu.findAllEarlierFiles(folder, name, timeIdx, nameIncludesIdx=False)
+    for f in earlierFiles:
+        if f.suffix == ".npz":
+            f.unlink()
+
+
+def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
+
+

@@ -122,7 +122,7 @@ def loadSession(singleRunFolder):
     except FileNotFoundError:
         return True,None,None,None,None,None,None,None,None,None
     
-    filterCoeffsFile = meu.getHighestNumberedFile(singleRunFolder, "filterCoeffs_", ".npz")
+    filterCoeffsFile = meu.getHighestNumberedFile_string(singleRunFolder, "filterCoeffs_", ".npz")
     filterCoeffs = np.load(singleRunFolder+filterCoeffsFile)
     filterNames  = [names for names in filterCoeffs.keys()]
     filterCoeffs = [val for names,val in filterCoeffs.items()]

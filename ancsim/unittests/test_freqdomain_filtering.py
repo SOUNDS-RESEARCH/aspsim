@@ -29,5 +29,5 @@ def test_freq_time_domain_convolution_is_equal(irLen, numIn, numOut, numBlocks):
         tdOut[:,i*irLen:(i+1)*irLen] = tdFilt.process(signal[:,i*irLen:(i+1)*irLen])
         fdOut[:,i*irLen:(i+1)*irLen] = fdf.convolveSum(fdFilt, fdInput[:,i*irLen:(i+2)*irLen])
 
-    assert(np.allclose(fdOut, tdOut))
+    assert np.allclose(fdOut, tdOut)
     

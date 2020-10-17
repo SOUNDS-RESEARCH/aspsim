@@ -121,11 +121,36 @@ def getMultipleUniqueFolderNames(prefix, parentFolder, numNames):
         
     return folderNames
 
-#simple tests
-if __name__ == "__main__":
-    x = np.arange(0,4)
-    y = np.arange(4,0,-1)
-    a = cart2pol(x, y)
-    print(a[0])
-    b = np.sqrt(x**2 + y**2)
-    print(b)
+
+def flattenDict(dictToFlatten, parentKey="", sep="~"):
+    items = []
+    for key, value in dictToFlatten.items():
+        newKey = parentKey + sep+ key if parentKey else key
+        if isinstance(value, dict):
+            items.extend(flattenDict(value, newKey, sep).items())
+        else:
+            items.append((newKey, value))
+    newDict = dict(items)
+    return newDict
+
+def restackDict(dictToStack, sep="~"):
+    """Only accepts dicts of depth 2. 
+        All elements must be of that depth."""
+    extractedData = {}
+    for multiKey in dictToStack.keys():
+        keyList = multiKey.split(sep)
+        if len(keyList) > 2:
+            raise NotImplementedError
+        if keyList[0] not in extractedData:
+            extractedData[keyList[0]] = {}
+        extractedData[keyList[0]][keyList[1]] = dictToStack[multiKey]
+    return extractedData
+
+# def restackDict(dictToStack, sep="~"):
+#     extractedData = {}
+#     for key in data.keys():
+#         keyList = key.split(sep)
+#         if a[0] not in extractedData:
+#             extractedData[a[0]] = {}
+#         extractedData[a[0]][a[1]] = data[key]
+#     return extractedData

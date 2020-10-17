@@ -84,6 +84,7 @@ def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampl
         mics = pra.MicrophoneArray((toPos[numComputed:numComputed+blockSize,:] + posOffset[None,:]).T, room.fs)
         room.add_microphone_array(mics)
         
+        print("Computing RIR {} - {} of {}".format(numComputed*numFrom+1, (numComputed+blockSize)*numFrom, numTo*numFrom))
         room.compute_rir()
         for toIdx, receiver in enumerate(room.rir):
             for fromIdx, singleRIR in enumerate(receiver):

@@ -6,9 +6,59 @@ import os
 import pathlib
 import ancsim.settings as s
 import ancsim.utilities as util
+import ancsim.experiment.multiexperimentutils as meu
 
 
-def outputPlot(printMethod, folder="",name=""):
+def deleteEarlierTikzPlot(folder, name):
+    currentIdx = meu.findIndexInName(name)
+    if currentIdx is None:
+        return
+
+    earlierFiles = meu.findAllEarlierFiles(folder, name, currentIdx)
+    for f in earlierFiles:
+        if f.is_dir():
+            for plotFile in f.iterdir():
+                #assert(plotFile.stem.startswith(startName))
+                try:
+                    if plotFile.suffix == ".pdf":
+                        plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+                    else:
+                        assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+                        plotFile.unlink()
+                except PermissionError:
+                    pass
+            try:
+                f.rmdir()
+            except PermissionError:
+                pass
+
+# def deleteEarlierTikzPlot(folder, name):
+#     currentIdx = findIndexInName(name)
+#     if currentIdx is None:
+#         return
+#     startName = name[:-len(str(currentIdx))]
+    
+#     for f in folder.iterdir():
+#         if f.stem.startswith(startName):
+#             if f.is_dir():
+#                 fIdx = int(f.stem[len(startName):])
+#                 if fIdx > currentIdx:
+#                     raise ValueError
+#                 elif currentIdx == fIdx:
+#                     continue
+#                 for plotFile in f.iterdir():
+#                     assert(plotFile.stem.startswith(startName))
+#                     if plotFile.suffix == ".pdf":
+#                         plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+#                     else:
+#                         assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+#                         plotFile.unlink()
+#                 f.rmdir()
+                
+        
+
+
+def outputPlot(printMethod, folder="",name="", keepOnlyLatestTikz=True):
     if printMethod == "show":
         plt.show()
     elif printMethod == "tikz":
@@ -24,6 +74,8 @@ def outputPlot(printMethod, folder="",name=""):
         plt.savefig(str(nestedFolder.joinpath(name +".pdf")), dpi=300, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format="pdf",
         transparent=False, bbox_inches=None, pad_inches=0.2)
+        if keepOnlyLatestTikz:
+            deleteEarlierTikzPlot(folder, name)
     elif printMethod == "pdf":
         plt.savefig(str(folder.joinpath(name +".pdf")), dpi=300, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format="pdf",

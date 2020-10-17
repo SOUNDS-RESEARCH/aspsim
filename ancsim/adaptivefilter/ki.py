@@ -73,9 +73,10 @@ class KIFxLMS(AdaptiveFilterFF):
         self.metadata["mcPointGen"] = mcPointGen.__name__
         self.metadata["volume of interpolated region"] = ipVolume
         self.metadata["mcNumPoints"] = mcNumPoints
+
+        self.bs = 1
         
     def kixfNormalization(self):
-        """xf in this implementation is x filtered through the combined filter, so it is really kixf"""
         return 1 / (np.sum(self.buffers["kixf"][:,:,:,self.updateIdx-self.kiDelay:self.idx-self.kiDelay]**2) + self.beta)
     
     def xfApproxNormalization(self):
@@ -88,8 +89,9 @@ class KIFxLMS(AdaptiveFilterFF):
     def xfNormalization(self):
         self.buffers["xf"][...,self.updateIdx:self.idx] = \
             self.secPathEstimate.process(self.x[:,self.updateIdx:self.idx])
-        
-        return 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
+        xfPower = np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2)
+        #print("Algo with blocksize ", self.bs, "xf power: ", xfPower)
+        return 1 / (xfPower + self.beta)
         
     def prepare(self):
         self.buffers["kixf"][:,:,:,0:self.idx] = np.transpose(self.kixfFilt.process(
@@ -97,6 +99,7 @@ class KIFxLMS(AdaptiveFilterFF):
         self.buffers["xf"][...,0:self.idx] = self.secPathEstimate.process(self.x[:,0:self.idx])
 
     def updateFilter(self):
+        self.bs = self.idx - self.updateIdx
         self.buffers["kixf"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.kixfFilt.process(
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         

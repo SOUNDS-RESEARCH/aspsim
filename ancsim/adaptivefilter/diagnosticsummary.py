@@ -18,12 +18,13 @@ def addToSummary(diagName, summaryValues, timeIdx, folderPath):
         json.dump(summary, f, indent=4)
 
 
-def meanNearTimeIdx(diagSet, timeIdx):
+def meanNearTimeIdx(outputs, timeIdx):
     summaryValues = {}
     numToAverage = 2000
     
-    for filtName, diagnostic in diagSet.items():
-        val = diagnostic.getOutput()[timeIdx-numToAverage:timeIdx]
+    for filtName, output in outputs.items():
+        #val = diagnostic.getOutput()[timeIdx-numToAverage:timeIdx]
+        val = output[timeIdx-numToAverage:timeIdx]
         filterArray = np.logical_not(np.isnan(val))
         summaryValues[filtName] = np.mean(val[filterArray])
     return summaryValues
