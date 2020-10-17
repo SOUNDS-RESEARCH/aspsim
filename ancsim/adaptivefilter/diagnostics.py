@@ -485,7 +485,15 @@ class NoiseReduction():
 
 
 class NoiseReductionExternalSignals():
-    def __init__(self, numPoints, beginAtBuffer=0, plotFrequency=1, **kwargs):
+    def __init__(self, numPoints, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
+        self.saveRawData = saveRawData
+        if saveRawData:
+            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
+            summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
+        else:
+            outputFunc = dplot.functionOfTimePlot
+            summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
+        
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
                                                 dplot.functionOfTimePlot,
                                                 SUMMARYFUNCTION.meanNearTimeIdx,
@@ -504,16 +512,23 @@ class NoiseReductionExternalSignals():
         for key, value in kwargs.items():
             self.metadata[key] = value
 
+    # def getOutput(self):
+    #     return self.noiseReduction
     def getOutput(self):
-        return self.noiseReduction
+        if self.saveRawData:
+            return [self.noiseReduction, {"Total Noise Power" : self.totalNoisePower, 
+                                        "Primary Noise Power" : self.primaryNoisePower}]
+        else:
+            return self.noiseReduction
 
     def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, e):
         totalNoisePower = np.mean(e[:,startIdx:endIdx]**2, axis=0, keepdims=True)
-        totalNoisePower = self.totalNoiseSmoother.process(totalNoisePower)
         primaryNoisePower = np.mean(self.primaryNoise[:,startIdx:endIdx]**2, axis=0,keepdims=True)
-        primaryNoisePower = self.primaryNoiseSmoother.process(primaryNoisePower)
         
-        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(totalNoisePower / primaryNoisePower)
+        totalNoisePowerSmooth = self.totalNoiseSmoother.process(totalNoisePower)
+        primaryNoisePowerSmooth = self.primaryNoiseSmoother.process(primaryNoisePower)
+        
+        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(totalNoisePowerSmooth / primaryNoisePowerSmooth)
         self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
         self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
 

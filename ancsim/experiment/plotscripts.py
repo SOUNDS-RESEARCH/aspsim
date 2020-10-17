@@ -19,12 +19,18 @@ def deleteEarlierTikzPlot(folder, name):
         if f.is_dir():
             for plotFile in f.iterdir():
                 #assert(plotFile.stem.startswith(startName))
-                if plotFile.suffix == ".pdf":
-                    plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
-                else:
-                    assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
-                    plotFile.unlink()
-            f.rmdir()
+                try:
+                    if plotFile.suffix == ".pdf":
+                        plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
+                    else:
+                        assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
+                        plotFile.unlink()
+                except PermissionError:
+                    pass
+            try:
+                f.rmdir()
+            except PermissionError:
+                pass
 
 # def deleteEarlierTikzPlot(folder, name):
 #     currentIdx = findIndexInName(name)
