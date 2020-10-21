@@ -4,6 +4,14 @@ import numpy as np
 def getConfig():
     config = {}
 
+    #ARRAYS
+    config["NUMSOURCE"] = 1
+    config["NUMREF"] = 1
+    config["NUMERROR"] = 28
+    config["NUMSPEAKER"] = 16
+    config["NUMTARGET"] = 500
+    config["NUMEVALS"] = 2
+
     #SOURCES
     possibleSources = ["sine","noise", "chirp", "recorded"]
     possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav", "arctic_a_speech_tight.wav",
@@ -17,7 +25,6 @@ def getConfig():
     config["SOURCETYPE"] = possibleSources[3]
     config["NOISEFREQ"] = 100
     config["NOISEBANDWIDTH"] = 400
-    config["NUMSOURCE"] = 1
     config["SOURCEAMP"] = 50
 
     #ARRAY PLACEMENT
@@ -57,6 +64,7 @@ def getConfig():
     config["SAVERAWDATAFREQUENCY"] = 6
     config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
+    config["OUTPUTSMOOTHING"] = 64
 
     #configInstantCheck(config)
     return configInstantProcessing(config)

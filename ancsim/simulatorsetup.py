@@ -51,8 +51,8 @@ def setupIR(pos, config):
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals)
 
     if config["REFDIRECTLYOBTAINED"]:
-        assert(s.NUMREF == config["NUMSOURCE"])
-        sourceFilters[1] = FilterSum_IntBuffer(np.ones((s.NUMREF, config["NUMSOURCE"], 1)))
+        assert(config["NUMREF"] == config["NUMSOURCE"])
+        sourceFilters[1] = FilterSum_IntBuffer(np.ones((config["NUMREF"], config["NUMSOURCE"], 1)))
     return sourceFilters, speakerFilters, metadata
 
 def setupPos(config):

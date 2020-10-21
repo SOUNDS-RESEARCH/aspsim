@@ -25,16 +25,16 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
         self.muSPM = muSPM
         self.spmLen = secPathEstimateLen
 
-        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=s.NUMSPEAKER)
-        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=s.NUMSPEAKER)
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))  
+        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=self.numSpeaker)
+        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
 
-        self.secPathEstimate = BlockNLMS(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.secPathEstimate = BlockNLMS(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError, 
                                     stepSize=muSPM)
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vEst"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vEst"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerRIR["error"], plotFrequency=s.PLOTFREQUENCY))
 
@@ -86,15 +86,15 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
         self.name = "SPM Aux Noise Freq Domain"
         self.muSPM = muSPM
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.secPathEstimate.tf, plotFrequency=s.PLOTFREQUENCY))
-        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=s.NUMSPEAKER)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
+        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
 
-        self.secPathEstimate = FilterSum_Freqdomain(numIn=s.NUMSPEAKER,numOut=s.NUMERROR,irLen=blockSize)
-        self.secPathEstimateMD = FilterMD_Freqdomain(dataDims=s.NUMREF, tf=self.secPathEstimate.tf)
+        self.secPathEstimate = FilterSum_Freqdomain(numIn=self.numSpeaker,numOut=self.numError,irLen=blockSize)
+        self.secPathEstimateMD = FilterMD_Freqdomain(dataDims=self.numRef, tf=self.secPathEstimate.tf)
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        #self.buffers["vf"] = np.zeros((s.NUMERROR, ))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        #self.buffers["vf"] = np.zeros((self.numError, ))
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["auxNoisePower"] = self.auxNoiseSource.power
@@ -161,15 +161,15 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
         self.name = "SPM Aux Noise Wiener"
         self.secPathEstLen = secPathEstimateLen
         self.auxNoisePower = 3
-        self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=s.NUMSPEAKER)
+        self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=self.numSpeaker)
 
-        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR)
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))
-        #self.crossCorr = SinglePoleLowPass(0.997, (s.NUMSPEAKER, s.NUMERROR, secPathEstimateLen))
-        self.crossCorr = MovingAverage(1-invForgetFactor, (s.NUMSPEAKER, s.NUMERROR, secPathEstimateLen))
+        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
+        #self.crossCorr = SinglePoleLowPass(0.997, (self.numSpeaker, self.numError, secPathEstimateLen))
+        self.crossCorr = MovingAverage(1-invForgetFactor, (self.numSpeaker, self.numError, secPathEstimateLen))
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.secPathFilt.ir, plotFrequency=s.PLOTFREQUENCY))
   
@@ -221,16 +221,16 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
         super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain Wiener"
         self.auxNoisePower = 3
-        self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=s.NUMSPEAKER)
+        self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=self.numSpeaker)
 
         self.G = np.transpose(self.G, (0,2,1))
-        self.secPathEstimate = FilterSum_Freqdomain(numIn=s.NUMSPEAKER, 
-                            numOut=s.NUMERROR, irLen=blockSize)
-        self.secPathEstimateMD = FilterMD_Freqdomain(dataDims=s.NUMREF, tf=np.zeros_like(self.secPathEstimate.tf))
-        self.crossCorr = MovingAverage(1-invForgetFactor, (2*blockSize, s.NUMERROR, s.NUMSPEAKER),dtype=np.complex128)
+        self.secPathEstimate = FilterSum_Freqdomain(numIn=self.numSpeaker, 
+                            numOut=self.numError, irLen=blockSize)
+        self.secPathEstimateMD = FilterMD_Freqdomain(dataDims=self.numRef, tf=np.zeros_like(self.secPathEstimate.tf))
+        self.crossCorr = MovingAverage(1-invForgetFactor, (2*blockSize, self.numError, self.numSpeaker),dtype=np.complex128)
         
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
         
@@ -298,7 +298,7 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
         vf = np.squeeze(np.fft.ifft(Vf,axis=0),axis=-1).T
         f = self.e[:,self.updateIdx:self.idx] - vf[:,self.blockSize:]
         
-        self.F = np.fft.fft(np.concatenate((np.zeros((s.NUMERROR,self.blockSize)),f),axis=-1), 
+        self.F = np.fft.fft(np.concatenate((np.zeros((self.numError,self.blockSize)),f),axis=-1), 
                             axis=-1).T[:,:,None]
 
         grad = np.transpose(self.secPathEstimate.conj(),(0,2,1)) @ self.F @ np.transpose(self.X.conj(),(0,2,1))
@@ -350,16 +350,16 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
         self.muSPM = muSPM
         self.spmLen = secPathEstimateLen
 
-        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=s.NUMSPEAKER)
-        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=s.NUMSPEAKER)
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))  
+        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=self.numSpeaker)
+        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
 
-        self.secPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.secPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError, 
                                     stepSize=muSPM, channelIndependentNorm=False)
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vEst"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vEst"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerRIR["error"], plotFrequency=s.PLOTFREQUENCY))
 
@@ -404,7 +404,7 @@ class FxLMSSPMEriksson_Gold(FxLMSSPMEriksson):
     def __init__(self, config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):   
         super().__init__(config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=auxNoisePower)
         self.name = "FxLMS SPM Eriksson Gold Code"
-        self.auxNoiseSource = GoldSequenceSource(11, power=auxNoisePower, numChannels=s.NUMSPEAKER)
+        self.auxNoiseSource = GoldSequenceSource(11, power=auxNoisePower, numChannels=self.numSpeaker)
 
 
 
@@ -420,13 +420,13 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
         self.muSecMin = minSecPathStepSize
         self.spmLen = secPathEstimateLen
 
-        self.auxNoiseSource = GoldSequenceSource(11, power=1, numChannels=s.NUMSPEAKER)
+        self.auxNoiseSource = GoldSequenceSource(11, power=1, numChannels=self.numSpeaker)
 
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, 
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, 
                                                     irLen=secPathEstimateLen, 
-                                                    irDims=(s.NUMSPEAKER, s.NUMERROR))  
-        self.secPathEstimate = NLMS(numIn=s.NUMSPEAKER, 
-                                    numOut=s.NUMERROR, 
+                                                    irDims=(self.numSpeaker, self.numError))  
+        self.secPathEstimate = NLMS(numIn=self.numSpeaker, 
+                                    numOut=self.numError, 
                                     irLen=secPathEstimateLen, 
                                     stepSize=self.muSecMin, 
                                     filterType=FilterIndividualInputs)
@@ -438,19 +438,19 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
         #self.secPathEstimateMD.setIR(initialSecPathEstimate)
         #self.secPathEstimate.setIR(initialSecPathEstimate)
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vEst"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vEst"] = np.zeros((self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.buffers["eps"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["eps"] = np.zeros((self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.Pf = SinglePoleLowPass(0.9, (s.NUMERROR,))
-        self.Peps = SinglePoleLowPass(0.9, (s.NUMSPEAKER, s.NUMERROR))
-        self.Pv = SinglePoleLowPass(0.9, (s.NUMSPEAKER,))
+        self.Pf = SinglePoleLowPass(0.9, (self.numError,))
+        self.Peps = SinglePoleLowPass(0.9, (self.numSpeaker, self.numError))
+        self.Pv = SinglePoleLowPass(0.9, (self.numSpeaker,))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("mu_spm", dia.RecordVector(s.NUMSPEAKER*s.NUMERROR ,plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("aux_noise_power", dia.RecordVector(s.NUMSPEAKER ,plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("mu_spm", dia.RecordVector(self.numSpeaker*self.numError ,plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("aux_noise_power", dia.RecordVector(self.numSpeaker ,plotFrequency=s.PLOTFREQUENCY))
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["minSecPathStepSize"] = minSecPathStepSize
@@ -527,18 +527,18 @@ class FxLMSSPMZhang(AdaptiveFilterFF):
         
         #initialSecPathEstimate = np.random.normal(scale=0.01, size=speakerFilters["error"].shape) + 0.8 * speakerFilters["error"]
 
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))  
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
         #self.secPathEstimateMD.ir = initialSecPathEstimate
-        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR)
+        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
         #self.secPathEstimate.ir = initialSecPathEstimate
 
         self.distFiltLen = secPathEstimateLen
-        self.disturbanceFilter = FilterSum_IntBuffer(irLen=self.distFiltLen, numIn=s.NUMREF, numOut=s.NUMERROR)
+        self.disturbanceFilter = FilterSum_IntBuffer(irLen=self.distFiltLen, numIn=self.numRef, numOut=self.numError)
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["u"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vEst"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["u"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vEst"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
     def prepare(self):
         pass

@@ -42,18 +42,18 @@ class KIFxLMS(AdaptiveFilterFF):
         self.kiDelay = kiFilt.shape[-1]//2 - numSamplesRemoved
         combinedFilt = np.zeros((*reducedSecPath.shape[0:-1],
                                         reducedSecPath.shape[-1]+kiFilt.shape[-1]-1))
-        for i in range(s.NUMERROR):
-            for j in range(s.NUMERROR):
+        for i in range(self.numError):
+            for j in range(self.numError):
                 for k in range(reducedSecPath.shape[0]):
                     combinedFilt[k,j,:] += np.convolve(reducedSecPath[k,i,:], kiFilt[i,j,:], "full")
 
-        self.kixfFilt = FilterMD_IntBuffer(dataDims=s.NUMREF, ir=combinedFilt)
-        self.buffers["kixf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.kixfFilt = FilterMD_IntBuffer(dataDims=self.numRef, ir=combinedFilt)
+        self.buffers["kixf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
         
         #CREATE NORMALIZATION FILTERS:
         if normalization == "xf":
-            self.secPathEstimate = FilterMD_IntBuffer(dataDims=s.NUMREF, ir=speakerRIR["error"])
-            self.buffers["xf"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.NUMREF, s.SIMCHUNKSIZE+s.SIMBUFFER))
+            self.secPathEstimate = FilterMD_IntBuffer(dataDims=self.numRef, ir=speakerRIR["error"])
+            self.buffers["xf"] = np.zeros((self.numSpeaker, self.numError, self.numRef, s.SIMCHUNKSIZE+s.SIMBUFFER))
             self.normFunc = self.xfNormalization
 
         elif normalization == "xfApprox":
@@ -134,14 +134,14 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
         
         reducedSecPath, numSamplesRemoved = reduceIRLength(np.transpose(self.secPathFilt.ir, (1,0,2)), 
                 tolerance=delayRemovalTolerance, maxSamplesToReduce=kiFilt.shape[-1]//2)
-        self.secPathEstimate = FilterMD_Freqdomain(dataDims=s.NUMREF,ir=np.concatenate(
+        self.secPathEstimate = FilterMD_Freqdomain(dataDims=self.numRef,ir=np.concatenate(
                 (reducedSecPath, np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,)))), axis=-1))
 
         self.kiDelay = kiFilt.shape[-1]//2 - numSamplesRemoved
-        self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kixf"] = np.zeros((self.numSpeaker, self.numRef,self.numError,s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize), 
-                                            dataDims=(s.NUMSPEAKER, s.NUMREF))
+                                            dataDims=(self.numSpeaker, self.numRef))
 
         self.normFunc = self.xfNormalization
         

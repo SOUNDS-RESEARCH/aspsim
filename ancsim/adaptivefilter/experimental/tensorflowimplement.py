@@ -5,26 +5,26 @@ import tensorflow as tf
 class AdaptiveFilter_tf(ABC):
     def __init__(self, mu, beta, speakerRIR):
         self.name = "Adaptive Filter Base"
-        self.H = tf.Variable(tf.zeros((s.NUMREF,s.NUMSPEAKER,self.filtLen), dtype=tf.float64), dtype=tf.float64)
+        self.H = tf.Variable(tf.zeros((self.numRef,self.numSpeaker,self.filtLen), dtype=tf.float64), dtype=tf.float64)
         self.mu = tf.convert_to_tensor(mu, dtype=tf.float64)
         self.beta = tf.convert_to_tensor(beta, dtype=tf.float64)
 
-        self.y = tf.Variable(tf.zeros((s.NUMSPEAKER,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.x = tf.Variable(tf.zeros((s.NUMREF,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.xf = tf.Variable(tf.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.e = tf.Variable(tf.zeros((s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.eTarget = tf.Variable(tf.zeros((s.NUMTARGET,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.eEvals = tf.Variable(tf.zeros((s.NUMEVALS,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.y = tf.Variable(tf.zeros((self.numSpeaker,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.x = tf.Variable(tf.zeros((self.numRef,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.xf = tf.Variable(tf.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.e = tf.Variable(tf.zeros((self.numError,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.eTarget = tf.Variable(tf.zeros((self.numTarget,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.eEvals = tf.Variable(tf.zeros((self.numEvals,s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
 
-        self.pointNoise = tf.Variable(tf.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.targetNoise = tf.Variable(tf.zeros((s.NUMTARGET, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.pointNoise = tf.Variable(tf.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
+        self.targetNoise = tf.Variable(tf.zeros((self.numTarget, s.SIMCHUNKSIZE+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
 
         self.regRed = np.zeros((s.ENDTIMESTEP))
-        self.eTargSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=s.NUMTARGET)
-        self.targNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=s.NUMTARGET)
+        self.eTargSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numTarget)
+        self.targNoiseSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numTarget)
         self.pointRed = np.zeros((s.ENDTIMESTEP))
-        self.eSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=s.NUMERROR)
-        self.pointNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=s.NUMERROR)
+        self.eSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numError)
+        self.pointNoiseSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numError)
         
         self.loss = np.zeros((s.ENDTIMESTEP))
 

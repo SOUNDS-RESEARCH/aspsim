@@ -17,8 +17,8 @@ class FxLMS_FF(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "FxLMS Feedforward"
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.secPathXfFilt = FilterMD_IntBuffer((s.NUMREF,), self.secPathFilt.ir)
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.secPathXfFilt = FilterMD_IntBuffer((self.numRef,), self.secPathFilt.ir)
 
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
@@ -44,8 +44,8 @@ class FxLMS_FF_Block(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "FxLMS Feedforward"
 
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.secPathXfFilt = FilterMD_IntBuffer((s.NUMREF,), self.secPathFilt.ir)
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.secPathXfFilt = FilterMD_IntBuffer((self.numRef,), self.secPathFilt.ir)
 
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
@@ -79,9 +79,9 @@ class FastBlockFxLMS(AdaptiveFilterFFComplex):
         assert(speakerRIR["error"].shape[-1] <= blockSize)
         self.name = "Fast Block FxLMS"
         self.updated = True
-        self.buffers["xf"] = np.zeros((s.NUMERROR, s.NUMSPEAKER, s.NUMREF,s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.controlFilt = FilterSum_Freqdomain(numIn=s.NUMREF, numOut=s.NUMSPEAKER, irLen=blockSize)
-        self.secPathEstimate = FilterMD_Freqdomain(dataDims=s.NUMREF,tf=np.transpose(self.G,(0,2,1)))
+        self.buffers["xf"] = np.zeros((self.numError, self.numSpeaker, self.numRef,s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.controlFilt = FilterSum_Freqdomain(numIn=self.numRef, numOut=self.numSpeaker, irLen=blockSize)
+        self.secPathEstimate = FilterMD_Freqdomain(dataDims=self.numRef,tf=np.transpose(self.G,(0,2,1)))
 
     def forwardPassImplement(self, numSamples):
         assert(numSamples == self.blockSize)

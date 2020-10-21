@@ -131,8 +131,8 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         self.secPathNormFilt = Filter_IntBuffer(np.sum(secPathError**2, axis=(0,1)))
         self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
-        #self.xfFilt = FilterMD_IntBuffer((s.NUMREF,), secPathError)
-        #self.buffers["xfnormal"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        #self.xfFilt = FilterMD_IntBuffer((self.numRef,), secPathError)
+        #self.buffers["xfnormal"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
     def updateFilter(self):
         grad = np.zeros_like(self.H)
@@ -181,7 +181,7 @@ class KernelIP10(AdaptiveFilterFF):
                 for k in range(secPathError.shape[0]):
                     self.combinedFilt[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
         self.secPathXfFilt.setIR(self.combinedFilt)
-        #self.secPathXfFilt = FilterMD_IntBuffer((s.NUMREF,), combinedFilt)
+        #self.secPathXfFilt = FilterMD_IntBuffer((self.numRef,), combinedFilt)
 
     #@util.measure("Kernel 10 update")
     def updateFilter(self):
@@ -224,8 +224,8 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
                 for k in range(secPathError.shape[0]):
                     self.combinedIR[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedIR)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedIR)
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
     def updateFilter(self):
         grad = np.zeros_like(self.H)

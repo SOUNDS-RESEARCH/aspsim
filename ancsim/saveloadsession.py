@@ -140,7 +140,10 @@ def configMatch(config1, config2):
                         "MCPOINTS", "KERNFILTLEN",
                         "SPMFILTLEN", "SAVERAWDATA",
                         "PLOTOUTPUT", "LOADSESSION", 
-                        "SAVERAWDATAFREQUENCY", "SOURCEAMP", "ERRORMICSNR", "REFMICSNR", "FILTLENGTH"]
+                        "SAVERAWDATAFREQUENCY", "SOURCEAMP", 
+                        "ERRORMICSNR", "REFMICSNR", 
+                        "FILTLENGTH", "OUTPUTSMOOTHING",
+                        "GENSOUNDFIELDATCHUNK"]
 
     confView1 = {key:value for key,value in config1.items() if not key in allowedDifferent}
     confView2 = {key:value for key,value in config2.items() if not key in allowedDifferent}

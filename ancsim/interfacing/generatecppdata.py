@@ -34,12 +34,12 @@ def saveRealtimeSimSetup(config):
     posData["target"] = pos.target.tolist()
     posData["evals"] = pos.evals.tolist()
 
-    metaData["numError"] = s.NUMERROR
-    metaData["numRef"] = s.NUMREF
-    metaData["numSpeaker"] = s.NUMSPEAKER
+    metaData["numError"] = config["NUMERROR"]
+    metaData["numRef"] = config["NUMREF"]
+    metaData["numSpeaker"] = config["NUMSPEAKER"]
     metaData["numSource"] = config["NUMSOURCE"]
-    metaData["numTarget"] = s.NUMTARGET
-    metaData["numEvals"] = s.NUMEVALS
+    metaData["numTarget"] = config["NUMTARGET"]
+    metaData["numEvals"] = config["NUMEVALS"]
 
     metaData["speakerToErrorLen"] = len(irData["speakerToError"][0][0])
     metaData["speakerToTargetLen"] = len(irData["speakerToTarget"][0][0])
@@ -101,12 +101,12 @@ def saveRealtimeSimSetup_2(config):
     fName = "constants.h"    
     if os.path.isfile(fullPath+fName):
         os.remove(fullPath+fName)
-    appendCppConstant("numError", s.NUMERROR, "int", fName, fullPath)
-    appendCppConstant("numRef", s.NUMREF, "int", fName, fullPath)
-    appendCppConstant("numSpeaker", s.NUMSPEAKER, "int", fName, fullPath)
+    appendCppConstant("numError", config["NUMERROR"], "int", fName, fullPath)
+    appendCppConstant("numRef", config["NUMREF"], "int", fName, fullPath)
+    appendCppConstant("numSpeaker", config["NUMSPEAKER"], "int", fName, fullPath)
     appendCppConstant("numSource", config["NUMSOURCE"], "int", fName, fullPath)
-    appendCppConstant("numTarget", s.NUMTARGET, "int", fName, fullPath)
-    appendCppConstant("numEvals", s.NUMEVALS, "int", fName, fullPath)
+    appendCppConstant("numTarget", config["NUMTARGET"], "int", fName, fullPath)
+    appendCppConstant("numEvals", config["NUMEVALS"], "int", fName, fullPath)
 
     appendCppConstant("speakerToErrorLen", len(irData["speakerToError"][0][0]), "int", fName, fullPath)
     appendCppConstant("speakerToTargetLen", len(irData["speakerToTarget"][0][0]), "int", fName, fullPath)

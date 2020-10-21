@@ -333,7 +333,7 @@ class ConstantEstimatePhaseDifference(PerBlockDiagnostic):
 
 
 class SignalEstimateNMSE():
-    def __init__(self, smoothingLen=s.OUTPUTSMOOTHING, beginAtBuffer=0, plotFrequency=1, **kwargs):
+    def __init__(self, smoothingLen=1, beginAtBuffer=0, plotFrequency=1, **kwargs):
         """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
                                                 dplot.functionOfTimePlot,
@@ -417,7 +417,7 @@ class RecordVector():
 
 
 class NoiseReduction():
-    def __init__(self, numPoints, acousticPath, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
+    def __init__(self, numPoints, acousticPath, smoothingLen=1, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.saveRawData = saveRawData
         if saveRawData:
             outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
@@ -439,8 +439,8 @@ class NoiseReduction():
         self.totalNoisePower = np.zeros(s.ENDTIMESTEP)
         self.primaryNoisePower = np.zeros(s.ENDTIMESTEP)
 
-        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=1)
-        self.primaryNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=1)
+        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)),numIn=1)
+        self.primaryNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)),numIn=1)
 
         self.noiseReduction = np.full((s.ENDTIMESTEP), np.nan)
         self.metadata = {"title": "Noise Reduction",
@@ -485,7 +485,7 @@ class NoiseReduction():
 
 
 class NoiseReductionExternalSignals():
-    def __init__(self, numPoints, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
+    def __init__(self, numPoints, smoothingLen=1, saveRawData=True, beginAtBuffer=0, plotFrequency=1, **kwargs):
         self.saveRawData = saveRawData
         if saveRawData:
             outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
@@ -502,8 +502,8 @@ class NoiseReductionExternalSignals():
         self.primaryNoise = np.zeros((numPoints, s.SIMCHUNKSIZE+s.SIMBUFFER))
         self.totalNoisePower = np.zeros(s.ENDTIMESTEP)
         self.primaryNoisePower = np.zeros(s.ENDTIMESTEP)
-        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=1)
-        self.primaryNoiseSmoother = Filter_IntBuffer(ir=np.ones((s.OUTPUTSMOOTHING)),numIn=1)
+        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)),numIn=1)
+        self.primaryNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)),numIn=1)
         self.noiseReduction = np.full((s.ENDTIMESTEP), np.nan)
 
         self.metadata = {"title": "Noise Reduction",

@@ -17,15 +17,15 @@ class KernelMPC_9b(AdaptiveFilterFF):
         self.Htf = tf.Variable(tf.zeros(self.H.shape, dtype=tf.float64), dtype=tf.float64)
         
         spec = [tf.TensorSpec(shape=kernelFilt.shape, dtype=tf.float64),
-                tf.TensorSpec(shape=(s.NUMERROR, None), dtype=tf.float64),
-                tf.TensorSpec(shape=(s.NUMREF, s.NUMSPEAKER, s.NUMERROR, None), dtype=tf.float64),
+                tf.TensorSpec(shape=(self.numError, None), dtype=tf.float64),
+                tf.TensorSpec(shape=(self.numRef, self.numSpeaker, self.numError, None), dtype=tf.float64),
                 tf.TensorSpec(shape=(), dtype=tf.int32),
                 tf.TensorSpec(shape=(), dtype=tf.int32),
                 tf.TensorSpec(shape=(), dtype=tf.int32),
                 tf.TensorSpec(shape=(), dtype=tf.float64)]
         
         spec2 = [tf.TensorSpec(shape=kernelFilt.shape, dtype=tf.float64),
-                 tf.TensorSpec(shape=(s.NUMERROR, None), dtype=tf.float64),
+                 tf.TensorSpec(shape=(self.numError, None), dtype=tf.float64),
                  tf.TensorSpec(shape=(), dtype=tf.int32)]
                                          
         #tf.config.experimental_run_functions_eagerly(True)                                                         

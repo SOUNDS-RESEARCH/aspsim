@@ -126,9 +126,11 @@ def loadSession(singleRunFolder, sessionFolder):
     # s["BLOCKSIZE"] = 512
 
     config = sess.loadConfig(singleRunFolder)
+    config["NUMTARGET"] = 4*4
+    config["NUMEVALS"] = 128**2
     settings = sess.loadSettings(singleRunFolder)
-    settings.NUMTARGET = 4*4
-    settings.NUMEVALS = 128**2
+    #settings.NUMTARGET = 4*4
+    #settings.NUMEVALS = 128**2
 
     if config["LOADSESSION"]:
         pos, sourceRIR, speakerRIR = sess.loadSession(config, settings, sessionFolder, singleRunFolder)

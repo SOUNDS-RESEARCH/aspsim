@@ -74,7 +74,7 @@ class Simulator:
         print("SIM START")
         n_tot = 0
         bufferIdx = -1
-        noises = updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters)
+        noises = updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters, self.config["NUMEVALS"])
         noiseIndices = [s.SIMBUFFER for _ in range(len(self.filters))]
         while n_tot < s.ENDTIMESTEP-self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
@@ -107,8 +107,8 @@ class Simulator:
                 
 def printInfo(config, folderPath):
     print("Session folder: ", folderPath.name)
-    print("Number of mics: ", s.NUMERROR)
-    print("Number of speakers: ", s.NUMSPEAKER)
+    print("Number of mics: ", config["NUMERROR"])
+    print("Number of speakers: ", config["NUMSPEAKER"])
 
 
 def setUniqueFilterNames(filters):
@@ -144,15 +144,18 @@ def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):
 
     return noises
 
-def updateNoises(timeIdx, noises, noiseSource, sourceFilters):
+def updateNoises(timeIdx, noises, noiseSource, sourceFilters, numEvals):
     noise = noiseSource.getSamples(s.SIMCHUNKSIZE)
-    if (timeIdx // s.SIMCHUNKSIZE) < s.GENSOUNDFIELDATCHUNK-2:
-        noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
-                        for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
-        noises.append(np.zeros((s.NUMEVALS,s.SIMCHUNKSIZE+s.SIMBUFFER)))
-    else:
-        noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
-                        for noiseAtPoints, sf in zip(noises, sourceFilters)]
+    #if (timeIdx // s.SIMCHUNKSIZE) < s.GENSOUNDFIELDATCHUNK-2:
+
+    #MADE TO NOT HAVE TO GENERATE SAMPLES TO EVALS
+    #SHOULD BE EXCHANGED FOR THE OUTCOMMENTED BOTTOM EXPRESSION AT ELSE:
+    noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
+                    for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
+    noises.append(np.zeros((numEvals,s.SIMCHUNKSIZE+s.SIMBUFFER)))
+    #else:
+    #    noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
+    #                    for noiseAtPoints, sf in zip(noises, sourceFilters)]
     return noises
 
 

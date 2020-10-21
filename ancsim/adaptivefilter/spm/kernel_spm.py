@@ -23,10 +23,10 @@ class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
         assert(kiFilt.shape[-1] % 1 == 0)
 
         self.kiDelay = kiFilt.shape[-1]//2
-        self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kixf"] = np.zeros((self.numSpeaker, self.numRef,self.numError,s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize), 
-                                            dataDims=(s.NUMSPEAKER, s.NUMREF))
+                                            dataDims=(self.numSpeaker, self.numRef))
 
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
@@ -71,13 +71,13 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
         assert(kiFiltLen % 1 == 0)
         kiFiltFir = getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, mcNumPoints)
         self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFiltFir,n=2*blockSize), 
-                                            dataDims=(s.NUMSPEAKER, s.NUMREF))
+                                            dataDims=(self.numSpeaker, self.numRef))
         self.kiFiltSecPathEst = FilterSum_Freqdomain(tf=self.kiFilt.tf)
 
 
         self.kiDelay = kiFiltFir.shape[-1]//2
-        self.buffers["kixf"] = np.zeros((s.NUMSPEAKER, s.NUMREF,s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["kif"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kixf"] = np.zeros((self.numSpeaker, self.numRef,self.numError,s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kif"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["kiFiltLength"] = int(kiFiltLen)
@@ -141,12 +141,12 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         self.name = "Kernel IP Freq ANC with Eriksson SPM"
         self.A = kernFilt
         
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
-        self.secPathEstimate = FastBlockNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        self.secPathEstimate = FastBlockNLMS(blockSize=blockSize, numIn=self.numSpeaker, numOut=self.numError, 
                                             stepSize=muSPM, freqIndepNorm=False)
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.G = np.transpose(self.G, (0,2,1))
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
@@ -172,7 +172,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         assert (self.idx - self.updateIdx == self.blockSize)
         assert(self.updated == False)
         self.updateSPM()
-        self.F = np.fft.fft(np.concatenate((np.zeros((s.NUMERROR,self.blockSize)),
+        self.F = np.fft.fft(np.concatenate((np.zeros((self.numError,self.blockSize)),
                                             self.buffers["f"][:,self.updateIdx:self.idx]),axis=-1), 
                                             axis=-1).T[:,:,None]
         grad = np.transpose(self.secPathEstimate.ir.conj(),(0,2,1)) @ self.A @ self.F @ np.transpose(self.X.conj(),(0,2,1))
@@ -194,7 +194,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         self.update = True
 
     def updateSPM(self):
-        vf = self.secPathEstimate.process(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
+        vf = self.secPathEstimate.process(np.concatenate((np.zeros((self.numSpeaker,self.blockSize)),
                                                         self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1))
 
         self.buffers["f"][:,self.updateIdx:self.idx] = self.e[:,self.updateIdx:self.idx] - vf
@@ -208,8 +208,8 @@ class FDKIFxLMSErikssonInterpolatedF(FDKIFxLMSEriksson):
         super().__init__(config, mu, beta, speakerFilters, blockSize, muSPM, kernFilt)
         self.name = "Kernel IP Freq ANC with Eriksson SPM, Weighted f"
 
-        self.secPathEstimate = FastBlockWeightedNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, 
-                                                    numOut=s.NUMERROR, weightMatrix=kernFilt,
+        self.secPathEstimate = FastBlockWeightedNLMS(blockSize=blockSize, numIn=self.numSpeaker, 
+                                                    numOut=self.numError, weightMatrix=kernFilt,
                                                     stepSize=muSPM, freqIndepNorm=False)
         self.diag.addNewDiagnostic("weightedsecpath", dia.ConstantEstimateNMSE(self.A @ self.G, plotFrequency=s.PLOTFREQUENCY))
 
@@ -228,13 +228,13 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
         kernelReg = 1e-3
         self.kernelMat = soundfieldInterpolation(errorPos, errorPos, 2*self.blockSize, kernelReg)
         
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
-        self.secPathEstimate = FastBlockWeightedNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        self.secPathEstimate = FastBlockWeightedNLMS(blockSize=blockSize, numIn=self.numSpeaker, numOut=self.numError, 
                                                     stepSize=muSPM, weightMatrix=self.kernelMat, freqIndepNorm=False)
         
     
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.G = np.transpose(self.G, (0,2,1))
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
@@ -260,7 +260,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
         assert (self.idx - self.updateIdx == self.blockSize)
         assert(self.updated == False)
         self.updateSPM()
-        self.F = np.fft.fft(np.concatenate((np.zeros((s.NUMERROR,self.blockSize)),
+        self.F = np.fft.fft(np.concatenate((np.zeros((self.numError,self.blockSize)),
                                             self.buffers["f"][:,self.updateIdx:self.idx]),axis=-1), 
                                             axis=-1).T[:,:,None]
         grad = np.transpose(self.secPathEstimate.ir.conj(),(0,2,1)) @ self.F @ np.transpose(self.X.conj(),(0,2,1))
@@ -277,12 +277,12 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
         self.updated = True
 
     def updateSPM(self):
-        V = np.fft.fft(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
+        V = np.fft.fft(np.concatenate((np.zeros((self.numSpeaker,self.blockSize)),
                         self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1), axis=-1).T[:,:,None]
         Vf = self.kernelMat @ self.secPathEstimate.ir @ V
         vf = np.squeeze(np.fft.ifft(Vf,axis=0),axis=-1).T
         vf = np.real(vf[:,self.blockSize:])
-        #vf = self.secPathEstimate.process(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
+        #vf = self.secPathEstimate.process(np.concatenate((np.zeros((self.numSpeaker,self.blockSize)),
         #                                                self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1))
 
         self.buffers["f"][:,self.updateIdx:self.idx] = self.e[:,self.updateIdx:self.idx] - vf
@@ -299,12 +299,12 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.name = "FxLMS SPM Eriksson"
 #         self.muSPM = muSPM
 #         self.spmLen = secPathEstimateLen
-#         self.auxNoiseSource = GoldSequenceSource(11, numChannels=s.NUMSPEAKER)
+#         self.auxNoiseSource = GoldSequenceSource(11, numChannels=self.numSpeaker)
 
 #         self.kernelParams = soundfieldInterpolation(errorPos, errorPos, 2*blockSize, 1e-2)
 
-#         self.secPathEstimate = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))  
-#         self.secPathEstimateSum = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR)
+#         self.secPathEstimate = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
+#         self.secPathEstimateSum = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
 
 #         initialSecPathEstimate = np.random.normal(scale=0.0001, size=self.secPathEstimate.ir.shape)
 #         commonLength = np.min((secPathEstimateLen,speakerFilters["error"].shape[-1]))
@@ -313,9 +313,9 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.secPathEstimate.setIR(initialSecPathEstimate)
 #         self.secPathEstimateSum.setIR(initialSecPathEstimate)
 
-#         self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-#         self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-#         self.buffers["vEst"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+#         self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+#         self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+#         self.buffers["vEst"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
 #         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=s.PLOTFREQUENCY))
 
@@ -378,13 +378,13 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFiltLen // 2
 
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
-        #self.nextBlockFilteredAuxNoise = np.zeros((s.NUMERROR, blockSize))
+        #self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vIP"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vf"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["fip"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vIP"] = np.zeros((self.numSpeaker, self.numError, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.metadata["kernelReg"] = kernelReg
         self.metadata["kernelCostWeight"] = self.eta
@@ -392,23 +392,23 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
     def constructInterpolation(self, errorPos, kernelRegParam, kiFiltLen):
         """Output is shape(numFreq, position interpolated to, positions interpolated from),
             which is (2*blocksize, M, M-1)"""
-        kiParams = np.zeros((2*self.blockSize, s.NUMERROR, s.NUMERROR), dtype=np.complex128)
+        kiParams = np.zeros((2*self.blockSize, self.numError, self.numError), dtype=np.complex128)
         kiFirAll = np.zeros((16,16,155))
-        for m in range(s.NUMERROR):
+        for m in range(self.numError):
             kiFIR = soundfieldInterpolationFIR(errorPos[m:m+1,:], 
-                                            errorPos[np.arange(s.NUMERROR) != m,:], 
+                                            errorPos[np.arange(self.numError) != m,:], 
                                             kiFiltLen, kernelRegParam)
 
             kiFreq = fdf.fftWithTranspose(np.concatenate((kiFIR, 
                 np.zeros((kiFIR.shape[:-1]+(2*self.blockSize-kiFiltLen,)))), 
                 axis=-1))
-            kiParams[:,m:m+1,np.arange(s.NUMERROR)!=m] = kiFreq
+            kiParams[:,m:m+1,np.arange(self.numError)!=m] = kiFreq
 
-            kiFirAll[m:m+1,np.arange(s.NUMERROR)!=m,:] = kiFIR
+            kiFirAll[m:m+1,np.arange(self.numError)!=m,:] = kiFIR
         return kiParams
 
     def getVariableNumberOfFutureSamples():
-        v = np.zeros((s.NUMSPEAKER, numSamples))
+        v = np.zeros((self.numSpeaker, numSamples))
         numOldSamples = np.min((numSamples,self.futureAuxNoise.shape[-1]))
         v[:,:numOldSamples] = self.futureAuxNoise[:,:numOldSamples]
         numNewSamples = numSamples - self.futureAuxNoise.shape[-1]
@@ -518,11 +518,11 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
 
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vIP"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vf"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["fip"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vIP"] = np.zeros((self.numSpeaker, self.numError, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.metadata["kernelReg"] = kernelReg
         #self.metadata["kernelCostWeight"] = self.eta
@@ -530,7 +530,7 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
     def constructInterpolation(self, errorPos, kernelRegParam, kiFiltLen):
         """Output is shape(numFreq, position interpolated to, positions interpolated from),
             which is (2*blocksize, M, M)"""
-        kiParams = np.zeros((2*self.blockSize, s.NUMERROR, s.NUMERROR), dtype=np.complex128)
+        kiParams = np.zeros((2*self.blockSize, self.numError, self.numError), dtype=np.complex128)
         
         kiFIR = soundfieldInterpolationFIR(errorPos, errorPos, 
                                         kiFiltLen, kernelRegParam)
@@ -602,23 +602,23 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
         assert(kiFiltLen <= blockSize)
         self.eta = eta
         kernelReg = 1e-3
-        self.kiFilt = FilterMD_IntBuffer(dataDims=s.NUMSPEAKER, ir=self.constructInterpolation(errorPos, kernelReg, kiFiltLen))
+        self.kiFilt = FilterMD_IntBuffer(dataDims=self.numSpeaker, ir=self.constructInterpolation(errorPos, kernelReg, kiFiltLen))
 
-        self.secPathEstimate = FilterSum_IntBuffer(numIn=s.NUMSPEAKER, numOut=s.NUMERROR, irLen=blockSize)
-        self.secPathEstimateIP = FilterSum_IntBuffer(numIn=s.NUMSPEAKER, numOut=s.NUMERROR, irLen=blockSize)
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, ir=self.secPathEstimate.ir)
+        self.secPathEstimate = FilterSum_IntBuffer(numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize)
+        self.secPathEstimateIP = FilterSum_IntBuffer(numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize)
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, ir=self.secPathEstimate.ir)
         self.kiDelay = kiFiltLen // 2
 
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
-        #self.nextBlockFilteredAuxNoise = np.zeros((s.NUMERROR, blockSize))
+        #self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.secPathFilt.ir, plotFrequency=s.PLOTFREQUENCY))
 
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["vIP"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vf"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["fip"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["vIP"] = np.zeros((self.numSpeaker, self.numError, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.metadata["kernelReg"] = kernelReg
         self.metadata["kernelCostWeight"] = self.eta
@@ -652,19 +652,19 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
     def constructInterpolation(self, errorPos, kernelRegParam, kiFiltLen):
         """Output is shape(numFreq, position interpolated to, positions interpolated from),
             which is (2*blocksize, M, M-1)"""
-        kiParams = np.zeros((2*self.blockSize, s.NUMERROR, s.NUMERROR), dtype=np.complex128)
-        kiFirAll = np.zeros((s.NUMERROR,s.NUMERROR,kiFiltLen))
-        for m in range(s.NUMERROR):
+        kiParams = np.zeros((2*self.blockSize, self.numError, self.numError), dtype=np.complex128)
+        kiFirAll = np.zeros((self.numError,self.numError,kiFiltLen))
+        for m in range(self.numError):
             kiFIR = soundfieldInterpolationFIR(errorPos[m:m+1,:], 
-                                            errorPos[np.arange(s.NUMERROR) != m,:], 
+                                            errorPos[np.arange(self.numError) != m,:], 
                                             kiFiltLen, kernelRegParam)
 
             kiFreq = fdf.fftWithTranspose(np.concatenate((kiFIR, 
                 np.zeros((kiFIR.shape[:-1]+(2*self.blockSize-kiFiltLen,)))), 
                 axis=-1))
-            kiParams[:,m:m+1,np.arange(s.NUMERROR)!=m] = kiFreq
+            kiParams[:,m:m+1,np.arange(self.numError)!=m] = kiFreq
 
-            kiFirAll[m:m+1,np.arange(s.NUMERROR)!=m,:] = kiFIR
+            kiFirAll[m:m+1,np.arange(self.numError)!=m,:] = kiFIR
         return kiFirAll
 
     def forwardPassImplement(self, numSamples): 
@@ -754,10 +754,10 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
         kernelReg = 1e-3
         self.kernelMat = self.constructInterpolation(errorPos, kernelReg)
         
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["VIP"] = np.zeros((s.NUMSPEAKER, s.NUMERROR, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["fip"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["VIP"] = np.zeros((self.numSpeaker, self.numError, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.metadata["kernelReg"] = kernelReg
         self.metadata["kernelCostWeight"] = self.eta
@@ -765,12 +765,12 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
     def constructInterpolation(self, errorPos, kernelRegParam):
         """Output is shape(numFreq, position interpolated to, positions interpolated from),
             which is (2*blocksize, M, M-1)"""
-        kiParams = np.zeros((2*self.blockSize, s.NUMERROR, s.NUMERROR), dtype=np.complex128)
-        for m in range(s.NUMERROR):
-            kiParams[:,m:m+1,np.arange(s.NUMERROR)!=m] = soundfieldInterpolation(errorPos[m:m+1,:], 
-                                            errorPos[np.arange(s.NUMERROR) != m,:], 
+        kiParams = np.zeros((2*self.blockSize, self.numError, self.numError), dtype=np.complex128)
+        for m in range(self.numError):
+            kiParams[:,m:m+1,np.arange(self.numError)!=m] = soundfieldInterpolation(errorPos[m:m+1,:], 
+                                            errorPos[np.arange(self.numError) != m,:], 
                                             2*self.blockSize, kernelRegParam)
-            # for m2 in range(s.NUMERROR):
+            # for m2 in range(self.numError):
             #     if m2 < m:
             #         kiParams[:,m:m+1,m2] = kip[:,:,m2]
             #     elif m2 > m:
@@ -804,8 +804,8 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
                                             self.buffers["fip"][:,self.updateIdx:self.idx]), axis=-1)
         Fip = np.fft.fft(Fip, axis=-1).T[:,:,None]
 
-        error2 = np.zeros((2*self.blockSize, s.NUMERROR, s.NUMSPEAKER),dtype=np.complex128)
-        for m in range(s.NUMERROR):
+        error2 = np.zeros((2*self.blockSize, self.numError, self.numSpeaker),dtype=np.complex128)
+        for m in range(self.numError):
             error2[:,m,:] = np.sum(Fip[:,None,:,0] * VIP[:,:,:,m].conj(), axis=2)
             #error2[:,m,:]
         
@@ -815,7 +815,7 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
         return ipGrad
 
     def getNormalGrad_new(self):
-        vf = self.secPathEstimate.process(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
+        vf = self.secPathEstimate.process(np.concatenate((np.zeros((self.numSpeaker,self.blockSize)),
                                                         self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1))
 
         self.buffers["f"][:,self.updateIdx:self.idx] = self.e[:,self.updateIdx:self.idx] - vf

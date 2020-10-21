@@ -25,10 +25,10 @@ class KernelIP11_papernorm(FxLMS_FF):
         self.secPathNormFilt = Filter_IntBuffer(np.sum(self.secPathFilt.ir**2, axis=(0,1)))
         self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedFilt)
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
-        self.buffers["eKern"] =  np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["eKern"] =  np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
         
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
@@ -83,10 +83,10 @@ class KernelIP11_minimumdelay(AdaptiveFilterFF):
         self.secPathNormFilt = Filter_IntBuffer(np.sum(secPathError**2, axis=(0,1)))
         self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedFilt)
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
-        self.buffers["eKern"] =  np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["eKern"] =  np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
 
         self.M = self.A.shape[-1]//2
         
@@ -103,7 +103,7 @@ class KernelIP11_minimumdelay(AdaptiveFilterFF):
         grad = np.zeros_like(self.H)
         
         
-        #numParams = self.filtLen * s.NUMSPEAKER * s.NUMREF
+        #numParams = self.filtLen * self.numSpeaker * self.numRef
 
         self.buffers["xKern"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.xKernelFilt.process(self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         self.buffers["eKern"][:,self.updateIdx:self.idx] = self.eKernelFilt.process(self.e[:,self.updateIdx:self.idx])
@@ -150,17 +150,17 @@ class KernelIP11(AdaptiveFilterFF):
                 for k in range(secPathError.shape[0]):
                     self.combinedFilt[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedFilt)
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
-        self.buffers["eKern"] =  np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["eKern"] =  np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
         
     #@util.measure("Kernel 11 update")
     def updateFilter(self):
         grad = np.zeros_like(self.H)
         M = self.A.shape[-1]//2
         
-        #numParams = self.filtLen * s.NUMSPEAKER * s.NUMREF
+        #numParams = self.filtLen * self.numSpeaker * self.numRef
 
         self.buffers["xKern"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.xKernelFilt.process(self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         self.buffers["eKern"][:,self.updateIdx:self.idx] = self.eKernelFilt.process(self.e[:,self.updateIdx:self.idx])
@@ -204,10 +204,10 @@ class KernelIP_simpleFromCostNewNorm(AdaptiveFilterFF):
                 for k in range(secPathError.shape[0]):
                     self.combinedFilt[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedFilt)
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
-        self.buffers["eKern"] =  np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["eKern"] =  np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
         
 
     def updateFilter(self):
@@ -260,10 +260,10 @@ class KernelIP11_postErrorNorm(AdaptiveFilterFF):
                 for k in range(secPathError.shape[0]):
                     self.combinedFilt[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
 
-        self.xKernelFilt = FilterMD_IntBuffer((s.NUMREF,),ir=self.combinedFilt)
+        self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
-        self.buffers["xKern"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
-        self.buffers["eKern"] =  np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["eKern"] =  np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
         
 
     def updateFilter(self):

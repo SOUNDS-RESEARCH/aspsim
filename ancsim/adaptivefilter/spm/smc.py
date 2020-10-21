@@ -13,7 +13,7 @@ from ancsim.utilities import measure
 class FxLMSSMC(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""
     def __init__(self, config, mu, beta, speakerFilters, muPrim, muSec, secPathEstimateLen):
-        assert(s.NUMREF == 1)
+        assert(self.numRef == 1)
         super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SMC NLMS"
         self.sLen = secPathEstimateLen
@@ -21,13 +21,13 @@ class FxLMSSMC(AdaptiveFilterFF):
         self.muPrim = muPrim
         self.muSec = muSec
         self.spmIdx = self.updateIdx
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
         
-        self.secPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.secPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError, 
                                         stepSize=self.muSec, regularization=1e-4)
-        self.primPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=s.NUMREF, numOut=s.NUMERROR, 
+        self.primPathEstimate = NLMS(irLen=secPathEstimateLen, numIn=self.numRef, numOut=self.numError, 
                                         stepSize=self.muPrim, regularization=1e-3)
 
         self.controlFilt.ir = np.random.normal(scale=0.00000001, size=self.controlFilt.ir.shape)
@@ -75,7 +75,7 @@ class FxLMSSMC(AdaptiveFilterFF):
 class FxLMSSMC_RLS(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""
     def __init__(self, config, mu, beta, speakerFilters, primForgetFactor, secForgetFactor, secPathEstimateLen):
-        assert(s.NUMREF == 1)
+        assert(self.numRef == 1)
         super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SMC RLS"
         self.sLen = secPathEstimateLen
@@ -83,13 +83,13 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
         # self.muPrim = muPrim
         # self.muSec = muSec
         self.spmIdx = self.updateIdx
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
         
-        self.secPathEstimate = RLS(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
+        self.secPathEstimate = RLS(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError, 
                                         forgettingFactor=primForgetFactor, signalPowerEst=0.01)
-        self.primPathEstimate = RLS(irLen=secPathEstimateLen, numIn=s.NUMREF, numOut=s.NUMERROR, 
+        self.primPathEstimate = RLS(irLen=secPathEstimateLen, numIn=self.numRef, numOut=self.numError, 
                                         forgettingFactor=secForgetFactor, signalPowerEst=0.01)
 
         self.controlFilt.ir = np.random.normal(scale=1e-7, size=self.controlFilt.ir.shape)
@@ -147,7 +147,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
 class FxLMSSMC_old(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""
     def __init__(self, mu, beta, speakerFilters, muPrim, muSec, secPathEstimateLen):
-        assert(s.NUMREF == 1)
+        assert(self.numRef == 1)
         super().__init__(mu, beta, speakerFilters)
         self.name = "FxLMS SMC"
         self.sLen = secPathEstimateLen
@@ -156,15 +156,15 @@ class FxLMSSMC_old(AdaptiveFilterFF):
         self.muSec = muSec
         self.spmIdx = self.updateIdx
         #self.controlFilt.ir[:,:,0] = 0.00001*np.ones((self.controlFilt.ir.shape[0], self.controlFilt.ir.shape[1]))
-        self.buffers["xf"] = np.zeros((s.NUMREF, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
-        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=s.NUMREF, irLen=secPathEstimateLen, irDims=(s.NUMSPEAKER, s.NUMERROR))  
+        self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
         initialSecPathEstimate = np.random.normal(scale=0.00001, size=self.secPathEstimateMD.ir.shape)
         #self.secPathEstimateMD.ir = initialSecPathEstimate
-        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=s.NUMSPEAKER, numOut=s.NUMERROR)
+        self.secPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
         #self.secPathEstimate.ir = initialSecPathEstimate
 
-        self.primPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=s.NUMREF, numOut=s.NUMERROR)
+        self.primPathEstimate = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numRef, numOut=self.numError)
        #self.primPathEstimate.ir = np.random.normal(scale=0.00001, size=self.primPathEstimate.ir.shape)
         self.controlFilt.ir = np.random.normal(scale=0.00000001, size=self.controlFilt.ir.shape)
     def prepare(self):
@@ -226,16 +226,16 @@ class FxLMSSMC_old(AdaptiveFilterFF):
 
 #import matplotlib.pyplot as plt
 class FreqSMC(ConstrainedFastBlockFxLMS):
-    def __init__(self, mu, beta, speakerFilters, muPrimary, muSecondary, blockSize):
-        assert(s.NUMREF == 1)
+    def __init__(self, config, mu, beta, speakerRIR, muPrimary, muSecondary, blockSize):
+        assert(self.numRef == 1)
         
-        super().__init__(mu, beta, speakerFilters, blockSize)
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
         self.name = "Freq domain SMC"
         self.secUpdateIdx = self.updateIdx
         self.trueG = self.G
         self.G = np.zeros_like(self.G, dtype=np.complex128)# + np.random.normal(scale=0.0000001, size=self.G.shape)
         self.H += np.random.normal(scale=0.00000001, size=self.H.shape)
-        self.P = np.zeros((2*blockSize, s.NUMERROR, s.NUMREF), dtype=np.complex128)
+        self.P = np.zeros((2*blockSize, self.numError, self.numRef), dtype=np.complex128)
         #self.P += np.random.normal(scale=0.0000001, size=self.P.shape)
         self.muPrim = muPrimary
         self.muSec = muSecondary

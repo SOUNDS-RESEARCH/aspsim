@@ -17,12 +17,12 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         super().__init__(mu, self.beta, speakerFilters, blockSize)
         self.name = "SPM Aux Noise Freq Domain Unconstrained"
         self.muSPM = muSPM
-        #self.auxNoiseSource = GoldSequenceSource(11, power=2, numChannels=s.NUMSPEAKER)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
+        #self.auxNoiseSource = GoldSequenceSource(11, power=2, numChannels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
 
-        self.secPathEstimate = NLMS_FREQ(numFreq=2*blockSize, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, stepSize=muSPM)
+        self.secPathEstimate = NLMS_FREQ(numFreq=2*blockSize, numIn=self.numSpeaker, numOut=self.numError, stepSize=muSPM)
         self.G = np.transpose(self.G, (0,2,1))
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
 
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
         self.window = win.hamming(2*self.blockSize,sym=False)[None,:]

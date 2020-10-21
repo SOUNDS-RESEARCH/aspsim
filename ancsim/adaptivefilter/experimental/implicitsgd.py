@@ -10,25 +10,25 @@ class ImplicitMPC (AdaptiveFilterFF):
     def __init__(self, config, mu, beta, speakerRIR):
         self.name = "Implicit Update FF MPC"
         super().__init__(config, mu, beta, speakerRIR)
-        self.buffers["yfilt"] = np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["yfilt"] = np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
        
     def updateFilter(self):
-        vecLen = s.NUMREF*s.NUMSPEAKER*self.filtLen
-        #grad = np.zeros_like(vecLen, s.NUMERROR)
+        vecLen = self.numRef*self.numSpeaker*self.filtLen
+        #grad = np.zeros_like(vecLen, self.numError)
         
         wVec = np.zeros((vecLen, 1))
-        for u in range(s.NUMREF):
-            for l in range(s.NUMSPEAKER):
+        for u in range(self.numRef):
+            for l in range(self.numSpeaker):
                 for i in range(self.filtLen):
-                    wVec[u*(self.filtLen*s.NUMSPEAKER) + l*self.filtLen + i,0] = self.H[u,l,i]
+                    wVec[u*(self.filtLen*self.numSpeaker) + l*self.filtLen + i,0] = self.H[u,l,i]
             
 
         for n in range(self.updateIdx, self.idx):
-            xf = np.zeros((vecLen, s.NUMERROR))
-            for u in range(s.NUMREF):
-                for l in range(s.NUMSPEAKER):
+            xf = np.zeros((vecLen, self.numError))
+            for u in range(self.numRef):
+                for l in range(self.numSpeaker):
                     for i in range(self.filtLen):
-                        xf[u*(self.filtLen*s.NUMSPEAKER) + l*self.filtLen + i, :] = self.xf[u,l,:,n-i]
+                        xf[u*(self.filtLen*self.numSpeaker) + l*self.filtLen + i, :] = self.xf[u,l,:,n-i]
             
             mat = np.sum(xf[:,None,:] * xf[None,:,:], axis=-1)
             matInv = np.linalg.pinv(np.eye(vecLen) + self.mu * mat)
@@ -36,10 +36,10 @@ class ImplicitMPC (AdaptiveFilterFF):
 
             wVec = matInv @ factor2
 
-        for u in range(s.NUMREF):
-            for l in range(s.NUMSPEAKER):
+        for u in range(self.numRef):
+            for l in range(self.numSpeaker):
                 for i in range(self.filtLen):
-                    self.H[u,l,i] = wVec[u*(self.filtLen*s.NUMSPEAKER)+l*self.filtLen+i,:]
+                    self.H[u,l,i] = wVec[u*(self.filtLen*self.numSpeaker)+l*self.filtLen+i,:]
         self.updateIdx = self.idx
 
     def forwardPassImplement(self, numSamples, noiseAtError, noiseAtRef, errorMicNoise):
