@@ -2,14 +2,10 @@ import tensorflow as tf
 
 
 
-
-
-
-
 class AdaptiveFilter_tf(ABC):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals):
+    def __init__(self, mu, beta, speakerRIR):
         self.name = "Adaptive Filter Base"
-        self.H = tf.Variable(tf.zeros((s.NUMREF,s.NUMSPEAKER,s.FILTLENGTH), dtype=tf.float64), dtype=tf.float64)
+        self.H = tf.Variable(tf.zeros((s.NUMREF,s.NUMSPEAKER,self.filtLen), dtype=tf.float64), dtype=tf.float64)
         self.mu = tf.convert_to_tensor(mu, dtype=tf.float64)
         self.beta = tf.convert_to_tensor(beta, dtype=tf.float64)
 
@@ -108,7 +104,7 @@ class MPC_FF_tf(AdaptiveFilter_tf):
         
     def updateFilter(self):
         for i in range(self.blockSize):
-            Xf = tf.reverse(self.xf[:,:,:,self.idx-i-s.FILTLENGTH+1:self.idx-i+1], axis=(-1,))
+            Xf = tf.reverse(self.xf[:,:,:,self.idx-i-self.filtLen+1:self.idx-i+1], axis=(-1,))
             self.H.assign_add(self.mu * (tf.reduce_sum(Xf * self.e[None, None,:,self.idx-i,None],axis=(2,)) / 
                                 (tf.reduce_sum(tf.square(Xf)) + self.beta)))
 
@@ -147,7 +143,7 @@ class MPC_FF_tf(AdaptiveFilter_tf):
             evyf = tf.reduce_sum(evY[:,None,:]*self.secPathEvals, axis=(0,-1))[:,None]
             self.eEvals[:,n].assign(tf.squeeze(noiseAtEvals - evyf))
 
-            X = tf.reverse(self.x[:,n-s.FILTLENGTH+1:n+1], axis=(-1,))
+            X = tf.reverse(self.x[:,n-self.filtLen+1:n+1], axis=(-1,))
 
             self.idx.assign_add(1)
             if self.idx >=(s.SIMCHUNKSIZE + s.SIMBUFFER):

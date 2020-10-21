@@ -12,8 +12,8 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #Derivation 10 but with simple heuristic norm, using the reference filtered through secondary paths
 #utilizes the silence in the beginning of the secondary paths to lessen the extra delays.
 class KernelIP10_minimumdelay(FxLMS_FF):
-    def __init__(self, mu, beta, speakerFilters, tdA, delayRemovalTolerance=1e-3):
-        super().__init__(mu, beta, speakerFilters)
+    def __init__(self, config,  mu, beta, speakerRIR, tdA, delayRemovalTolerance=1e-3):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10 min delay"
         self.A = np.transpose(tdA, (1,2,0))
         self.M = self.A.shape[-1]//2
@@ -60,8 +60,8 @@ class KernelIP10_minimumdelay(FxLMS_FF):
         
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
-            refPower= np.sum(self.buffers["xfnorm"][:,n-s.FILTLENGTH-self.M+1:n+1])
+            Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
+            refPower= np.sum(self.buffers["xfnorm"][:,n-self.filtLen-self.M+1:n+1])
             grad += np.sum(Xf* self.e[None, None,:,n-self.M,None],axis=2) / (refPower + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -70,8 +70,8 @@ class KernelIP10_minimumdelay(FxLMS_FF):
 
 
 class KernelIP10_interpolatederror(FxLMS_FF):
-    def __init__(self, mu, beta, speakerFilters, tdA):
-        super().__init__(mu, beta, speakerFilters)
+    def __init__(self, config, mu, beta, speakerFilters, tdA):
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "Kernel IP 10 interpolated error"
         
         self.kernelFilt = FilterSum_IntBuffer(np.transpose(tdA, (1,2,0)))
@@ -102,8 +102,8 @@ class KernelIP10_interpolatederror(FxLMS_FF):
 
         grad = np.zeros_like(self.controlFilt.ir)
         for i, n in enumerate(range(self.updateIdx, self.idx)):
-            Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1-self.M:n+1-self.M], axis=-1)
-            refPower= np.sum(self.buffers["xfnorm"][:,n-s.FILTLENGTH-self.M+1:n+1])
+            Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1-self.M:n+1-self.M], axis=-1)
+            refPower= np.sum(self.buffers["xfnorm"][:,n-self.filtLen-self.M+1:n+1])
             
             grad += np.sum(Xf* ipError[None, None,:,i,None],axis=2) / (refPower + self.beta)
 
@@ -116,8 +116,8 @@ class KernelIP10_interpolatederror(FxLMS_FF):
 
 #Derivation 10 but with simple heuristic norm, using the reference filtered through secondary paths
 class KernelIP10_xfnorm(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2, tdA):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2)
+    def __init__(self, config, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2, tdA):
+        super().__init__(config, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2)
         self.name = "Kernel IP 10 xfnorm"
         self.A = np.transpose(tdA, (1,2,0))
         #self.Afilt = FilterSum_IntBuffer(self.A)
@@ -138,11 +138,11 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         grad = np.zeros_like(self.H)
         M = self.A.shape[-1]//2
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
 
-            #refPower = np.sum(self.buffers["xfnormal"][:,:,:,n-s.FILTLENGTH-M+1:n-M+1]**2)
+            #refPower = np.sum(self.buffers["xfnormal"][:,:,:,n-self.filtLen-M+1:n-M+1]**2)
             #print("Old: ", refPower)
-            refPower= np.sum(self.buffers["xfnorm"][:,n-s.FILTLENGTH-M+1:n+1])
+            refPower= np.sum(self.buffers["xfnorm"][:,n-self.filtLen-M+1:n+1])
             #print("New: ", refPower)
             grad += np.sum(Xf* self.e[None, None,:,n-M,None],axis=2) / (refPower + self.beta)
         self.H -= grad * self.mu
@@ -152,7 +152,7 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         for i in range(numSamples):
             n = self.idx + i
             self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-            X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
             self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
         yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -170,8 +170,8 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
 
 #Derivation 10 but with simple heuristic norm using the kernel filtered reference signal
 class KernelIP10(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, tdA):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta, speakerRIR, tdA):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10"
         self.A = np.transpose(tdA, (1,2,0))
         #self.Afilt = FilterSum_IntBuffer(self.A)
@@ -189,7 +189,7 @@ class KernelIP10(AdaptiveFilterFF):
         #M = self.A.shape[-1]//2
 
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
      
             grad += np.sum(Xf* self.e[None, None,:,n-self.A.shape[-1]//2,None],axis=2) / (np.sum(Xf**2) + self.beta)
         self.H -= grad * self.mu
@@ -200,7 +200,7 @@ class KernelIP10(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -213,8 +213,8 @@ class KernelIP10(AdaptiveFilterFF):
 
 #Derivation 10
 class KernelIP10_postErrorNorm(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, tdA):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta, speakerRIR, tdA):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10 posterior error normalization"
         self.A = np.transpose(tdA, (1,2,0))
         #self.Afilt = FilterSum_IntBuffer(self.A)
@@ -235,10 +235,10 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
         eOffset = self.A.shape[-1]//2
 
         for n in range(self.updateIdx, self.idx):
-            xKern = np.flip(self.buffers["xKern"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            xKern = np.flip(self.buffers["xKern"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
             currentGrad = np.sum(xKern* self.e[None, None,:,n-eOffset,None],axis=2)
             
-            Xf = np.flip(self.xf[:,:,:,n-eOffset-s.FILTLENGTH+1:n-eOffset+1], axis=-1) 
+            Xf = np.flip(self.xf[:,:,:,n-eOffset-self.filtLen+1:n-eOffset+1], axis=-1) 
             P = np.sum(Xf* currentGrad[:,:,None,:], axis=(0,1,3))
             norm = np.sum(self.e[:,n-eOffset] * P) / (np.sum(P**2) + self.beta)
 
@@ -251,7 +251,7 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -264,8 +264,8 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
 
 #Derivation 10
 class KernelIP_tdSimple_newnormMoreConservative(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, tdA):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta, speakerRIR, tdA):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP Timedomain simple newnorm more conversavite"
         self.A = np.transpose(tdA, (1,2,0))
         #self.Afilt = FilterSum_IntBuffer(self.A)
@@ -283,7 +283,7 @@ class KernelIP_tdSimple_newnormMoreConservative(AdaptiveFilterFF):
         
         eOffset = self.A.shape[-1]//2
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
 
             
 
@@ -299,7 +299,7 @@ class KernelIP_tdSimple_newnormMoreConservative(AdaptiveFilterFF):
                 for i in range(numSamples):
                     n = self.idx + i
                     self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                    X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                    X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                     self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
                 yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])

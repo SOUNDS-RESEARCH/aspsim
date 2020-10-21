@@ -10,11 +10,16 @@ from ancsim.adaptivefilter.diagnostics import NoiseReduction, SoundfieldImage, C
 
 
 class AdaptiveFilterFF(ABC):
-    def __init__(self, mu, beta, speakerRIR):
-        self.name = "Adaptive Filter Timedomain Feedforward"
-        self.controlFilt = FilterSum_IntBuffer(np.zeros((s.NUMREF,s.NUMSPEAKER,s.FILTLENGTH)))
+    def __init__(self, config, mu, beta, speakerRIR):
+        self.name = "Adaptive Filter Timedomain Baseclass"
+        self.filtLen = config["FILTLENGTH"]
+        self.errorMicSNR = config["ERRORMICSNR"]
+        self.refMicSNR = config["REFMICSNR"]
         self.mu = mu
         self.beta = beta
+
+        self.controlFilt = FilterSum_IntBuffer(np.zeros((s.NUMREF,s.NUMSPEAKER,self.filtLen)))
+        
 
         self.buffers = {}
 
@@ -41,7 +46,7 @@ class AdaptiveFilterFF(ABC):
 
         self.metadata = {"mu" : mu,
                          "beta" : beta,
-                         "controlFiltLen" : s.FILTLENGTH}
+                         "controlFiltLen" : self.filtLen}
 
     def prepare(self):
         """Will be called once, after buffers are filled, right before regular operations
@@ -81,8 +86,8 @@ class AdaptiveFilterFF(ABC):
 
     def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals):
         blockSizes = calcBlockSizes(numSamples, self.idx)
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (s.NUMERROR, numSamples), s.ERRORMICNOISE)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (s.NUMREF, numSamples), s.REFMICNOISE)
+        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (s.NUMERROR, numSamples), self.errorMicSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (s.NUMREF, numSamples), self.refMicSNR)
 
         numComputed = 0
         for blockSize in blockSizes:
@@ -106,7 +111,7 @@ class AdaptiveFilterFF(ABC):
 
 
 class AdaptiveFilterFFComplex(ABC):
-    def __init__(self, mu, beta, speakerRIR, blockSize):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize):
         self.name = "Adaptive Filter Feedforward Complex"
         self.H = np.zeros((2*blockSize, s.NUMSPEAKER, s.NUMREF), dtype=np.complex128)
         self.controlFilt = FilterSum_Freqdomain(numIn=s.NUMREF, numOut=s.NUMSPEAKER, irLen=blockSize)
@@ -201,67 +206,3 @@ class AdaptiveFilterFFComplex(ABC):
 
         self.idx += numSamples
         
-
-
-
-
-class AdaptiveFilterFB(ABC):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2):
-        self.name = "Adaptive Filter Timedomain Feedback"
-        self.H = np.zeros((s.NUMERROR,s.NUMSPEAKER,s.FILTLENGTH))
-        self.mu = mu
-        self.beta = beta
-
-        self.y = np.zeros((s.NUMSPEAKER,s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.x = np.zeros((s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.xf = np.zeros((s.NUMERROR, s.NUMSPEAKER, s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.e = np.zeros((s.NUMERROR,s.SIMCHUNKSIZE+s.SIMBUFFER))
-
-        self.secPathError = secPathError
-        self.secPathErrorFilt = FilterSum_IntBuffer(secPathError)
-        self.secPathXfFilt = FilterMD_IntBuffer((s.NUMERROR,), secPathError)
-
-        self.diag = DiagnosticHandler(secPathTarget, secPathEvals, secPathEvals2)
-
-        self.idx = s.SIMBUFFER
-        self.updateIdx = s.SIMBUFFER
-        #self.bufferIdx = 0
-
-    @abstractmethod
-    def forwardPassImplement(self):
-        pass
-
-    @abstractmethod
-    def updateFilter(self):
-        pass
-
-    def resetBuffers(self):
-        self.diag.saveDiagnostics(self.e, self.y)
-
-        self.y = np.concatenate((self.y[:,-s.SIMBUFFER:], np.zeros((self.y.shape[0], s.SIMCHUNKSIZE))) ,axis=-1)
-        self.x = np.concatenate((self.x[:,-s.SIMBUFFER:], np.zeros((self.x.shape[0], s.SIMCHUNKSIZE))) ,axis=-1)
-        self.e = np.concatenate((self.e[:,-s.SIMBUFFER:], np.zeros((self.e.shape[0], s.SIMCHUNKSIZE))) ,axis=-1)
-        self.xf = np.concatenate((self.xf[:,:,:,-s.SIMBUFFER:], 
-            np.zeros((self.xf.shape[0], self.xf.shape[1], self.xf.shape[2], s.SIMCHUNKSIZE))),axis=-1)
-
-        self.idx -= s.SIMCHUNKSIZE
-        self.updateIdx -= s.SIMCHUNKSIZE
-
-
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals, noiseAtEvals2, errorMicNoise):
-        blockSizes = calcBlockSizes(numSamples, self.idx)
-        numComputed = 0
-        for blockSize in blockSizes:
-            self.forwardPassImplement(blockSize, noiseAtError[:,numComputed:numComputed+blockSize], 
-                                        noiseAtRef[:,numComputed:numComputed+blockSize], 
-                                        errorMicNoise[:,numComputed:numComputed+blockSize])
-
-            self.diag.saveToBuffers(self.idx, noiseAtError[:,numComputed:numComputed+blockSize], 
-                                noiseAtTarget[:,numComputed:numComputed+blockSize],
-                                noiseAtEvals[:,numComputed:numComputed+blockSize],
-                                noiseAtEvals2[:,numComputed:numComputed+blockSize])
-            assert(self.idx+blockSize <= s.SIMBUFFER+s.SIMCHUNKSIZE)
-            if self.idx + blockSize >= (s.SIMCHUNKSIZE + s.SIMBUFFER):
-                self.resetBuffers()
-            self.idx += blockSize
-            numComputed += blockSize

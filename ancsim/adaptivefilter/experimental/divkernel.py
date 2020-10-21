@@ -10,8 +10,8 @@ import tensorflow as tf
 
     
 class KernelMPC_9b(AdaptiveFilterFF):
-    def __init__(self, mu, secPathError, secPathTarget, secPathEvals, kernelFilt):
-        super().__init__(mu, 0.001, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, speakerRIR, kernelFilt):
+        super().__init__(config, mu, 0.001, speakerRIR)
         self.name = "Kernel IP 9b"
         self.L = tf.convert_to_tensor(kernelFilt, dtype=tf.float64) 
         self.Htf = tf.Variable(tf.zeros(self.H.shape, dtype=tf.float64), dtype=tf.float64)
@@ -97,7 +97,7 @@ class KernelMPC_9b(AdaptiveFilterFF):
             for i in range(b):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,numComputed+i])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+b])

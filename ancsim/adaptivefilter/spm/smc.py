@@ -12,9 +12,9 @@ from ancsim.utilities import measure
 
 class FxLMSSMC(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""
-    def __init__(self, mu, beta, speakerFilters, muPrim, muSec, secPathEstimateLen):
+    def __init__(self, config, mu, beta, speakerFilters, muPrim, muSec, secPathEstimateLen):
         assert(s.NUMREF == 1)
-        super().__init__(mu, beta, speakerFilters)
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SMC NLMS"
         self.sLen = secPathEstimateLen
         self.pLen= secPathEstimateLen
@@ -44,7 +44,7 @@ class FxLMSSMC(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -74,9 +74,9 @@ class FxLMSSMC(AdaptiveFilterFF):
 
 class FxLMSSMC_RLS(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""
-    def __init__(self, mu, beta, speakerFilters, primForgetFactor, secForgetFactor, secPathEstimateLen):
+    def __init__(self, config, mu, beta, speakerFilters, primForgetFactor, secForgetFactor, secPathEstimateLen):
         assert(s.NUMREF == 1)
-        super().__init__(mu, beta, speakerFilters)
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SMC RLS"
         self.sLen = secPathEstimateLen
         self.pLen= secPathEstimateLen
@@ -106,7 +106,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -179,7 +179,7 @@ class FxLMSSMC_old(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu

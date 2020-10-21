@@ -7,53 +7,46 @@ import ancsim.settings as s
 
 
 class ImplicitMPC (AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals):
+    def __init__(self, config, mu, beta, speakerRIR):
         self.name = "Implicit Update FF MPC"
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+        super().__init__(config, mu, beta, speakerRIR)
         self.buffers["yfilt"] = np.zeros((s.NUMERROR, s.SIMBUFFER+s.SIMCHUNKSIZE))
        
-
     def updateFilter(self):
-        vecLen = s.NUMREF*s.NUMSPEAKER*s.FILTLENGTH
+        vecLen = s.NUMREF*s.NUMSPEAKER*self.filtLen
         #grad = np.zeros_like(vecLen, s.NUMERROR)
         
         wVec = np.zeros((vecLen, 1))
         for u in range(s.NUMREF):
             for l in range(s.NUMSPEAKER):
-                for i in range(s.FILTLENGTH):
-                    wVec[u*(s.FILTLENGTH*s.NUMSPEAKER) + l*s.FILTLENGTH + i,0] = self.H[u,l,i]
+                for i in range(self.filtLen):
+                    wVec[u*(self.filtLen*s.NUMSPEAKER) + l*self.filtLen + i,0] = self.H[u,l,i]
             
 
         for n in range(self.updateIdx, self.idx):
-
-            
             xf = np.zeros((vecLen, s.NUMERROR))
-            
             for u in range(s.NUMREF):
                 for l in range(s.NUMSPEAKER):
-                    for i in range(s.FILTLENGTH):
-                        xf[u*(s.FILTLENGTH*s.NUMSPEAKER) + l*s.FILTLENGTH + i, :] = self.xf[u,l,:,n-i]
+                    for i in range(self.filtLen):
+                        xf[u*(self.filtLen*s.NUMSPEAKER) + l*self.filtLen + i, :] = self.xf[u,l,:,n-i]
             
             mat = np.sum(xf[:,None,:] * xf[None,:,:], axis=-1)
             matInv = np.linalg.pinv(np.eye(vecLen) + self.mu * mat)
-
-
             factor2 = wVec - self.mu * np.sum(xf * (self.e[:,n:n+1].T - self.buffers["yfilt"][:,n:n+1].T),axis=-1, keepdims=True)
 
             wVec = matInv @ factor2
 
-
         for u in range(s.NUMREF):
             for l in range(s.NUMSPEAKER):
-                for i in range(s.FILTLENGTH):
-                    self.H[u,l,i] = wVec[u*(s.FILTLENGTH*s.NUMSPEAKER)+l*s.FILTLENGTH+i,:]
+                for i in range(self.filtLen):
+                    self.H[u,l,i] = wVec[u*(self.filtLen*s.NUMSPEAKER)+l*self.filtLen+i,:]
         self.updateIdx = self.idx
 
     def forwardPassImplement(self, numSamples, noiseAtError, noiseAtRef, errorMicNoise):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])

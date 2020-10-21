@@ -25,7 +25,7 @@ def getWhiteNoiseAtSNR(signal, dim, snr, identicalChannelPower=False):
         powerOfSignal = util.avgPower(signal)
     else:
         powerOfSignal = util.avgPower(signal, axis=-1)[:,None]
-    generatedNoise *= np.sqrt(powerOfSignal) * (util.db2mag(snr))
+    generatedNoise *= np.sqrt(powerOfSignal) * (util.db2mag(-snr))
     return generatedNoise
 
 

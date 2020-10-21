@@ -60,9 +60,9 @@ def setupPos(config):
     if config["SPATIALDIMENSIONS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:
-                pos = setup.getPositionsCylinder3d_directref()
+                pos = setup.getPositionsCylinder3d_directref(config)
             else:
-                pos = setup.getPositionsCylinder3d()
+                pos = setup.getPositionsCylinder3d(config)
         elif config["ARRAYSHAPES"] == "rectangle":
             if config["REFDIRECTLYOBTAINED"]:
                 pos = setup.getPositionsRectangle3d(config)
@@ -73,11 +73,11 @@ def setupPos(config):
             if config["REFDIRECTLYOBTAINED"]:
                 raise NotImplementedError
             else:
-                pos = setup.getPositionsDisc2d()
+                pos = setup.getPositionsDisc2d(config)
         else:
             raise NotImplementedError
     elif config["SPATIALDIMENSIONS"] == 1:
-        pos = setup.getPositionsLine1d()
+        pos = setup.getPositionsLine1d(config)
     else:
         raise ValueError
     return pos

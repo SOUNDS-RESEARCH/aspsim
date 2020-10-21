@@ -19,8 +19,8 @@ import ancsim.utilities as util
 class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
     """Using block based normalization for both ANC and SPM
         Corresponds to FreqAuxNoiseFxLMS"""
-    def __init__(self, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):
-        super().__init__(mu, beta, speakerRIR)
+    def __init__(self, config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "FxLMS SPM Eriksson Block"
         self.muSPM = muSPM
         self.spmLen = secPathEstimateLen
@@ -62,7 +62,7 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2)# / (np.sum(Xf**2) + self.beta)
 
         norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
@@ -80,9 +80,9 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
 
 class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
     """Frequency domain equivalent algorithm to FxLMSSPMEriksson"""
-    def __init__(self, mu, muSPM, speakerRIR, blockSize):
+    def __init__(self, config, mu, muSPM, speakerRIR, blockSize):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerRIR, blockSize)
+        super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain"
         self.muSPM = muSPM
         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.secPathEstimate.tf, plotFrequency=s.PLOTFREQUENCY))
@@ -155,9 +155,9 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
         wiener solution without inverting the estimated akf matrix, which is usually the problem.
         This is similar to the 'a tuning-less approach in secondary path 
         modelling in active noise control systems'"""
-    def __init__(self, mu, invForgetFactor, speakerRIR, secPathEstimateLen):
+    def __init__(self, config, mu, invForgetFactor, speakerRIR, secPathEstimateLen):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerRIR)
+        super().__init__(config, mu, self.beta, speakerRIR)
         self.name = "SPM Aux Noise Wiener"
         self.secPathEstLen = secPathEstimateLen
         self.auxNoisePower = 3
@@ -202,7 +202,7 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -216,9 +216,9 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
 class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
     """As we know the akf of the auxiliary noise, we should be able to get the 
         wiener solution without inverting the estimated akf matrix, which is usually the problem"""
-    def __init__(self, mu, invForgetFactor, speakerRIR, blockSize):
+    def __init__(self, config, mu, invForgetFactor, speakerRIR, blockSize):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerRIR, blockSize)
+        super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain Wiener"
         self.auxNoisePower = 3
         self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=s.NUMSPEAKER)
@@ -344,8 +344,8 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
 class FxLMSSPMEriksson(AdaptiveFilterFF):
     """Using fully sample by sample normalization
         Will then not correspond exactly to frequency domain implementations"""
-    def __init__(self, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):
-        super().__init__(mu, beta, speakerRIR)
+    def __init__(self, config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "FxLMS SPM Eriksson modern"
         self.muSPM = muSPM
         self.spmLen = secPathEstimateLen
@@ -386,7 +386,7 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -401,166 +401,11 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
         self.y[:,self.idx:self.idx+numSamples] = v + y
 
 class FxLMSSPMEriksson_Gold(FxLMSSPMEriksson):
-    def __init__(self, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):   
-        super().__init__(mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=auxNoisePower)
+    def __init__(self, config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=3):   
+        super().__init__(config, mu, beta, speakerRIR, muSPM, secPathEstimateLen, auxNoisePower=auxNoisePower)
         self.name = "FxLMS SPM Eriksson Gold Code"
         self.auxNoiseSource = GoldSequenceSource(11, power=auxNoisePower, numChannels=s.NUMSPEAKER)
 
-
-
-
-
-class FreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
-    """USING FLAWED METHOD FROM CONSTRAINEDFASTBLOCKFXLMS. NOT TRULY LINEAR CONVOLUTIONS"""
-    def __init__(self, mu, muSPM, speakerFilters, blockSize, lowFreqLim=0, highFreqLim=s.SAMPLERATE/2):
-        self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerFilters, blockSize)
-        self.name = "SPM Aux Noise Freq Domain - linear conv"
-        self.muSPM = muSPM
-
-        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=s.NUMSPEAKER)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
-
-        self.secPathEstimate = FastBlockNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
-                                            stepSize=muSPM, freqIndepNorm=False)
-        self.G = np.transpose(self.G, (0,2,1))
-        #self.G = np.transpose(np.fft.fft(np.concatenate(
-        #    (np.zeros_like(speakerFilters["error"]),speakerFilters["error"]),axis=-1),axis=-1),(2,1,0))
-        #self.secPathEstimate = np.zeros((2*blockSize, s.NUMERROR, s.NUMSPEAKER), dtype=np.complex128)
-        #self.secPathEstimate.setIR(0.5*self.G)# + np.random.normal(scale=0.0001, size=self.G.shape))
-
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("secpathselectedfrequencies", dia.ConstantEstimateNMSESelectedFrequencies(
-            self.G, lowFreq=lowFreqLim, highFreq=highFreqLim, sampleRate=s.SAMPLERATE, plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("secpathphase", dia.ConstantEstimatePhaseDifference(self.G, plotFrequency=s.PLOTFREQUENCY))
-
-        self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
-        self.metadata["auxNoisePower"] = self.auxNoiseSource.power
-        self.metadata["muSPM"] = muSPM
-
-    def prepare(self):
-        self.buffers["f"][:,:s.SIMBUFFER] = self.e[:,:s.SIMBUFFER]
-
-    def forwardPassImplement(self, numSamples): 
-        super().forwardPassImplement(numSamples)
-
-        v = self.auxNoiseSource.getSamples(numSamples)
-        self.buffers["v"][:,self.idx:self.idx+numSamples] = v
-        self.y[:,self.idx:self.idx+numSamples] += v
-
-    def updateSPM(self):
-        vf = self.secPathEstimate.process(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
-                                                        self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1))
-
-        self.buffers["f"][:,self.updateIdx:self.idx] = self.e[:,self.updateIdx:self.idx] - vf
-        self.secPathEstimate.update(self.buffers["v"][:,self.updateIdx-self.blockSize:self.idx], 
-                                    self.buffers["f"][:,self.updateIdx:self.idx])
-
-
-        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.ir)
-        self.diag.saveBlockData("secpathselectedfrequencies", self.idx, self.secPathEstimate.ir)
-        self.diag.saveBlockData("secpathphase", self.idx, self.secPathEstimate.ir)
-
-    def updateFilter(self):
-        assert (self.idx - self.updateIdx == self.blockSize)
-        assert(self.updated == False)
-
-        self.updateSPM()
-        self.F = np.fft.fft(np.concatenate((np.zeros((s.NUMERROR,self.blockSize)),
-                            self.buffers["f"][:,self.updateIdx:self.idx]),axis=-1), 
-                            axis=-1).T[:,:,None]
-
-        grad = np.transpose(self.secPathEstimate.ir.conj(),(0,2,1)) @ self.F @ np.transpose(self.X.conj(),(0,2,1))
-
-        tdGrad = np.fft.ifft(grad, axis=0)
-        tdGrad[self.blockSize:,:] = 0
-        grad = np.fft.fft(tdGrad, axis=0)
-
-        powerPerFreq = np.sum(np.abs(self.secPathEstimate.ir)**2,axis=(1,2)) * np.sum(np.abs(self.X)**2,axis=(1,2))
-        norm = 1 / (np.mean(powerPerFreq) + self.beta)
-        self.H -= self.mu * norm * grad
-
-        self.updateIdx += self.blockSize
-        self.updated = True
-
-
-class FreqAuxNoiseFxLMS2(FastBlockFxLMS):
-    """FLAWED"""
-    def __init__(self, mu, muSPM, speakerFilters, blockSize):
-        self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerFilters, blockSize)
-        self.name = "SPM Aux Noise Freq Domain - linear conv"
-        self.muSPM = muSPM
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.secPathEstimate, plotFrequency=s.PLOTFREQUENCY))
-        #self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=s.NUMSPEAKER)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=s.NUMSPEAKER)
-
-        self.secPathEstimate = FastBlockNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, numOut=s.NUMERROR, 
-                                            stepSize=muSPM, freqIndepNorm=False)
-        #self.G = np.transpose(np.fft.fft(np.concatenate(
-        #    (np.zeros_like(speakerFilters["error"]),speakerFilters["error"]),axis=-1),axis=-1),(2,1,0))
-        #self.secPathEstimate = np.zeros((2*blockSize, s.NUMERROR, s.NUMSPEAKER), dtype=np.complex128)
-        #self.secPathEstimate.setIR(0.5*self.G)# + np.random.normal(scale=0.0001, size=self.G.shape))
-
-        self.buffers["v"] = np.zeros((s.NUMSPEAKER, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((s.NUMERROR, s.SIMCHUNKSIZE+s.SIMBUFFER))
-
-        self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
-        self.metadata["auxNoisePower"] = self.auxNoiseSource.power
-        self.metadata["muSPM"] = muSPM
-
-    def prepare(self):
-        self.buffers["f"][:,:s.SIMBUFFER] = self.e[:,:s.SIMBUFFER]
-
-    def forwardPassImplement(self, numSamples): 
-        super().forwardPassImplement(numSamples)
-
-        v = self.auxNoiseSource.getSamples(numSamples)
-        self.buffers["v"][:,self.idx:self.idx+numSamples] = v
-        self.y[:,self.idx:self.idx+numSamples] += v
-
-    def updateSPM(self):
-        vf = self.secPathEstimate.process(np.concatenate((np.zeros((s.NUMSPEAKER,self.blockSize)),
-                                                        self.buffers["v"][:,self.updateIdx:self.idx]), axis=-1))
-
-        self.buffers["f"][:,self.updateIdx:self.idx] = self.e[:,self.updateIdx:self.idx] - vf
-        self.secPathEstimate.update(self.buffers["v"][:,self.updateIdx-self.blockSize:self.idx], 
-                                    self.buffers["f"][:,self.updateIdx:self.idx])
-
-        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.ir)
-
-    def updateFilter(self):
-        assert (self.idx - self.updateIdx == self.blockSize)
-        assert(self.updated == False)
-        self.updateSPM()
-
-        self.X = np.fft.fft(self.x[:,self.idx-(2*self.blockSize):self.idx],axis=-1).T[:,:,None]
-        xf = self.secPathEstimate.ir[:,None,:,:] * self.X[:,:,None,:] 
-
-        xf = np.fft.ifft(xf, axis=0)
-        xf[:self.blockSize,:,:,:] = 0
-        xf = np.fft.fft(xf,axis=0)
-        
-        self.F = np.fft.fft(np.concatenate((np.zeros((s.NUMERROR,self.blockSize)),
-                                            self.buffers["f"][:,self.updateIdx:self.idx]),axis=-1), 
-                                            axis=-1).T[:,:,None]
-
-        grad = np.squeeze(np.transpose(xf.conj(),(0,3,1,2)) @ self.F[:,None,:,:], axis=-1)
-
-        tdGrad = np.fft.ifft(grad, axis=0)
-        tdGrad[self.blockSize:,:,:] = 0
-        grad = np.fft.fft(tdGrad, axis=0)
-
-        powerPerFreq = np.sum(np.abs(xf)**2,axis=(1,2,3))
-        norm = 1 / (np.mean(powerPerFreq) + self.beta)
-        #print("New FD Norm", norm)
-        self.H -= self.mu * norm * grad
-
-        self.updateIdx += self.blockSize
-        self.updated = True
 
 
 class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
@@ -569,8 +414,8 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
         with auxiliary noise power scheduling
         strategy for multi-channel adaptive
         active noise control system"""
-    def __init__(self, mu, beta, speakerFilters, minSecPathStepSize, secPathEstimateLen):
-        super().__init__(mu, beta, speakerFilters)
+    def __init__(self, config, mu, beta, speakerFilters, minSecPathStepSize, secPathEstimateLen):
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SPM Yuxue"
         self.muSecMin = minSecPathStepSize
         self.spmLen = secPathEstimateLen
@@ -649,7 +494,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu
@@ -671,14 +516,10 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
 
 
 
-
-
-
-
 class FxLMSSPMZhang(AdaptiveFilterFF):
     """IS NOT FULLY FUNCTIONAL"""
-    def __init__(self, mu, beta, speakerFilters, muSPM, secPathEstimateLen):
-        super().__init__(mu, beta, speakerFilters)
+    def __init__(self, config, mu, beta, speakerFilters, muSPM, secPathEstimateLen):
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "FxLMS SPM Zhang"
         self.muSPM = muSPM
         self.spmLen = secPathEstimateLen
@@ -736,7 +577,7 @@ class FxLMSSPMZhang(AdaptiveFilterFF):
                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-           Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+           Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
         self.controlFilt.ir -= grad * self.mu

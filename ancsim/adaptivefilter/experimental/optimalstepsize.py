@@ -6,14 +6,14 @@ from ancsim.adaptivefilter.util import equivalentDelay
 import ancsim.settings as s
 
 class MPC_FF_postErrorNorm(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta, speakerRIR):
+        super().__init__(config, , beta, speakerRIR)
         self.name = "MPC FF posterior error minimization normalization"
         
     def updateFilter(self):
         grad = np.zeros_like(self.H)
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
             #grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2)
             grad = np.sum(Xf * self.e[None, None,:,n,None],axis=2)
             
@@ -25,7 +25,7 @@ class MPC_FF_postErrorNorm(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -38,8 +38,8 @@ class MPC_FF_postErrorNorm(AdaptiveFilterFF):
 
 
 class MPC_FF_OptimalStepSize(AdaptiveFilterFF):
-    def __init__(self, beta, secPathError, secPathTarget, secPathEvals):
-        super().__init__(1, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self,config,  beta, speakerRIR):
+        super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size"
         D = equivalentDelay(secPathError)
         if s.SOURCETYPE == "noise":
@@ -51,10 +51,10 @@ class MPC_FF_OptimalStepSize(AdaptiveFilterFF):
         
     def updateFilter(self):
         grad = np.zeros_like(self.H)
-        sigmax = np.mean(self.x[:,self.updateIdx-s.FILTLENGTH+1:self.idx+1]**2) + self.beta
+        sigmax = np.mean(self.x[:,self.updateIdx-self.filtLen+1:self.idx+1]**2) + self.beta
         
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
             grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2)
         self.H -= grad / (sigmax*self.normFactor)
         self.updateIdx = self.idx
@@ -63,7 +63,7 @@ class MPC_FF_OptimalStepSize(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -77,8 +77,8 @@ class MPC_FF_OptimalStepSize(AdaptiveFilterFF):
 
 
 class MPC_FF_OptimalStepSize2(AdaptiveFilterFF):
-    def __init__(self, beta, secPathError, secPathTarget, secPathEvals, blockSize):
-        super().__init__(1, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, beta, speakerRIR, blockSize):
+        super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size more intelligent sigmax estimation"
         D = equivalentDelay(secPathError)
         if s.SOURCETYPE == "noise":
@@ -95,17 +95,17 @@ class MPC_FF_OptimalStepSize2(AdaptiveFilterFF):
         
     def updateSigmax(self):
         if self.sigmax is None:
-            self.sigmax = np.mean(self.x[:,self.updateIdx-s.FILTLENGTH+1:self.idx+1]**2)
+            self.sigmax = np.mean(self.x[:,self.updateIdx-self.filtLen+1:self.idx+1]**2)
         else:
             self.sigmax *= self.forgetFactor
-            self.sigmax += (1-self.forgetFactor) * np.mean(self.x[:,self.updateIdx-s.FILTLENGTH+1:self.idx+1]**2)
+            self.sigmax += (1-self.forgetFactor) * np.mean(self.x[:,self.updateIdx-self.filtLen+1:self.idx+1]**2)
         
     def updateFilter(self):
         grad = np.zeros_like(self.H)
         self.updateSigmax()
         
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
             grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2)
         self.H -= grad / ((self.sigmax*self.normFactor) + self.beta)
         self.updateIdx = self.idx
@@ -114,7 +114,7 @@ class MPC_FF_OptimalStepSize2(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -126,8 +126,8 @@ class MPC_FF_OptimalStepSize2(AdaptiveFilterFF):
 
 
 class MPC_FF_OptimalStepSize3(AdaptiveFilterFF):
-    def __init__(self, beta, secPathError, secPathTarget, secPathEvals, blockSize):
-        super().__init__(1, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, beta, speakerRIR, blockSize):
+        super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size"
         D = equivalentDelay(secPathError)
         if s.SOURCETYPE == "noise":
@@ -154,7 +154,7 @@ class MPC_FF_OptimalStepSize3(AdaptiveFilterFF):
         self.updateSigmax()
         
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.xf[:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            Xf = np.flip(self.xf[:,:,:,n-self.filtLen+1:n+1], axis=-1)
             grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2)
         self.H -= grad / ((self.sigmax[:,None,None]*self.normFactor) + self.beta)
         self.updateIdx = self.idx
@@ -163,7 +163,7 @@ class MPC_FF_OptimalStepSize3(AdaptiveFilterFF):
             for i in range(numSamples):
                 n = self.idx + i
                 self.x[:,n] = np.squeeze(noiseAtRef[:,i:i+1])
-                X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+                X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
                 self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
             yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])

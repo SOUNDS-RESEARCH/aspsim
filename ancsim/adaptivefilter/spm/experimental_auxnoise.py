@@ -18,9 +18,9 @@ import ancsim.utilities as util
 class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
     """As we know the akf of the auxiliary noise, we should be able to get the 
         wiener solution without inverting the estimated akf matrix, which is usually the problem"""
-    def __init__(self, mu, speakerRIR, blockSize):
+    def __init__(self, config, mu, speakerRIR, blockSize):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerRIR, blockSize)
+        super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain Wiener"
         self.auxNoisePower = 3
         self.auxNoiseSource = WhiteNoiseSource(power=self.auxNoisePower, numChannels=s.NUMSPEAKER)
@@ -120,8 +120,8 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
 class KIWienerAuxNoiseFreqFxLMS(WienerAuxNoiseFreqFxLMS):
     """Exact same algorithm as WienerAuxNoiseFreqFxLMS, but solutions
         restricted to those in the RKHS"""
-    def __init__(self, mu, speakerFilters, blockSize, errorPos):
-        super().__init__(mu, speakerFilters, blockSize)
+    def __init__(self, config, mu, speakerFilters, blockSize, errorPos):
+        super().__init__(config, mu, speakerFilters, blockSize)
         kiRegParam = 1e-1
         self.kiParams = soundfieldInterpolation(errorPos, errorPos, 2*blockSize, kiRegParam)
         self.name = "Kernel Interpolated Aux Noise Freq Domain Wiener"
@@ -144,9 +144,9 @@ class KIWienerAuxNoiseFreqFxLMS(WienerAuxNoiseFreqFxLMS):
 
 
 class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
-    def __init__(self, mu, muSPM, speakerFilters, blockSize, errorPos):
+    def __init__(self, config, mu, muSPM, speakerFilters, blockSize, errorPos):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerFilters, blockSize)
+        super().__init__(config, mu, self.beta, speakerFilters, blockSize)
         self.name = "SPM Aux Noise Freq Domain - Kernel Inteproaltion"
         self.muSPM = muSPM
         self.auxNoiseSource = GoldSequenceSource(11, power=1, numChannels=s.NUMSPEAKER)
@@ -221,9 +221,9 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
 
 class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
-    def __init__(self, mu, muSPM, speakerFilters, blockSize, errorPos, lowFreqLim=0, highFreqLim=s.SAMPLERATE/2):
+    def __init__(self, config, mu, muSPM, speakerFilters, blockSize, errorPos, lowFreqLim=0, highFreqLim=s.SAMPLERATE/2):
         self.beta = 1e-3
-        super().__init__(mu, self.beta, speakerFilters, blockSize)
+        super().__init__(config, mu, self.beta, speakerFilters, blockSize)
         self.name = "SPM Aux Noise Freq Domain - KI penalized"
         self.muSPM = muSPM
         self.eta = 100

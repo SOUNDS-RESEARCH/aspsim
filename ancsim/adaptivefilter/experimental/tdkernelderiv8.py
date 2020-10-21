@@ -4,8 +4,8 @@ import tensorflow as tf
 
 # From derivation 8a, with normalization 1.
 class KernelIP_FB(AdaptiveFilterFB):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, kernelFilt):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta,speakerRIR, kernelFilt):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "KernelIP FB 8a"
         self.c = tf.convert_to_tensor(kernelFilt) 
         self.Htf = tf.Variable(tf.zeros(self.H.shape, dtype=tf.float64), dtype=tf.float64)
@@ -71,7 +71,7 @@ class KernelIP_FB(AdaptiveFilterFB):
             
             self.x[:,n] = self.e[:,n] - yf
             
-            X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
             self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
         self.xf[:,:,:,self.idx:self.idx+numSamples] = np.transpose(
@@ -149,7 +149,7 @@ class KernelIP_FF(AdaptiveFilterFF):
         for i in range(numSamples):
             n = self.idx + i
             self.x[:,n] = noiseAtRef[:,i]
-            X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
             self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
         yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -162,8 +162,8 @@ class KernelIP_FF(AdaptiveFilterFF):
 
 
 class KernelIP_FFavgnorm(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, kernelFilt):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, config, mu, beta, speakerRIR, kernelFilt):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "KernelIP FF 8a block-normalization"
         self.c = tf.convert_to_tensor(kernelFilt) 
         self.Htf = tf.Variable(tf.zeros(self.H.shape, dtype=tf.float64), dtype=tf.float64)
@@ -233,7 +233,7 @@ class KernelIP_FFavgnorm(AdaptiveFilterFF):
         for i in range(numSamples):
             n = self.idx + i
             self.x[:,n] = noiseAtRef[:,i]
-            X = np.flip(self.x[:,n-s.FILTLENGTH+1:n+1], axis=-1)
+            X = np.flip(self.x[:,n-self.filtLen+1:n+1], axis=-1)
             self.y[:,n] = np.sum(X[:,None,:]*self.H, axis=(0,-1)) 
 
         yf = self.secPathErrorFilt.process(self.y[:,self.idx:self.idx+numSamples])
@@ -246,8 +246,8 @@ class KernelIP_FFavgnorm(AdaptiveFilterFF):
 
 
 class KernelIPFreqMyderiv(ConstrainedFastBlockFxLMS):
-    def __init__(self, mu, beta, secPathError,  secPathTarget, secPathEvals, blockSize, kernFilt):
-        super().__init__(mu,beta,secPathError, secPathTarget, secPathEvals, blockSize)
+    def __init__(self,config, mu, beta, speakerRIR, blockSize, kernFilt):
+        super().__init__(config, mu,beta,speakerRIR, blockSize)
         self.R = kernFilt
         self.name = "Kernel IP freq myderivation"
 

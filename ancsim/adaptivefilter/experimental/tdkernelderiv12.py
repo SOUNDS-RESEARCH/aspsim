@@ -8,8 +8,8 @@ from ancsim.signal.filterclasses import Filter_IntBuffer
 
 
 class Kernel12(FxLMS_FF):
-    def __init__(self, mu, beta, speakerFilters, kernelFilt):
-        super().__init__(mu, beta, speakerFilters)
+    def __init__(self, config, mu, beta, speakerFilters, kernelFilt):
+        super().__init__(config, mu, beta, speakerFilters)
         self.name = "Kernel 12"
         #self.kernelFilt = kernelFilt
         self.M = kernelFilt.shape[-1]//2
@@ -55,8 +55,8 @@ class Kernel12(FxLMS_FF):
         
         grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
-            Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
-            refPower= np.sum(self.buffers["xfnorm"][:,n-s.FILTLENGTH-self.M+1:n+1])
+            Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
+            refPower= np.sum(self.buffers["xfnorm"][:,n-self.filtLen-self.M+1:n+1])
             grad += np.sum(Xf* self.e[None, None,:,n-self.M,None],axis=2) / (refPower + self.beta)
 
         self.controlFilt.ir -= grad * self.mu

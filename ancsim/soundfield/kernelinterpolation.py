@@ -329,7 +329,7 @@ def getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, mcVolume, m
 
 def getAKernelTimeDomain3d(errorPos, filtLen, kernelReg, mcPointGen, 
                            mcVolume, mcNumPoints, numFreq=2048, samplerate=s.SAMPLERATE):
-    assert(numFreq >= s.FILTLENGTH) # Dont remember why this assertion exists
+    #assert(numFreq >= s.FILTLENGTH) # Dont remember why this assertion exists
     assert(numFreq >= filtLen) #You need more samples in the frequency domain before truncating
     assert(filtLen % 2 == 1) #With odd number of taps, you get an integer group delay. 
 
@@ -402,7 +402,7 @@ def getTimeDomainARect3d_even(errorPos, filtLen, numMCSamples, targetDim, height
 
     #numfreq default = 1024
     assert(filtLen % 2 == 0)
-    assert(numFreq >= s.FILTLENGTH)
+    #assert(numFreq >= s.FILTLENGTH)
     halfLen = filtLen // 2
     A = getAMatrixRect3d(errorPos, numMCSamples=numMCSamples, 
                                 dim=targetDim, height=height, 

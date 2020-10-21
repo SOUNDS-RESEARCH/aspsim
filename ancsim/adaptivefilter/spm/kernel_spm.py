@@ -16,7 +16,7 @@ import ancsim.settings as s
 
 class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
     """"""
-    def __init__(self, mu, muSPM,speakerFilters, blockSize, kiFilt):
+    def __init__(self, config,  mu, muSPM,speakerFilters, blockSize, kiFilt):
         super().__init__(mu,muSPM, speakerFilters, blockSize)
         self.name = "Kernel IP Freq ANC with Eriksson SPM"
         assert(kiFilt.shape[-1] <= blockSize)
@@ -63,9 +63,9 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
     """Very similar to FastBlockKIFxLMSSPMEriksson. Applies the kernel interpolation
         filter to the spm update as well. Given by a straigtforward differentiation of
         the integral cost function int_omega|f(r)|^2dr where f = e - Ghat y_spm"""
-    def __init__(self, mu, muSPM,speakerFilters, blockSize, errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, 
+    def __init__(self, config, mu, muSPM,speakerFilters, blockSize, errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, 
                     mcNumPoints=100):
-        super().__init__(mu,muSPM, speakerFilters, blockSize)
+        super().__init__(config, mu,muSPM, speakerFilters, blockSize)
         self.name = "Fast Block FxLMS Eriksson SPM with weighted spm error"
         assert(kiFiltLen <= blockSize)
         assert(kiFiltLen % 1 == 0)
@@ -204,8 +204,8 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
 
 
 class FDKIFxLMSErikssonInterpolatedF(FDKIFxLMSEriksson):
-    def __init__(self, mu, beta, speakerFilters, blockSize, muSPM, kernFilt):
-        super().__init__(mu, beta, speakerFilters, blockSize, muSPM, kernFilt)
+    def __init__(self, config, mu, beta, speakerFilters, blockSize, muSPM, kernFilt):
+        super().__init__(config, mu, beta, speakerFilters, blockSize, muSPM, kernFilt)
         self.name = "Kernel IP Freq ANC with Eriksson SPM, Weighted f"
 
         self.secPathEstimate = FastBlockWeightedNLMS(blockSize=blockSize, numIn=s.NUMSPEAKER, 
@@ -221,8 +221,8 @@ class FDKIFxLMSErikssonInterpolatedF(FDKIFxLMSEriksson):
 
 class KernelSPM2(ConstrainedFastBlockFxLMS):
     """DOES NOT HAVE LINEAR CONVOLUTIONS"""
-    def __init__(self, mu, muSPM, speakerRIR, blockSize, errorPos):
-        super().__init__(mu,1e-3, speakerRIR, blockSize)
+    def __init__(self, config, mu, muSPM, speakerRIR, blockSize, errorPos):
+        super().__init__(config, mu,1e-3, speakerRIR, blockSize)
         self.name = "Freq ANC Kernel SPM 2"
         
         kernelReg = 1e-3
@@ -342,7 +342,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #                                                         self.x[:,self.updateIdx:self.idx]), (2,0,1,3))
 #         grad = np.zeros_like(self.controlFilt.ir)
 #         for n in range(self.updateIdx, self.idx):
-#            Xf = np.flip(self.buffers["xf"][:,:,:,n-s.FILTLENGTH+1:n+1], axis=-1)
+#            Xf = np.flip(self.buffers["xf"][:,:,:,n-self.filtLen+1:n+1], axis=-1)
 #            grad += np.sum(Xf * self.e[None, None,:,n,None],axis=2) / (np.sum(Xf**2) + self.beta)
 
 #         self.controlFilt.ir -= grad * self.mu
@@ -367,8 +367,8 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         It uses the normal Freq domain Eriksson cost function, together with
         ||e - G_ip y_spm||^2 where G_ip is the sec path interpolated to microphone m
         from all positions except m (to avoid the inteprolation filter reducing to identity)."""
-    def __init__(self, mu, muSPM, eta, speakerRIR, blockSize, errorPos, kiFiltLen):
-        super().__init__(mu, muSPM, speakerRIR, blockSize)
+    def __init__(self, config, mu, muSPM, eta, speakerRIR, blockSize, errorPos, kiFiltLen):
+        super().__init__(config, mu, muSPM, speakerRIR, blockSize)
         self.name = "Freq ANC Kernel SPM 3"
         assert(kiFiltLen % 2 == 1)
         assert(kiFiltLen <= blockSize)
@@ -507,8 +507,8 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
     Attempts to update each sec path filter using data from all microphones.
     Uses the kernel including all microphones. Therefore only uses the 
     interpolated cost function"""
-    def __init__(self, mu, muSPM, speakerRIR, blockSize, errorPos, kiFiltLen):
-        super().__init__(mu, muSPM, speakerRIR, blockSize)
+    def __init__(self, config, mu, muSPM, speakerRIR, blockSize, errorPos, kiFiltLen):
+        super().__init__(config, mu, muSPM, speakerRIR, blockSize)
         self.name = "Freq ANC Kernel SPM 4"
         assert(kiFiltLen % 2 == 1)
         assert(kiFiltLen <= blockSize)
@@ -595,8 +595,8 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
 class KernelSPM5(FastBlockFxLMSSPMEriksson):
     """Closely related to version 3. Uses verified interpolation method in time domain
         """
-    def __init__(self, mu, muSPM, eta, speakerRIR, blockSize, errorPos, kiFiltLen):
-        super().__init__(mu, muSPM, speakerRIR, blockSize)
+    def __init__(self, config, mu, muSPM, eta, speakerRIR, blockSize, errorPos, kiFiltLen):
+        super().__init__(config, mu, muSPM, speakerRIR, blockSize)
         self.name = "Freq ANC Kernel SPM 5"
         assert(kiFiltLen % 2 == 1)
         assert(kiFiltLen <= blockSize)

@@ -128,7 +128,7 @@ def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):
     noises = [sf.process(noise) for sf in sourceFilters]
 
     maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in speakerFilters.items()])
-    fillStartIdx = config["LARGESTBLOCKSIZE"] + np.max((s.FILTLENGTH+config["KERNFILTLEN"], maxSecPathLength))
+    fillStartIdx = config["LARGESTBLOCKSIZE"] + np.max((config["FILTLENGTH"]+config["KERNFILTLEN"], maxSecPathLength))
     fillNumBlocks = [(s.SIMBUFFER-fillStartIdx) // bs for bs in config["BLOCKSIZE"]]
 
     startIdxs = []

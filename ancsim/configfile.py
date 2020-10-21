@@ -20,23 +20,30 @@ def getConfig():
     config["NUMSOURCE"] = 1
     config["SOURCEAMP"] = 50
 
-    #ROOM AND SETTING
+    #ARRAY PLACEMENT
     possibleShapes = ["circle", "rectangle"]
     config["ARRAYSHAPES"] = possibleShapes[1]
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
+    config["SPEAKERDIM"] = 3
+    config["SPEAKERANGLEOFFSET"] = "distribute"
+    config["ERRORMICANGLEOFFSET"] = "distribute"
+    config["ERRORMICRANDOMNESS"] = 1.2
 
+    #ROOM AND REVERBERATION
     config["SPATIALDIMENSIONS"] = 3
     config["REVERBERATION"] = True
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
     config["RT60"] = 0.24
     config["MAXROOMIRLENGTH"] = 1024
-
     config["REFDIRECTLYOBTAINED"] = True
 
     #ADAPTIVE FILTER PARAMETERS
+    config["ERRORMICSNR"] = 40
+    config["REFMICSNR"] = 40
     config["BLOCKSIZE"] = 1024
+    config["FILTLENGTH"] = 1024
 
     #KERNEL INTERPOLATION
     config["MCPOINTS"] = 1000
