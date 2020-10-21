@@ -13,28 +13,27 @@ def setupIR(pos, config):
     print("Computing Room IR...")
     metadata={}
 
-    if config["REVERBERATION"]:
+    if config["REVERB"] == "ism":
         if config["SPATIALDIMENSIONS"] == 3:
             irFunc = rir.irRoomImageSource3d
         else:
             raise NotImplementedError
-    else:
+    elif config["REVERB"] == "freespace":
         if config["SPATIALDIMENSIONS"] == 3:
             irFunc = rir.irPointSource3d
         elif config["SPATIALDIMENSIONS"] == 2:
             irFunc = rir.irPointSource2d
         else:
             raise NotImplementedError
+    else:
+        raise ValueError
 
     speakerFilters = {}
-    if config["REVERBERATION"]:
+    if config["REVERB"] == "image_source_method":
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
                                                 config["MAXROOMIRLENGTH"], config["RT60"])) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
-        #for pointSetTo in ["error", "target", "evals", "evals2"]
-        #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo], 
-        #                                        config["ROOMSIZE"], config["ROOMCENTER"], 
-        #                                        config["MAXROOMIRLENGTH"])
+
         speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, 
                                                             config["ROOMSIZE"], config["ROOMCENTER"], 
                                                              config["MAXROOMIRLENGTH"],  config["RT60"], 
@@ -43,12 +42,14 @@ def setupIR(pos, config):
                                         config["MAXROOMIRLENGTH"], config["RT60"])
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals, config["ROOMSIZE"], config["ROOMCENTER"], 
                                         config["MAXROOMIRLENGTH"],  config["RT60"])
-    else:
+    elif config["REVERB"] == "freespace":
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos)) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
         speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, calculateMetadata=True)
         speakerFilters["target"] = irFunc(pos.speaker, pos.target)
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals)
+    else:
+        raise ValueError
 
     if config["REFDIRECTLYOBTAINED"]:
         assert(s.NUMREF == config["NUMSOURCE"])

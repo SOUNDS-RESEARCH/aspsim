@@ -6,15 +6,6 @@ def getConfig():
 
     #SOURCES
     possibleSources = ["sine","noise", "chirp", "recorded"]
-<<<<<<< HEAD
-    possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav"]
-
-    config["AUDIOFILENAME"] = possibleAudioFiles[1]
-    config["SOURCETYPE"] = possibleSources[3]
-    config["NOISEFREQ"] = 200
-    config["NOISEBANDWIDTH"] = 50
-    config["SOURCEAMP"] = (50, 100, 50, 25, 20, 15)
-=======
     possibleAudioFiles = ["noise_bathroom_fan.wav", "song_assemble.wav", "arctic_a_speech_tight.wav",
                             "secret_mountains_high_horse.wav","secret_mountains_high_horse_instruments.wav",
                             "port_st_willow_stay_even.wav", "port_st_willow_stay_even_instruments.wav",
@@ -28,7 +19,6 @@ def getConfig():
     config["NOISEBANDWIDTH"] = 400
     config["NUMSOURCE"] = 1
     config["SOURCEAMP"] = 50
->>>>>>> master
 
     #ROOM AND SETTING
     possibleShapes = ["circle", "rectangle"]
@@ -36,9 +26,11 @@ def getConfig():
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
 
-    config["REALIMPULSERESPONSES"] = True
+    irOptions = ["freespace", "ism", "real"]
+    config["REVERB"] = irOptions[2]
+    #config["REALIMPULSERESPONSES"] = True
     config["SPATIALDIMENSIONS"] = 3
-    config["REVERBERATION"] = True
+    #config["REVERBERATION"] = True
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
     config["RT60"] = 0.24
@@ -79,13 +71,10 @@ def configInstantCheck(conf):
 
     assert(conf["KERNFILTLEN"] % 2 == 1)
 
-<<<<<<< HEAD
-    if conf["REALIMPULSERESPONSES"]:
+    if conf["REVERB"] == "real":
         assert(conf["LOADSESSION"])
 
-=======
     assert(len(conf["SOURCEAMP"]) == conf["NUMSOURCE"])
->>>>>>> master
 
 def configPreprocessing(conf, numFilt):
     if isinstance(conf["BLOCKSIZE"], int):
