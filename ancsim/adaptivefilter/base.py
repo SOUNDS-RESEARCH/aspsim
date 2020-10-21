@@ -113,12 +113,15 @@ class AdaptiveFilterFF(ABC):
 class AdaptiveFilterFFComplex(ABC):
     def __init__(self, config, mu, beta, speakerRIR, blockSize):
         self.name = "Adaptive Filter Feedforward Complex"
-        self.H = np.zeros((2*blockSize, s.NUMSPEAKER, s.NUMREF), dtype=np.complex128)
-        self.controlFilt = FilterSum_Freqdomain(numIn=s.NUMREF, numOut=s.NUMSPEAKER, irLen=blockSize)
+        
+        self.errorMicSNR = config["ERRORMICSNR"]
+        self.refMicSNR = config["REFMICSNR"]
         self.mu = mu
         self.beta = beta
         self.blockSize = blockSize
 
+        self.H = np.zeros((2*blockSize, s.NUMSPEAKER, s.NUMREF), dtype=np.complex128)
+        self.controlFilt = FilterSum_Freqdomain(numIn=s.NUMREF, numOut=s.NUMSPEAKER, irLen=blockSize)
         self.buffers = {}
 
         self.x = np.zeros((s.NUMREF,s.SIMCHUNKSIZE+s.SIMBUFFER))
@@ -189,8 +192,8 @@ class AdaptiveFilterFFComplex(ABC):
         if self.idx+numSamples >= (s.SIMCHUNKSIZE + s.SIMBUFFER):
             self.resetBuffers()
 
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (s.NUMERROR, numSamples), s.ERRORMICNOISE)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (s.NUMREF, numSamples), s.REFMICNOISE)
+        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (s.NUMERROR, numSamples), self.errorMicSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (s.NUMREF, numSamples), self.refMicSNR)
 
         self.x[:,self.idx:self.idx+numSamples] = noiseAtRef + refMicNoise
         #self.diag.saveToBuffers(self.idx, noiseAtError, noiseAtTarget, noiseAtEvals, noiseAtEvals2)
