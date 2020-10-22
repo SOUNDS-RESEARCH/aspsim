@@ -29,7 +29,7 @@ def setupIR(pos, config):
     speakerFilters = {}
     if config["REVERBERATION"]:
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
-                                                config["MAXROOMIRLENGTH"], config["RT60"])) 
+                                                config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
         #for pointSetTo in ["error", "target", "evals", "evals2"]
         #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo], 
@@ -37,18 +37,18 @@ def setupIR(pos, config):
         #                                        config["MAXROOMIRLENGTH"])
         speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, 
                                                             config["ROOMSIZE"], config["ROOMCENTER"], 
-                                                             config["MAXROOMIRLENGTH"],  config["RT60"], 
+                                                             config["MAXROOMIRLENGTH"],  config["RT60"], config["SAMPLERATE"], 
                                                                 calculateMetadata=True)
         speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["ROOMSIZE"], config["ROOMCENTER"], 
-                                        config["MAXROOMIRLENGTH"], config["RT60"])
+                                        config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals, config["ROOMSIZE"], config["ROOMCENTER"], 
-                                        config["MAXROOMIRLENGTH"],  config["RT60"])
+                                        config["MAXROOMIRLENGTH"],  config["RT60"], config["SAMPLERATE"])
     else:
-        sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos)) 
+        sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["SAMPLERATE"], config["C"])) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
-        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, calculateMetadata=True)
-        speakerFilters["target"] = irFunc(pos.speaker, pos.target)
-        speakerFilters["evals"] = irFunc(pos.speaker, pos.evals)
+        speakerFilters["error"] = irFunc(pos.speaker, pos.error, config["SAMPLERATE"], config["C"])
+        speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["SAMPLERATE"], config["C"])
+        speakerFilters["evals"] = irFunc(pos.speaker, pos.evals, config["SAMPLERATE"], config["C"])
 
     if config["REFDIRECTLYOBTAINED"]:
         assert(config["NUMREF"] == config["NUMSOURCE"])
@@ -83,20 +83,21 @@ def setupPos(config):
     return pos
 
 
-def setupSource(config, samplerate):
+def setupSource(config):
     print("Setup Source")
     if config["SOURCETYPE"] == "sine":
-        noiseSource = SourceArray(SineSource, config["NUMSOURCE"], config["SOURCEAMP"], config["NOISEFREQ"], samplerate)
+        noiseSource = SourceArray(SineSource, config["NUMSOURCE"], config["SOURCEAMP"], config["NOISEFREQ"], config["SAMPLERATE"])
     elif config["SOURCETYPE"] == "noise":
         noiseSource = SourceArray(BandlimitedNoiseSource, config["NUMSOURCE"], config["SOURCEAMP"], 
-                                [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], samplerate)
+                                [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], config["SAMPLERATE"])
     elif config["SOURCETYPE"] == "chirp":
         noiseSource = SourceArray(LinearChirpSource, config["NUMSOURCE"], config["SOURCEAMP"], 
-                                  [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, samplerate)
+                                  [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, config["SAMPLERATE"])
     elif config["SOURCETYPE"] == "recorded":
         assert(config["NUMSOURCE"] == 1)
         packageDir = Path(__file__).parent
-        noiseSource = AudioFileSource(config["SOURCEAMP"][0], samplerate, packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), verbose=True)
+        noiseSource = AudioFileSource(config["SOURCEAMP"][0], config["SAMPLERATE"], 
+                        packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), config["ENDTIMESTEP"], verbose=True)
     else:
         raise ValueError
     return noiseSource

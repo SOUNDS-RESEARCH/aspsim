@@ -31,10 +31,10 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
         #self.crossCorr = MovingAverage(0.997, (self.numError, self.numSpeaker, blockSize))
         self.crossCorr = MovingAverage(0.997, (2*blockSize, self.numError, self.numSpeaker),dtype=np.complex128)
         self.G = np.transpose(self.G, (0,2,1))
-        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        #self.buffers["f"] = np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.SIMBUFFER))
+        #self.buffers["f"] = np.zeros((self.numError, s.SIMBUFFER+self.simChunkSize))
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, self.endTimeStep, plotFrequency=self.plotFrequency))
         self.window = win.hamming(2*self.blockSize,sym=False)[None,:]
         
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
@@ -162,11 +162,11 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         #self.secPathEstimate = np.zeros((2*blockSize, self.numError, self.numSpeaker), dtype=np.complex128)
         #self.secPathEstimate.setIR(0.5*self.G)# + np.random.normal(scale=0.0001, size=self.G.shape))
 
-        #self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        #self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize+s.SIMBUFFER))
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, self.endTimeStep, plotFrequency=self.plotFrequency))
 
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
@@ -221,7 +221,8 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
 
 class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
-    def __init__(self, config, mu, muSPM, speakerFilters, blockSize, errorPos, lowFreqLim=0, highFreqLim=s.SAMPLERATE/2):
+    def __init__(self, config, mu, muSPM, speakerFilters, blockSize, errorPos, lowFreqLim, highFreqLim):
+        """lowFreqLim and highFreqLim is only for diagnostics. unit is in Hz"""
         self.beta = 1e-3
         super().__init__(config, mu, self.beta, speakerFilters, blockSize)
         self.name = "SPM Aux Noise Freq Domain - KI penalized"
@@ -234,15 +235,15 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
                                             stepSize=muSPM, freqIndepNorm=False)
         self.G = np.transpose(self.G, (0,2,1))
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.SIMBUFFER))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize+s.SIMBUFFER))
 
         kernelRegParam = 1e-4
         self.kiParams = self.constructInterpolation(errorPos, kernelRegParam)
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, self.endTimeStep, plotFrequency=self.plotFrequency))
         self.diag.addNewDiagnostic("secpathselectedfrequencies", dia.ConstantEstimateNMSESelectedFrequencies(
-            self.G, lowFreq=lowFreqLim, highFreq=highFreqLim, sampleRate=s.SAMPLERATE, plotFrequency=s.PLOTFREQUENCY))
+            self.G, lowFreqLim, highFreqLim, self.samplerate, self.endTimeStep, plotFrequency=self.plotFrequency))
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["auxNoisePower"] = self.auxNoiseSource.power

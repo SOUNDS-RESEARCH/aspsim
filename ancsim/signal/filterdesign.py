@@ -193,11 +193,11 @@ def tdFilterMinphase(freqSamples, irLen, window):
 
             
 #=================================================================================
-def testFilterDesignFunc():
+def testFilterDesignFunc(samplerate):
     pos = setup.getPositionsCircular()
     
     numFreqSamples = 2**12 + 1
-    freqs = (s.SAMPLERATE / (2*numFreqSamples)) * np.arange(numFreqSamples)
+    freqs = (samplerate / (2*numFreqSamples)) * np.arange(numFreqSamples)
     freqsamples = ki.kernelInterpolationFR(pos.error, freqs)
     freqsamples = np.transpose(freqsamples, (1,2,0))    
     

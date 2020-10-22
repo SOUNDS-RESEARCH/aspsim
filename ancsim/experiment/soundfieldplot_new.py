@@ -144,7 +144,7 @@ def loadSession(singleRunFolder, sessionFolder):
     filterNames  = [names for names in filterCoeffs.keys()]
     filterCoeffs = [val for names,val in filterCoeffs.items()]
 
-    source = setupSource(config, settings.SAMPLERATE)
+    source = setupSource(config)
     
     # if config["SOURCETYPE"] == "sine":
     #     source = sources.SineSource(50, config["NOISEFREQ"], s["SAMPLERATE"])

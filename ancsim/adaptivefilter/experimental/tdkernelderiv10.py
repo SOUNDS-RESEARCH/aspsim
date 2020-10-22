@@ -39,7 +39,7 @@ class KernelIP10_minimumdelay(FxLMS_FF):
 
         self.secPathXfFilt.setIR(self.combinedFilt)
         self.secPathNormFilt = Filter_IntBuffer(np.sum(self.secPathFilt.ir**2, axis=(0,1)))
-        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize+self.simBuffer))
 
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
@@ -79,7 +79,7 @@ class KernelIP10_interpolatederror(FxLMS_FF):
 
         self.secPathXfFilt.setIR(speakerFilters["error"])
         self.secPathNormFilt = Filter_IntBuffer(np.sum(self.secPathFilt.ir**2, axis=(0,1)))
-        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize+self.simBuffer))
 
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
@@ -129,10 +129,10 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         self.secPathXfFilt.setIR(self.combinedFilt)
         
         self.secPathNormFilt = Filter_IntBuffer(np.sum(secPathError**2, axis=(0,1)))
-        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize+self.simBuffer))
 
         #self.xfFilt = FilterMD_IntBuffer((self.numRef,), secPathError)
-        #self.buffers["xfnormal"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        #self.buffers["xfnormal"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+self.simBuffer))
 
     def updateFilter(self):
         grad = np.zeros_like(self.H)
@@ -225,7 +225,7 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
                     self.combinedIR[k,j,:] += np.convolve(secPathError[k,i,:], tdA[:,i,j], "full")
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,),ir=self.combinedIR)
-        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xKern"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+self.simBuffer))
 
     def updateFilter(self):
         grad = np.zeros_like(self.H)

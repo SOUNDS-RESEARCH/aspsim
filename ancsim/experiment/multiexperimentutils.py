@@ -157,23 +157,23 @@ def addSummaryItems(label, value, folder):
             else:
                 json.dump({label: value}, writeFile, indent=4)
 
-def generateSummary(filters, timeIdx, folder):
-    fullSummary = {}
-    fullSummary["Timestep"] = timeIdx
-    nAvg = np.min((5000, s.SIMCHUNKSIZE)).item()
-    fullSummary["SamplesAveraged"] = nAvg
-    fullSummary["filters"] = {}
+# def generateSummary(filters, timeIdx, folder):
+#     fullSummary = {}
+#     fullSummary["Timestep"] = timeIdx
+#     nAvg = np.min((5000, s.SIMCHUNKSIZE)).item()
+#     fullSummary["SamplesAveraged"] = nAvg
+#     fullSummary["filters"] = {}
     
-    for filt in filters:
-        currentSummary = {}
+#     for filt in filters:
+#         currentSummary = {}
         
-        currentSummary["avgRegionalReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.targ.noiseReduction[timeIdx-nAvg:timeIdx])))
-        currentSummary["avgPointReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.mics.noiseReduction[timeIdx-nAvg:timeIdx])))
+#         currentSummary["avgRegionalReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.targ.noiseReduction[timeIdx-nAvg:timeIdx])))
+#         currentSummary["avgPointReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.mics.noiseReduction[timeIdx-nAvg:timeIdx])))
         
-        fullSummary["filters"][filt.name] = currentSummary 
+#         fullSummary["filters"][filt.name] = currentSummary 
     
-    with open(folder.joinpath("anc_summary_"+str(timeIdx)+".json"), "w") as writeFile:
-        json.dump(fullSummary, writeFile, indent=4)
+#     with open(folder.joinpath("anc_summary_"+str(timeIdx)+".json"), "w") as writeFile:
+#         json.dump(fullSummary, writeFile, indent=4)
         
     
         

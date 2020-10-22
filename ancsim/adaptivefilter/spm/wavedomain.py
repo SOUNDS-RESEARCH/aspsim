@@ -22,9 +22,9 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
         self.secPathEstimate = NLMS_FREQ(numFreq=2*blockSize, numIn=self.numSpeaker, numOut=self.numError, stepSize=muSPM)
         self.G = np.transpose(self.G, (0,2,1))
-        self.buffers["v"] = np.zeros((self.numSpeaker, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.SIMBUFFER))
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(self.G, self.endTimeStep, plotFrequency=self.plotFrequency))
         self.window = win.hamming(2*self.blockSize,sym=False)[None,:]
 
         self.metaData

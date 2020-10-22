@@ -15,6 +15,7 @@ def saveRealtimeSimSetup(config):
     pos = setup.getPositionsRectangle3d()
     irFunc = setup.pointSourceIR3d
 
+    raise NotImplementedError("Old, bad interpolation filter")
     kiFilt = ki.getCMatrixBlock3d(pos.error, config["MCPOINTS"]).tolist()
 
     
@@ -80,6 +81,7 @@ def saveRealtimeSimSetup_2(config):
     pos = setup.getPositionsRectangle3d()
     irFunc = setup.pointSourceIR3d
 
+    raise NotImplementedError("Old, bad interpolation filter")
     kiFilt = ki.getCMatrixBlock3d(pos.error, config["MCPOINTS"]).tolist()
 
     irData["speakerToError"] = irFunc(pos.speaker, pos.error).tolist()

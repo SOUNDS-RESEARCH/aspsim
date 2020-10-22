@@ -1,5 +1,4 @@
 import ancsim.utilities as util
-import numpy as np
 
 def getConfig():
     config = {}
@@ -11,6 +10,14 @@ def getConfig():
     config["NUMSPEAKER"] = 16
     config["NUMTARGET"] = 500
     config["NUMEVALS"] = 2
+
+    #SIMULATOR OPTIONS
+    config["ENDTIMESTEP"] = 600000
+    config["SIMBUFFER"] = 5000
+    config["SIMCHUNKSIZE"] = 10000
+    config["SAMPLERATE"] = 2000
+    config["C"] = 343.0     #DO NOT CHANGE WHEN USING ISM REVERB, IT IS USING 343 INTERNALLY
+    config["SPATIALDIMS"] = 3
 
     #SOURCES
     possibleSources = ["sine","noise", "chirp", "recorded"]
@@ -52,12 +59,10 @@ def getConfig():
     config["BLOCKSIZE"] = 1024
     config["FILTLENGTH"] = 1024
 
-    #KERNEL INTERPOLATION
+    #OTHER ADAPTIVE FILTER PARAMETERS
+    config["SPMFILTLEN"] = 1024
     config["MCPOINTS"] = 1000
     config["KERNFILTLEN"] = 155
-
-    #SECONDARY PATH MODELLING
-    config["SPMFILTLEN"] = 1024
 
     #PLOTS AND MISC
     config["SAVERAWDATA"] = True
@@ -89,7 +94,7 @@ def configPreprocessing(conf, numFilt):
     if isinstance(conf["BLOCKSIZE"], int):
         conf["BLOCKSIZE"] = [conf["BLOCKSIZE"] for _ in range(numFilt)]
 
-    conf["LARGESTBLOCKSIZE"] = int(np.max(conf["BLOCKSIZE"]))
+    conf["LARGESTBLOCKSIZE"] = int(max(conf["BLOCKSIZE"]))
 
     
 

@@ -1,6 +1,7 @@
 import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
+from ancsim.adaptivefilter.util import calcBlockSizes
 
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"  
 import tensorflow as tf
@@ -75,21 +76,8 @@ class KernelMPC_9b(AdaptiveFilterFF):
     def computeLoss(self, e):
         return np.sum(e**2,axis=0)
 
-    def _calcBlockSizes(self, numSamples, bufferSize=s.SIMBUFFER, chunkSize=s.SIMCHUNKSIZE):
-        leftInBuffer = chunkSize+bufferSize-self.idx
-        sampleCounter = 0
-        blockSizes = []
-        while sampleCounter < numSamples:
-            bLen = np.min((numSamples-sampleCounter, leftInBuffer))
-            blockSizes.append(bLen)
-            sampleCounter += bLen
-            leftInBuffer -= bLen 
-            if leftInBuffer == 0:
-                leftInBuffer = bufferSize
-        return blockSizes
-
     def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals, errorMicNoise):
-        blockSizes = self._calcBlockSizes(numSamples)
+        blockSizes = calcBlockSizes(numSamples, self.idx, self.simBuffer, self.simChunkSize)
         numComputed = 0
         for b in blockSizes:
             self.saveToBuffers(noiseAtError[:,numComputed:numComputed+b], noiseAtTarget[:,numComputed:numComputed+b])
@@ -113,7 +101,7 @@ class KernelMPC_9b(AdaptiveFilterFF):
 
             self.idx += b
             numComputed += b
-            if self.idx >= (s.SIMCHUNKSIZE + s.SIMBUFFER):
+            if self.idx >= (self.simChunkSize+self.simBuffer):
                 self.resetBuffers()
 
 

@@ -129,7 +129,7 @@ class BandlimitedNoiseSource():
 
 
 class AudioFileSource():
-    def __init__ (self, amplitude, samplerate, filename, verbose=False):
+    def __init__ (self, amplitude, samplerate, filename, endTimestep, verbose=False):
         #filename = "noise_bathroom_fan.wav"
         #filename = "song_assemble.wav"
         self.amplitude = amplitude
@@ -149,7 +149,7 @@ class AudioFileSource():
                 print("AudioFileSource downsampled audio file from ", srAudio, " to ", srAudio//downsamplingFactor, " Hz")
 
         #assert(srAudio == samplerate)
-        assert(s.ENDTIMESTEP < self.audioSamples.shape[0])
+        assert(endTimeStep < self.audioSamples.shape[0])
 
     def getSamples(self, numSamples):
         sig = self.audioSamples[None, self.currentSample:self.currentSample+numSamples]

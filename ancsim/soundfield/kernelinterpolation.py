@@ -23,7 +23,7 @@ def kernelHelmholtz2d(toPoints, fromPoints, waveNum):
     return special.j0(distMat*waveNum)
 
 def soundfieldInterpolationFIR(toPoints, fromPoints, irLen, regParam, 
-                            numFreq=4096, spatialDims=3, samplerate=s.SAMPLERATE, c=s.C):
+                                numFreq, spatialDims, samplerate, c):
     assert(numFreq > irLen)
 
     freqFilter = soundfieldInterpolation(toPoints, fromPoints, numFreq, 
@@ -33,7 +33,7 @@ def soundfieldInterpolationFIR(toPoints, fromPoints, irLen, regParam,
     return kiFilter
 
 def soundfieldInterpolation(toPoints, fromPoints, numFreq, regParam,
-                            spatialDims=3, samplerate=s.SAMPLERATE, c=s.C):
+                            spatialDims, samplerate, c):
     """Calculates the vector or matrix used to interpolate from fromPoints to toPoints"""
     if spatialDims == 3:
         kernelFunc = kernelHelmholtz3d
@@ -69,12 +69,12 @@ def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
 
 #FREQUENCY DOMAIN 2D DISC KERNEL INTERPOLATION FILTER
 def kernelInterpolationFR(errorMicPos, freq, 
-                          regParam, truncOrder, radius):
+                          regParam, truncOrder, radius, c):
     if isinstance(freq, (int, float)):
         freq = np.array([freq])
     if len(freq.shape) == 1:
         freq = freq[:, np.newaxis, np.newaxis]
-    waveNumber = 2 * np.pi * freq / s.C
+    waveNumber = 2 * np.pi * freq / c
     K = getK(errorMicPos, waveNumber)
     P = getP(regParam, K)
     S = getS(truncOrder, waveNumber, errorMicPos)
@@ -116,17 +116,17 @@ def getS(maxOrder, k, positions):
 # Equals routines for C2 in earlier versions
 # C2 is integrating directly on INT(B_m1(k,r)B_m2(t,r))
 
-def getCMatrixDisc2d(errorPos, integrationOrder, radius):
-    intFunc = getIntegrableFunc2d(errorPos)
+def getCMatrixDisc2d(errorPos, integrationOrder, radius, numFreqSamples, samplerate, c):
+    intFunc = getIntegrableFunc2d(errorPos, numFreqSamples, samplerate, c)
     intScheme = qp.disk.lether(integrationOrder)
     c = intScheme.integrate(intFunc, 0, radius)
     return c
     
-def getIntegrableFunc2d(errorPos, filtLen, regParam,numFreqSamples=2**12+1,
-                         samplerate = s.SAMPLERATE):
+def getIntegrableFunc2d(errorPos, filtLen, regParam, numFreqSamples,
+                         samplerate, c):
     numError = errorPos.shape[0]
     freqs = ((samplerate / (2*numFreqSamples)) * np.arange(numFreqSamples))[:,None,None]
-    waveNum = freqs * 2*np.pi/s.C
+    waveNum = freqs * 2*np.pi/c
     
     distMat = distfuncs.cdist(errorPos, errorPos)[None,:,:]
     K = special.j0(distMat*waveNum)
@@ -188,8 +188,8 @@ def getCMatrixCylinder3d_seq(errorPos, integrationSamples, radius, height):
     kiFilter = mc.integrate(f, pointGenerator, integrationSamples, totVol)
     return kiFilter
 
-def getCMatrixBlock3d(errorPos, integrationSamples, dims, height):
-    f = getIntegrableFunc3d(errorPos)
+def getCMatrixBlock3d(errorPos, integrationSamples, dims, height, numFreqSamples, samplerate, c):
+    f = getIntegrableFunc3d(errorPos, numFreqSamples, samplerate, c)
     def pointGenerator(numSamples):
         x = np.random.uniform(-dims[0]/2, dims[0]/2, numSamples)
         y = np.random.uniform(-dims[1]/2, dims[1]/2, numSamples)
@@ -201,11 +201,11 @@ def getCMatrixBlock3d(errorPos, integrationSamples, dims, height):
     val = mc.integrateMp(f, pointGenerator, integrationSamples, volume)
     return val
 
-def getIntegrableFunc3d(errorPos, filtLen, regParam, numFreqSamples=2**12+1, 
-                         samplerate = s.SAMPLERATE):
+def getIntegrableFunc3d(errorPos, filtLen, regParam, numFreqSamples, 
+                         samplerate, c):
     numError = errorPos.shape[0]
     freqs = ((samplerate / (2*numFreqSamples)) * np.arange(numFreqSamples))[:,None,None]
-    waveNum = freqs * 2*np.pi/s.C
+    waveNum = freqs * 2*np.pi/c
     
     distMat = distfuncs.cdist(errorPos, errorPos)[None,:,:]
     K = special.spherical_jn(0,distMat*waveNum)
@@ -229,8 +229,8 @@ def getIntegrableFunc3d(errorPos, filtLen, regParam, numFreqSamples=2**12+1,
 
 #======================================================================================
 #Corresponds to #R_{m_1, m_2}(u,v) in derivations 
-def getRtimedomainCylinder3d(errorPos, blockSize):
-    R = getRMatrixCylinder3d(errorPos)
+def getRtimedomainCylinder3d(errorPos, blockSize, samplerate, c):
+    R = getRMatrixCylinder3d(errorPos, samplerate, c)
     tdR = np.fft.ifft(R, axis=0)
     tdR = np.fft.ifft(tdR, axis=2)
     tdR = np.concatenate((tdR[-blockSize+1:,:,:,:], tdR[0:blockSize+1,:,:,:]), axis=0)
@@ -240,10 +240,10 @@ def getRtimedomainCylinder3d(errorPos, blockSize):
     return tdR
 
 def getRMatrixCylinder3d(errorPos, numFreq, numMCSamples, radius, height,
-                 regParam, samplerate = s.SAMPLERATE):
+                 regParam, samplerate, c):
     numError = errorPos.shape[0]
     freqs = ((samplerate / (2*numFreq)) * np.arange(numFreq+1))[:,None,None]
-    waveNum = freqs * 2*np.pi/s.C
+    waveNum = freqs * 2*np.pi/c
     distMat = distfuncs.cdist(errorPos, errorPos)[None,:,:]
     K = special.spherical_jn(0,distMat*waveNum)
     Kinv = np.linalg.inv(K + regParam * np.eye(numError))
@@ -309,11 +309,11 @@ def integrableAFunc(waveNum, errorPos):
     return intFunc
 
 #pointGen, volume = gen.selectPointGen(config, randomState)
-def getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, mcVolume, mcNumPoints, samplerate = s.SAMPLERATE):
+def getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, mcVolume, mcNumPoints, samplerate, c):
     """Filter length will be 2*numFreq. The parameter sets the number of positive frequency bins"""
     numError = errorPos.shape[0]
     freqs = ((samplerate / (2*numFreq)) * np.arange(numFreq+1))[:,None,None]
-    waveNum = freqs * 2*np.pi/s.C
+    waveNum = freqs * 2*np.pi/c
 
     func = integrableAFunc(waveNum, errorPos)
     
@@ -328,13 +328,13 @@ def getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, mcVolume, m
 
 
 def getAKernelTimeDomain3d(errorPos, filtLen, kernelReg, mcPointGen, 
-                           mcVolume, mcNumPoints, numFreq=2048, samplerate=s.SAMPLERATE):
+                           mcVolume, mcNumPoints, numFreq, samplerate, c):
     #assert(numFreq >= s.FILTLENGTH) # Dont remember why this assertion exists
     assert(numFreq >= filtLen) #You need more samples in the frequency domain before truncating
     assert(filtLen % 2 == 1) #With odd number of taps, you get an integer group delay. 
 
     A = getAKernelFreqDomain3d(errorPos, numFreq, kernelReg, mcPointGen, 
-                               mcVolume, mcNumPoints, samplerate)
+                               mcVolume, mcNumPoints, samplerate, c)
     halfLen = int(filtLen / 2)
     tdA = np.real(np.fft.ifft(A, axis=0))
     tdA = np.concatenate((tdA[-halfLen:,:,:], tdA[0:halfLen+1,:,:]), axis=0)
@@ -396,7 +396,7 @@ def tdAFromFreq(A, filtLen):
 
 
 def getTimeDomainARect3d_even(errorPos, filtLen, numMCSamples, targetDim, height,
-                            numFreq, regParam, samplerate = s.SAMPLERATE):
+                            numFreq, regParam, samplerate):
     """TAKE CARE! Gives non-integer group delay. When delaying to get a linear phase/zero phase filter,
     it will need interpolation."""
 
@@ -442,15 +442,15 @@ def getTimeDomainARect3d_even(errorPos, filtLen, numMCSamples, targetDim, height
 # DERIVATION 12
 
 
-def getKernel12TimeDomain3d(errorPos, filtLen, config, kernelReg=1e-3, numFreq = 2048, samplerate=s.SAMPLERATE):
-    func = kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelReg, samplerate)
+def getKernel12TimeDomain3d(errorPos, filtLen, config, kernelReg, numFreq, samplerate, c):
+    func = kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelReg, samplerate, c)
     pointGen, volume = gen.selectPointGen(config)
     integralVal = mc.integrate(func, pointGen, config["MCPOINTS"], volume)
     return integralVal
 
-def kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelreg, samplerate):
+def kernel12TimeDomainIntegrableFunc(errorPos, filtLen, numFreq, kernelreg, samplerate, c):
     freqs = ((samplerate / (2*numFreq)) * np.arange(numFreq+1))[:,None,None]
-    waveNum = freqs * 2*np.pi/s.C
+    waveNum = freqs * 2*np.pi/c
 
     numError = errorPos.shape[0]
     distMat = distfuncs.cdist(errorPos, errorPos)[None,:,:]

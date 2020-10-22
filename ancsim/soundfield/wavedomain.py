@@ -17,7 +17,7 @@ def waveTransformCircularMicArray(micPos, numHarmonics):
     transformMatrix = transformMatrix[None,:,:]
     return transformMatrix, np.linalg.pinv(transformMatrix)
 
-def waveTransformSpeakerArray(speakerPos, micPos, numHarmonics, numFreq, samplerate=s.SAMPLERATE, c=s.C):
+def waveTransformSpeakerArray(speakerPos, micPos, numHarmonics, numFreq, samplerate, c):
     """Assumes all speakers are placed on z=0"""
     assert (numFreq % 2 == 0)
     numMics = micPos.shape[0]

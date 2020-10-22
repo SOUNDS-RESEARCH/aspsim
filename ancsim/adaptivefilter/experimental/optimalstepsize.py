@@ -38,12 +38,12 @@ class MPC_FF_postErrorNorm(AdaptiveFilterFF):
 
 
 class MPC_FF_OptimalStepSize(AdaptiveFilterFF):
-    def __init__(self,config,  beta, speakerRIR):
+    def __init__(self, config,  beta, speakerRIR):
         super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size"
         D = equivalentDelay(secPathError)
-        if s.SOURCETYPE == "noise":
-            Bw = s.NOISEBANDWIDTH / s.SAMPLERATE
+        if config["SOURCETYPE"] == "noise":
+            Bw = config["NOISEBANDWIDTH"] / self.samplerate
         else:
             Bw = 1
         
@@ -81,13 +81,13 @@ class MPC_FF_OptimalStepSize2(AdaptiveFilterFF):
         super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size more intelligent sigmax estimation"
         D = equivalentDelay(secPathError)
-        if s.SOURCETYPE == "noise":
-            Bw = s.NOISEBANDWIDTH / s.SAMPLERATE
+        if config["SOURCETYPE"] == "noise":
+            Bw = config["NOISEBANDWIDTH"] / self.samplerate
         else:
             Bw = 1
             
         self.sigmax = None
-        self.forgetFactor = self.calcForgetFactor(blockSize/s.SAMPLERATE, 0.1)
+        self.forgetFactor = self.calcForgetFactor(blockSize/self.samplerate, 0.1)
         self.normFactor = np.sum(secPathError**2) * (self.H.shape[-1] + (2/Bw)*np.max(D))
         
     def calcForgetFactor (self, secPerUpdate, secToForget, forgetLim=0.1):
@@ -130,13 +130,13 @@ class MPC_FF_OptimalStepSize3(AdaptiveFilterFF):
         super().__init__(config, 1, beta, speakerRIR)
         self.name = "MPC FF Optimal Step Size"
         D = equivalentDelay(secPathError)
-        if s.SOURCETYPE == "noise":
-            Bw = s.NOISEBANDWIDTH / s.SAMPLERATE
+        if config["SOURCETYPE"] == "noise":
+            Bw = config["NOISEBANDWIDTH"] / self.samplerate
         else:
             Bw = 1
             
         self.sigmax = None
-        self.forgetFactor = self.calcForgetFactor(blockSize/s.SAMPLERATE, 0.1)
+        self.forgetFactor = self.calcForgetFactor(blockSize/self.samplerate, 0.1)
         self.normFactor = np.sum(secPathError**2) * (self.H.shape[-1] + (2/Bw)*np.max(D))
         
     def calcForgetFactor (self, secPerUpdate, secToForget, forgetLim=0.1):

@@ -7,7 +7,7 @@ import ancsim.signal.filterdesign as fd
 import ancsim.utilities as util
 import ancsim.settings as s
 
-def tfPointSource2d(fromPos, toPos, freq, c=s.C):
+def tfPointSource2d(fromPos, toPos, freq, c):
     assert (fromPos.shape[1] == 2) and (toPos.shape[1] == 2)
     dist = distfuncs.cdist(fromPos, toPos)
     k = 2 * np.pi * freq / c
@@ -15,16 +15,16 @@ def tfPointSource2d(fromPos, toPos, freq, c=s.C):
     tf = (1j/4) * special.hankel2(0, k * dist)
     return np.transpose(tf,(0,2,1))
 
-def tfPointSource3d(fromPos, toPos, freqs, c=s.C):
+def tfPointSource3d(fromPos, toPos, freqs, c):
     assert (fromPos.shape[1] == 3) and (toPos.shape[1] == 3)
     dist = distfuncs.cdist(fromPos, toPos)[None,:,:]
     k = freqs[:,None,None] * 2*np.pi/c
     tf = np.exp(-1j*dist*k) / (4*np.pi*dist)
     return tf
 
-def irPointSource3d(fromPos, toPos, maxOrder=25):
+def irPointSource3d(fromPos, toPos, samplerate, c, maxOrder=25):
     dist = distfuncs.cdist(fromPos, toPos)
-    sampleDelay = (s.SAMPLERATE * dist) / s.C
+    sampleDelay = (samplerate * dist) / c
     maxFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder//2) + 1
     ir = np.zeros((dist.shape[0], dist.shape[1], maxFiltLen))
     
@@ -36,16 +36,16 @@ def irPointSource3d(fromPos, toPos, maxOrder=25):
             ir[row, col, :] *= attenuation(dist[row,col]) 
     return ir
 
-def irPointSource2d(fromPos, toPos, extraLen=100, maxOrder=25):
+def irPointSource2d(fromPos, toPos, samplerate, c, extraLen=100, maxOrder=25):
     dist = distfuncs.cdist(fromPos, toPos)
-    sampleDelay = (s.SAMPLERATE * dist) / s.C
+    sampleDelay = (samplerate * dist) / c
     
     delayFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder//2) + 1
     maxFiltLen =  delayFiltLen + extraLen - 1
     ir = np.zeros((dist.shape[0], dist.shape[1], maxFiltLen))    
     for row in range(dist.shape[0]):
         for col in range(dist.shape[1]):
-            irFromImpact = 1 / (2*np.pi * np.sqrt(s.C**2*((sampleDelay[row,col]+0.5+np.arange(extraLen))/s.SAMPLERATE)**2 - (dist[row,col]**2)))
+            irFromImpact = 1 / (2*np.pi * np.sqrt(c**2*((sampleDelay[row,col]+0.5+np.arange(extraLen))/samplerate)**2 - (dist[row,col]**2)))
             correctDelay = fd.fracDelayLagrangeFilter(sampleDelay[row,col], maxOrder, delayFiltLen)
             fullIr = np.convolve(irFromImpact, correctDelay, "full")
             
@@ -53,7 +53,7 @@ def irPointSource2d(fromPos, toPos, extraLen=100, maxOrder=25):
     return ir
 
 
-def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampleRate=s.SAMPLERATE,
+def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, samplerate,
                         calculateMetadata=False):
     
     numFrom = fromPos.shape[0]
@@ -110,7 +110,7 @@ def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampl
     return ir
 
 def irRoomImageSource3d_deprecated(fromPos, toPos, roomSize, roomCenter, irLen, 
-                        absorption=0.35, maxOrder=30, sampleRate=s.SAMPLERATE,
+                        absorption, maxOrder, sampleRate,
                         showTruncationError=False):
     numFrom = fromPos.shape[0]
     numTo = toPos.shape[0]
@@ -174,7 +174,7 @@ def calculateTruncationValue(RIR, truncLen):
     maxValue = np.max(np.abs(RIR))
     return 20*np.log10(maxTruncValue / maxValue)
 
-def irSimulatedRoom3d_matlab(fromPos, toPos, irLen=1024, reverbTime=0.4):
+def irSimulatedRoom3d_matlab(fromPos, toPos, samplerate, c, irLen=1024, reverbTime=0.4):
     eng = matlab.engine.start_matlab()
     roomDim = [6, 5, 4]                # Room dimensions [x y z] (m)
     center = np.array([x/2 for x in roomDim], dtype=np.float64)
@@ -189,7 +189,7 @@ def irSimulatedRoom3d_matlab(fromPos, toPos, irLen=1024, reverbTime=0.4):
     hp_filter = 1               # Enable high-pass filter
     
     print("Computing Room IR...")
-    ir = np.array(eng.rir_gen_wrapper(s.C, matlab.double([s.SAMPLERATE]), matlab.double(roomToPos.tolist()), 
+    ir = np.array(eng.rir_gen_wrapper(c, matlab.double([samplerate]), matlab.double(roomToPos.tolist()), 
                                 matlab.double(roomFromPos.tolist()), matlab.double([roomDim]), 
                                 reverbTime, irLen, mtype, 
                                 order, numDim, orientation,hp_filter))

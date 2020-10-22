@@ -143,7 +143,7 @@ def configMatch(config1, config2):
                         "SAVERAWDATAFREQUENCY", "SOURCEAMP", 
                         "ERRORMICSNR", "REFMICSNR", 
                         "FILTLENGTH", "OUTPUTSMOOTHING",
-                        "GENSOUNDFIELDATCHUNK"]
+                        "GENSOUNDFIELDATCHUNK", "PLOTFREQUNCY"]
 
     confView1 = {key:value for key,value in config1.items() if not key in allowedDifferent}
     confView2 = {key:value for key,value in config2.items() if not key in allowedDifferent}
@@ -155,9 +155,7 @@ def settingsMatch(settings1, settings2):
     #                     "", "PLOTFREQUENCY", "OUTPUTSMOOTHING", "REFMICNOISE",
     #                     "SIMBUFFER", "SIMCHUNKSIZE"]
 
-    entriesToCheck = ["SAMPLERATE", "C", 
-                        "NUMREF", "NUMERROR", "NUMSPEAKER", 
-                        "NUMEVALS", "NUMTARGET"]
+    entriesToCheck = ["SAMPLERATE", "C"]
     sView1 = {key:value for key, value in settings1.__dict__.items() if key in entriesToCheck}
     sView2 = {key:value for key, value in settings2.__dict__.items() if key in entriesToCheck}
     #print("Settings ", sView1 == sView2)

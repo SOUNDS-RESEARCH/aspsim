@@ -21,7 +21,7 @@ class FxLMSSMC(AdaptiveFilterFF):
         self.muPrim = muPrim
         self.muSec = muSec
         self.spmIdx = self.updateIdx
-        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
 
         self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
         
@@ -32,12 +32,12 @@ class FxLMSSMC(AdaptiveFilterFF):
 
         self.controlFilt.ir = np.random.normal(scale=0.00000001, size=self.controlFilt.ir.shape)
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("modelling_error", dia.SignalEstimateNMSE(plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], self.endTimeStep, plotFrequency=self.plotFrequency))
+        self.diag.addNewDiagnostic("modelling_error", dia.SignalEstimateNMSE(self.endTimeStep, plotFrequency=self.plotFrequency))
 
     def resetBuffers(self):
         super().resetBuffers()
-        self.spmIdx -= s.SIMCHUNKSIZE
+        self.spmIdx -= self.simChunkSize
 
     def updateFilter(self):
         self.buffers["xf"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.secPathEstimateMD.process(
@@ -83,7 +83,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
         # self.muPrim = muPrim
         # self.muSec = muSec
         self.spmIdx = self.updateIdx
-        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
 
         self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
         
@@ -94,12 +94,12 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
 
         self.controlFilt.ir = np.random.normal(scale=1e-7, size=self.controlFilt.ir.shape)
 
-        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=s.PLOTFREQUENCY))
-        self.diag.addNewDiagnostic("modelling_error", dia.SignalEstimateNMSE(plotFrequency=s.PLOTFREQUENCY))
+        self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], self.endTimeStep, plotFrequency=self.plotFrequency))
+        self.diag.addNewDiagnostic("modelling_error", dia.SignalEstimateNMSE(self.endTimeStep, plotFrequency=self.plotFrequency))
 
     def resetBuffers(self):
         super().resetBuffers()
-        self.spmIdx -= s.SIMCHUNKSIZE
+        self.spmIdx -= self.simChunkSize
 
     def updateFilter(self):
         self.buffers["xf"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.secPathEstimateMD.process(
@@ -156,7 +156,7 @@ class FxLMSSMC_old(AdaptiveFilterFF):
         self.muSec = muSec
         self.spmIdx = self.updateIdx
         #self.controlFilt.ir[:,:,0] = 0.00001*np.ones((self.controlFilt.ir.shape[0], self.controlFilt.ir.shape[1]))
-        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
 
         self.secPathEstimateMD = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))  
         initialSecPathEstimate = np.random.normal(scale=0.00001, size=self.secPathEstimateMD.ir.shape)
@@ -172,7 +172,7 @@ class FxLMSSMC_old(AdaptiveFilterFF):
 
     def resetBuffers(self):
         super().resetBuffers()
-        self.spmIdx -= s.SIMCHUNKSIZE
+        self.spmIdx -= self.simChunkSize
 
     def updateFilter(self):
         self.buffers["xf"][:,:,:,self.updateIdx:self.idx] = np.transpose(self.secPathEstimateMD.process(

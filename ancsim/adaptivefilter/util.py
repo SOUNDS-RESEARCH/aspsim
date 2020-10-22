@@ -2,7 +2,7 @@ import numpy as np
 import ancsim.settings as s
 import ancsim.utilities as util
 
-def calcBlockSizes(numSamples, idx, bufferSize=s.SIMBUFFER, chunkSize=s.SIMCHUNKSIZE):
+def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):
     leftInBuffer = chunkSize+bufferSize-idx
     sampleCounter = 0
     blockSizes = []

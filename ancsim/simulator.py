@@ -35,9 +35,6 @@ class Simulator:
 
         saveConfig(self.folderPath, config)
         saveSettings(self.folderPath)
-        # with open (self.folderPath.joinpath("configfile.json"), "w") as writeConfig:
-        #     json.dump(config, writeConfig, indent=4)
-        # shutil.copy(packagePath.joinpath("settings.py"), str(self.folderPath.joinpath("settings.py")))
 
         #CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
@@ -47,7 +44,7 @@ class Simulator:
             self.pos = setupPos(config)
             self.sourceFilters, self.speakerFilters, irMetadata = setupIR(self.pos, config)
             addToSimMetadata(self.folderPath, irMetadata)
-        self.noiseSource = setupSource(config, s.SAMPLERATE)
+        self.noiseSource = setupSource(config)
 
         #LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)
@@ -74,19 +71,19 @@ class Simulator:
         print("SIM START")
         n_tot = 0
         bufferIdx = -1
-        noises = updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters, self.config["NUMEVALS"])
-        noiseIndices = [s.SIMBUFFER for _ in range(len(self.filters))]
-        while n_tot < s.ENDTIMESTEP-self.config["LARGESTBLOCKSIZE"]:
+        noises = self._updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters, self.config["NUMEVALS"])
+        noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.filters))]
+        while n_tot < self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
-            for n in range(s.SIMBUFFER, s.SIMBUFFER + min(s.SIMCHUNKSIZE, s.ENDTIMESTEP-n_tot)):
+            for n in range(self.config["SIMBUFFER"], self.config["SIMBUFFER"] + min(self.config["SIMCHUNKSIZE"], self.config["ENDTIMESTEP"]-n_tot)):
                 if n_tot % 1000 == 0:
                     print("Timestep: ", n_tot)
-                if s.ENDTIMESTEP-self.config["LARGESTBLOCKSIZE"] < n_tot:
+                if self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"] < n_tot:
                     break
                     
-                if np.max([nIdx+bSize for nIdx, bSize in zip(noiseIndices, self.config["BLOCKSIZE"])]) >= s.SIMBUFFER+s.SIMCHUNKSIZE:
-                    noises = updateNoises(n_tot, noises, self.noiseSource, self.sourceFilters)
-                    noiseIndices = [i-s.SIMCHUNKSIZE for i in noiseIndices]
+                if np.max([nIdx+bSize for nIdx, bSize in zip(noiseIndices, self.config["BLOCKSIZE"])]) >= self.config["SIMBUFFER"]+self.config["SIMCHUNKSIZE"]:
+                    noises = self._updateNoises(n_tot, noises, self.noiseSource, self.sourceFilters)
+                    noiseIndices = [i-self.config["SIMCHUNKSIZE"] for i in noiseIndices]
 
                 for i, (filt, bSize, nIdx) in enumerate(zip(self.filters, self.config["BLOCKSIZE"], noiseIndices)):
                     if n_tot % bSize == 0:
@@ -94,7 +91,7 @@ class Simulator:
                         filt.updateFilter()
                         noiseIndices[i] += bSize
 
-                if n_tot % s.SIMCHUNKSIZE == 0 and n_tot > 0:# and bufferIdx % s.PLOTFREQUENCY == 0:
+                if n_tot % self.config["SIMCHUNKSIZE"] == 0 and n_tot > 0:
                     if self.config["PLOTOUTPUT"] != "none":
                         self.plotDispatcher.dispatch(self.filters, n_tot, bufferIdx, self.folderPath)
                     if self.config["SAVERAWDATA"] and (
@@ -103,6 +100,17 @@ class Simulator:
                         saveRawData(self.filters, n_tot, self.folderPath)
 
                 n_tot += 1
+
+    def _updateNoises(self, timeIdx, noises, noiseSource, sourceFilters, numEvals):
+        noise = noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
+        if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
+            noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+                            for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
+            noises.append(np.zeros((numEvals,self.config["SIMCHUNKSIZE"]+self.config["s.SIMBUFFER"])))
+        else:
+           noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+                           for noiseAtPoints, sf in zip(noises, sourceFilters)]
+        return noises
                 
                 
 def printInfo(config, folderPath):
@@ -124,38 +132,24 @@ def setUniqueFilterNames(filters):
 
 
 def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):
-    noise = noiseSource.getSamples(s.SIMBUFFER)
+    noise = noiseSource.getSamples(config["SIMBUFFER"])
     noises = [sf.process(noise) for sf in sourceFilters]
 
     maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in speakerFilters.items()])
     fillStartIdx = config["LARGESTBLOCKSIZE"] + np.max((config["FILTLENGTH"]+config["KERNFILTLEN"], maxSecPathLength))
-    fillNumBlocks = [(s.SIMBUFFER-fillStartIdx) // bs for bs in config["BLOCKSIZE"]]
+    fillNumBlocks = [(config["SIMBUFFER"]-fillStartIdx) // bs for bs in config["BLOCKSIZE"]]
 
     startIdxs = []
     for filtIdx, blockSize in enumerate(config["BLOCKSIZE"]):
         startIdxs.append([])
         for i in range(fillNumBlocks[filtIdx]):
-            startIdxs[filtIdx].append(s.SIMBUFFER-((fillNumBlocks[filtIdx]-i)*blockSize))
+            startIdxs[filtIdx].append(config["SIMBUFFER"]-((fillNumBlocks[filtIdx]-i)*blockSize))
 
     for filtIdx, (filt, blockSize) in enumerate(zip(filters, config["BLOCKSIZE"])):
         filt.idx = startIdxs[filtIdx][0]
         for i in startIdxs[filtIdx]:
             filt.forwardPass(blockSize, *[noiseAtPoints[:,i:i+blockSize] for noiseAtPoints in noises])
 
-    return noises
-
-def updateNoises(timeIdx, noises, noiseSource, sourceFilters, numEvals):
-    noise = noiseSource.getSamples(s.SIMCHUNKSIZE)
-    #if (timeIdx // s.SIMCHUNKSIZE) < s.GENSOUNDFIELDATCHUNK-2:
-
-    #MADE TO NOT HAVE TO GENERATE SAMPLES TO EVALS
-    #SHOULD BE EXCHANGED FOR THE OUTCOMMENTED BOTTOM EXPRESSION AT ELSE:
-    noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
-                    for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
-    noises.append(np.zeros((numEvals,s.SIMCHUNKSIZE+s.SIMBUFFER)))
-    #else:
-    #    noises = [np.concatenate((noiseAtPoints[:,-s.SIMBUFFER:], sf.process(noise)),axis=-1) 
-    #                    for noiseAtPoints, sf in zip(noises, sourceFilters)]
     return noises
 
 

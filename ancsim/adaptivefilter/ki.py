@@ -33,7 +33,9 @@ class KIFxLMS(AdaptiveFilterFF):
         self.name = "KIFxLMS"
 
         #GENERATE KERNEL INTERPOLATION FILTER
-        kiFilt = ki.getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, mcNumPoints)
+        kiFilt = ki.getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, 
+                                            mcPointGen, ipVolume, mcNumPoints, 
+                                            2048, self.samplerate, self.c)
 
         reducedSecPath, numSamplesRemoved = reduceIRLength(self.secPathFilt.ir, 
                 tolerance=delayRemovalTolerance, maxSamplesToReduce=kiFilt.shape[-1]//2)
@@ -48,17 +50,17 @@ class KIFxLMS(AdaptiveFilterFF):
                     combinedFilt[k,j,:] += np.convolve(reducedSecPath[k,i,:], kiFilt[i,j,:], "full")
 
         self.kixfFilt = FilterMD_IntBuffer(dataDims=self.numRef, ir=combinedFilt)
-        self.buffers["kixf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kixf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+self.simBuffer))
         
         #CREATE NORMALIZATION FILTERS:
         if normalization == "xf":
             self.secPathEstimate = FilterMD_IntBuffer(dataDims=self.numRef, ir=speakerRIR["error"])
-            self.buffers["xf"] = np.zeros((self.numSpeaker, self.numError, self.numRef, s.SIMCHUNKSIZE+s.SIMBUFFER))
+            self.buffers["xf"] = np.zeros((self.numSpeaker, self.numError, self.numRef, self.simChunkSize+self.simBuffer))
             self.normFunc = self.xfNormalization
 
         elif normalization == "xfApprox":
             self.normFunc = self.xfApproxNormalization
-            self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
+            self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize+self.simBuffer))
             self.secPathNormFilt = Filter_IntBuffer(np.sum(self.secPathFilt.ir**2, axis=(0,1)))
         elif normalization == "kixf":
             self.normFunc = self.kixfNormalization
@@ -124,11 +126,14 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
         and then IFFT-> truncate -> window
         
         It is the frequency domain version of tdkernelderivation 10, or equivalently, 12"""
-    def __init__(self,config, mu, beta, speakerRIR, blockSize, errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume,mcNumPoints=100, delayRemovalTolerance=0):
+    def __init__(self,config, mu, beta, speakerRIR, blockSize, errorPos, kiFiltLen, kernelReg, 
+                    mcPointGen, ipVolume,mcNumPoints=100, delayRemovalTolerance=0):
         super().__init__(config, mu,beta, speakerRIR, blockSize)
         self.name = "Fast Block KIFxLMS"
         assert(kiFiltLen % 1 == 0)
-        kiFilt = ki.getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, mcPointGen, ipVolume, mcNumPoints)
+        kiFilt = ki.getAKernelTimeDomain3d(errorPos, kiFiltLen, kernelReg, 
+                                            mcPointGen, ipVolume, mcNumPoints, 
+                                            2048, self.samplerate, self.c)
         
         assert(kiFilt.shape[-1] <= blockSize)
         
@@ -138,7 +143,7 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
                 (reducedSecPath, np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,)))), axis=-1))
 
         self.kiDelay = kiFilt.shape[-1]//2 - numSamplesRemoved
-        self.buffers["kixf"] = np.zeros((self.numSpeaker, self.numRef,self.numError,s.SIMCHUNKSIZE+s.SIMBUFFER))
+        self.buffers["kixf"] = np.zeros((self.numSpeaker, self.numRef,self.numError,self.simChunkSize+self.simBuffer))
 
         self.kiFilt = FilterSum_Freqdomain(tf=fdf.fftWithTranspose(kiFilt,n=2*blockSize), 
                                             dataDims=(self.numSpeaker, self.numRef))

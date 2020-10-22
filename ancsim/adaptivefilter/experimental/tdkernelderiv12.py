@@ -34,7 +34,7 @@ class Kernel12(FxLMS_FF):
 
         self.secPathXfFilt.setIR(self.combinedFilt)
         self.secPathNormFilt = Filter_IntBuffer(np.sum(self.secPathFilt.ir**2, axis=(0,1)))
-        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER+self.simChunkSize))
 
     def prepare(self):
         self.buffers["xf"][:,:,:,0:self.idx] = np.transpose(self.secPathXfFilt.process(
