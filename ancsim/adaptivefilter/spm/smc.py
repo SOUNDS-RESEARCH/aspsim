@@ -1,12 +1,11 @@
 import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
-from ancsim.adaptivefilter.mpc import ConstrainedFastBlockFxLMS, UnconstrainedFastBlockFxLMS
+from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.adaptivefilter.conventional.lms import NLMS
 from ancsim.adaptivefilter.conventional.rls import RLS
 from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-import ancsim.settings as s
 import ancsim.adaptivefilter.diagnostics as dia
 from ancsim.utilities import measure
 
@@ -225,7 +224,7 @@ class FxLMSSMC_old(AdaptiveFilterFF):
 
 
 #import matplotlib.pyplot as plt
-class FreqSMC(ConstrainedFastBlockFxLMS):
+class FreqSMC(FastBlockFxLMS):
     def __init__(self, config, mu, beta, speakerRIR, muPrimary, muSecondary, blockSize):
         assert(self.numRef == 1)
         

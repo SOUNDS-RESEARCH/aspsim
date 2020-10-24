@@ -3,7 +3,6 @@ import pathlib
 import scipy.signal as spsig
 import soundfile as sf
 
-import ancsim.settings as s
 import ancsim.utilities as util
     
 class SourceArray:

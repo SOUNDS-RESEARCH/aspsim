@@ -1,7 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-import ancsim.settings as s
 import ancsim.soundfield.setuparrays as setup
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.roomimpulseresponse as rir
@@ -14,14 +13,14 @@ def setupIR(pos, config):
     metadata={}
 
     if config["REVERBERATION"]:
-        if config["SPATIALDIMENSIONS"] == 3:
+        if config["SPATIALDIMS"] == 3:
             irFunc = rir.irRoomImageSource3d
         else:
             raise NotImplementedError
     else:
-        if config["SPATIALDIMENSIONS"] == 3:
+        if config["SPATIALDIMS"] == 3:
             irFunc = rir.irPointSource3d
-        elif config["SPATIALDIMENSIONS"] == 2:
+        elif config["SPATIALDIMS"] == 2:
             irFunc = rir.irPointSource2d
         else:
             raise NotImplementedError
@@ -57,7 +56,7 @@ def setupIR(pos, config):
 
 def setupPos(config):
     print("Setup Positions")
-    if config["SPATIALDIMENSIONS"] == 3:
+    if config["SPATIALDIMS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:
                 pos = setup.getPositionsCylinder3d_directref(config)
@@ -68,7 +67,7 @@ def setupPos(config):
                 pos = setup.getPositionsRectangle3d(config)
             else:
                 raise NotImplementedError
-    elif config["SPATIALDIMENSIONS"] == 2:
+    elif config["SPATIALDIMS"] == 2:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:
                 raise NotImplementedError
@@ -76,7 +75,7 @@ def setupPos(config):
                 pos = setup.getPositionsDisc2d(config)
         else:
             raise NotImplementedError
-    elif config["SPATIALDIMENSIONS"] == 1:
+    elif config["SPATIALDIMS"] == 1:
         pos = setup.getPositionsLine1d(config)
     else:
         raise ValueError
@@ -106,7 +105,7 @@ def setupSource(config):
 
 # def setupKernelFilters(pos, config):
 #     print("Setup Kernel Filters")
-#     if config["SPATIALDIMENSIONS"] == 3:
+#     if config["SPATIALDIMS"] == 3:
 #         A = ki.getAKernelFreqDomain3d(pos.error, config["FREQKERNELFILTLEN"], config)
 
 #         if config["FREQKERNELFILTLEN"] >= 512: 

@@ -2,7 +2,6 @@ import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
-import ancsim.settings as s
 
 
 
@@ -10,7 +9,7 @@ class ImplicitMPC (AdaptiveFilterFF):
     def __init__(self, config, mu, beta, speakerRIR):
         self.name = "Implicit Update FF MPC"
         super().__init__(config, mu, beta, speakerRIR)
-        self.buffers["yfilt"] = np.zeros((self.numError, s.SIMBUFFER+s.SIMCHUNKSIZE))
+        self.buffers["yfilt"] = np.zeros((self.numError, self.simChunkSize+self.simBuffer))
        
     def updateFilter(self):
         vecLen = self.numRef*self.numSpeaker*self.filtLen

@@ -4,7 +4,6 @@ from matplotlib.patches import Circle, Rectangle
 import tikzplotlib
 import os
 import pathlib
-import ancsim.settings as s
 import ancsim.utilities as util
 import ancsim.experiment.multiexperimentutils as meu
 

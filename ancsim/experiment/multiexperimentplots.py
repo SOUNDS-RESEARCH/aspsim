@@ -5,7 +5,6 @@ import json
 
 from ancsim.experiment.multiexperimentutils import openData
 from ancsim.experiment.plotscripts import outputPlot
-import ancsim.settings as s
 
 #selectPlots accepts "latest" and "all" or an index, "all" not yet implemented
 def reductionByFrequency(expFolder, selectPlots="latest", plotMethod="tikz"):

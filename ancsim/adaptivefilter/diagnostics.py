@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from functools import partial
 
 import ancsim.utilities as util
-import ancsim.settings as s
 import ancsim.experiment.plotscripts as psc
 from ancsim.signal.filterclasses import Filter_IntBuffer, FilterSum_IntBuffer, FilterMD_IntBuffer
 import ancsim.adaptivefilter.diagnosticplots as dplot
@@ -55,6 +54,7 @@ class PlotDiagnosticDispatcher:
     def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
         
         if not isinstance(funcInfo.outputType, (list, tuple)):
+            print(funcInfo.outputType)
             funcInfo.outputType = [funcInfo.outputType]
         for i, outType in enumerate(funcInfo.outputType):
             if len(funcInfo.outputType) == 1:
@@ -517,8 +517,8 @@ class NoiseReductionExternalSignals():
             summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
         
         self.info = DiagnosticFunctionalityInfo(DIAGNOSTICTYPE.perSample,
-                                                dplot.functionOfTimePlot,
-                                                SUMMARYFUNCTION.meanNearTimeIdx,
+                                                outputFunc,
+                                                summaryFunc,
                                                 beginAtBuffer=beginAtBuffer,
                                                 plotFrequency=plotFrequency)
         self.primaryNoise = np.zeros((numPoints, self.simChunkSize+self.simBuffer))

@@ -5,7 +5,6 @@ import os
 import itertools as it
 import pathlib
 
-import ancsim.settings as s
 import ancsim.utilities as util
 
 # def updateSummaryItems(summaryDict, folder):

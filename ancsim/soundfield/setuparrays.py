@@ -3,7 +3,6 @@ import numpy as np
 import copy
 
 import ancsim.soundfield.generatepoints as gp
-import ancsim.settings as s
 
 
 def getPositionsLine1d(radius):

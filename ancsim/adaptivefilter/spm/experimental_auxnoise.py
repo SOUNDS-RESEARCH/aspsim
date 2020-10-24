@@ -2,18 +2,18 @@ import numpy as np
 import scipy.signal.windows as win
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
-from ancsim.adaptivefilter.mpc import ConstrainedFastBlockFxLMS
+from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer, SinglePoleLowPass, MovingAverage
 from ancsim.signal.sources import WhiteNoiseSource, GoldSequenceSource
 from ancsim.adaptivefilter.conventional.lms import NLMS, NLMS_FREQ, FastBlockNLMS
 from ancsim.soundfield.kernelinterpolation import soundfieldInterpolation
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia
-import ancsim.settings as s
 import ancsim.utilities as util
 
 #import matplotlib.pyplot as plt
 
+class ConstrainedFastBlockFxLMS : pass #Any class inheriting from this needs to be re-examined to use FastBlockFxLMS
 
 class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
     """As we know the akf of the auxiliary noise, we should be able to get the 

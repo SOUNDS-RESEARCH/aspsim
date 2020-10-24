@@ -1,10 +1,9 @@
 import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
-from ancsim.adaptivefilter.mpc import ConstrainedFastBlockFxLMS, UnconstrainedFastBlockFxLMS, FastBlockFxLMS, FxLMS_FF_Block
+from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterSum_Freqdomain,  FilterMD_Freqdomain, Filter_IntBuffer, FilterMD_IntBuffer
 import ancsim.signal.freqdomainfiltering as fdf
-import ancsim.settings as s
 import ancsim.utilities as util
 import ancsim.soundfield.kernelinterpolation as ki
 

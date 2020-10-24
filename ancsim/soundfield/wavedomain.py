@@ -1,6 +1,5 @@
 import numpy as np
 
-import ancsim.settings as s
 import matplotlib.pyplot as plt
 import ancsim.signal.filterdesign as fd
 import ancsim.soundfield.roomimpulseresponse as rir

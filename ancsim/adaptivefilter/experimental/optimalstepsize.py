@@ -3,7 +3,6 @@ import numpy as np
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.util import equivalentDelay
 
-import ancsim.settings as s
 
 class MPC_FF_postErrorNorm(AdaptiveFilterFF):
     def __init__(self, config, mu, beta, speakerRIR):

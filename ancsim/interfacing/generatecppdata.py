@@ -2,7 +2,6 @@ import numpy as np
 import os
 import json
 
-import ancsim.settings as s
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.setupfunctions as setup
 

@@ -9,7 +9,6 @@ import time
 #from pathos.helpers import freeze_support
 
 import ancsim.utilities as util
-import ancsim.settings as s
 from ancsim.configfile import configPreprocessing
 #from ancsim.experiment.saveloadsession import loadSession
 from ancsim.simulatorsetup import setupIR, setupPos, setupSource
@@ -39,7 +38,7 @@ class Simulator:
         #CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
             self.pos, self.sourceFilters, self.speakerFilters = \
-                loadSession(config, s, sessionFolder, self.folderPath)
+                loadSession(config, sessionFolder, self.folderPath)
         else:
             self.pos = setupPos(config)
             self.sourceFilters, self.speakerFilters, irMetadata = setupIR(self.pos, config)
@@ -71,7 +70,7 @@ class Simulator:
         print("SIM START")
         n_tot = 0
         bufferIdx = -1
-        noises = self._updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters, self.config["NUMEVALS"])
+        noises = self._updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters)
         noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.filters))]
         while n_tot < self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
@@ -101,12 +100,12 @@ class Simulator:
 
                 n_tot += 1
 
-    def _updateNoises(self, timeIdx, noises, noiseSource, sourceFilters, numEvals):
+    def _updateNoises(self, timeIdx, noises, noiseSource, sourceFilters):
         noise = noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
         if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
             noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
                             for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
-            noises.append(np.zeros((numEvals,self.config["SIMCHUNKSIZE"]+self.config["s.SIMBUFFER"])))
+            noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
         else:
            noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
                            for noiseAtPoints, sf in zip(noises, sourceFilters)]
@@ -155,7 +154,7 @@ def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):
 
 def plotAnyPos(pos, folderPath, config):
     print("Setup Positions")
-    if config["SPATIALDIMENSIONS"] == 3:
+    if config["SPATIALDIMS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
             psc.plotPos3dDisc(pos, folderPath,config, config["PLOTOUTPUT"])
         elif config["ARRAYSHAPES"] == "rectangle":
@@ -163,7 +162,7 @@ def plotAnyPos(pos, folderPath, config):
                 psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
             else:
                 psc.plotPos3dRect(pos, folderPath,config, printMethod=config["PLOTOUTPUT"])
-    elif config["SPATIALDIMENSIONS"] == 2:
+    elif config["SPATIALDIMS"] == 2:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:
                 raise NotImplementedError

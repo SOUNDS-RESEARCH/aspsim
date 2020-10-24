@@ -1,8 +1,8 @@
 import numpy as np
 
-from ancsim.adaptivefilter.mpc import ConstrainedFastBlockFxLMS, FastBlockFxLMS
+from ancsim.adaptivefilter.mpc import  FastBlockFxLMS
 from ancsim.adaptivefilter.ki import FastBlockKIFxLMS
-from ancsim.adaptivefilter.spm.auxnoise import FreqAuxNoiseFxLMS2, FastBlockFxLMSSPMEriksson
+from ancsim.adaptivefilter.spm.auxnoise import FastBlockFxLMSSPMEriksson
 from ancsim.signal.sources import GoldSequenceSource, WhiteNoiseSource
 from ancsim.adaptivefilter.conventional.lms import FastBlockNLMS, FastBlockWeightedNLMS
 from ancsim.soundfield.kernelinterpolation import soundfieldInterpolation, soundfieldInterpolationFIR, getAKernelTimeDomain3d
@@ -11,7 +11,6 @@ import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.signal.filterclasses import FilterSum_Freqdomain, FilterMD_Freqdomain, \
     FilterMD_IntBuffer, FilterSum_IntBuffer
 
-import ancsim.settings as s
 
 
 class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
@@ -134,7 +133,7 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
         self.updateIdx += self.blockSize
         self.updated = True
 
-
+class ConstrainedFastBlockFxLMS : pass #Any class inheriting from this needs to be re-examined to use FastBlockFxLMS
 class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
     """DEPRECATED - DOES NOT HAVRE LINEAR CONVOLUTIONS"""
     def __init__(self, mu, beta, speakerFilters, blockSize, muSPM, kernFilt):
@@ -751,7 +750,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
 
 
 
-
+class FreqAuxNoiseFxLMS2 : pass #Any class inheriting from this needs to be re-examined to use a class with fully linear convolutions
 class KernelSPM3_old(FreqAuxNoiseFxLMS2):
     """Attempts to update each sec path filter using data from all microphones.
         It uses the normal Freq domain Eriksson cost function, together with

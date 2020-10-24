@@ -1,6 +1,5 @@
 import numpy as np
 
-import ancsim.settings as s
 import ancsim.utilities as util
 from ancsim.adaptivefilter.base import AdaptiveFilterFF, AdaptiveFilterFFComplex
 from ancsim.signal.filterclasses import FilterMD_IntBuffer, FilterMD_Freqdomain, FilterSum_Freqdomain

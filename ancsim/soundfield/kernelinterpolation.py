@@ -6,7 +6,6 @@ import quadpy as qp
 
 from pathos.helpers import freeze_support
 
-import ancsim.settings as s
 import ancsim.utilities as util
 import ancsim.signal.filterdesign as fd
 import ancsim.integration.montecarlo as mc

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.signal.windows as win
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
-from ancsim.adaptivefilter.mpc import ConstrainedFastBlockFxLMS, FastBlockFxLMS
+from ancsim.adaptivefilter.mpc import  FastBlockFxLMS
 from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer, \
     SinglePoleLowPass, FilterIndividualInputs, FilterSum_Freqdomain, FilterMD_Freqdomain, \
         MovingAverage
@@ -11,7 +11,6 @@ from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 from ancsim.adaptivefilter.conventional.lms import NLMS, NLMS_FREQ, FastBlockNLMS, BlockNLMS
 import ancsim.signal.freqdomainfiltering as fdf
 import ancsim.adaptivefilter.diagnostics as dia
-import ancsim.settings as s
 import ancsim.utilities as util
 
 

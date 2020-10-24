@@ -19,14 +19,14 @@ class AdaptiveFilter_tf(ABC):
         self.pointNoise = tf.Variable(tf.zeros((self.numError, self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
         self.targetNoise = tf.Variable(tf.zeros((self.numTarget, self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
 
-        self.regRed = np.zeros((self.endTimestep))
+        self.regRed = np.zeros((self.endTimeStep))
         self.eTargSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numTarget)
         self.targNoiseSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numTarget)
-        self.pointRed = np.zeros((self.endTimestep))
+        self.pointRed = np.zeros((self.endTimeStep))
         self.eSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numError)
         self.pointNoiseSmoother = Filter_IntBuffer(ir=np.ones((self.outputSmoothing)),numIn=self.numError)
         
-        self.loss = np.zeros((self.endTimestep))
+        self.loss = np.zeros((self.endTimeStep))
 
         self.secPathError = tf.convert_to_tensor(secPathError, dtype=tf.float64)
         self.secPathTarget = tf.convert_to_tensor(secPathTarget, dtype=tf.float64)

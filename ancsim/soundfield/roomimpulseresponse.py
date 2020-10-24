@@ -5,7 +5,6 @@ import pyroomacoustics as pra
 
 import ancsim.signal.filterdesign as fd
 import ancsim.utilities as util
-import ancsim.settings as s
 
 def tfPointSource2d(fromPos, toPos, freq, c):
     assert (fromPos.shape[1] == 2) and (toPos.shape[1] == 2)
@@ -74,7 +73,7 @@ def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampl
     maxNumIRAtOnce = 500
     numComputed = 0
     while numComputed < numTo:
-        room = pra.ShoeBox(roomSize, materials=pra.Material(eAbsorption), fs = sampleRate, max_order=maxOrder)
+        room = pra.ShoeBox(roomSize, materials=pra.Material(eAbsorption), fs = samplerate, max_order=maxOrder)
         #room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
         
         for srcIdx in range(numFrom):

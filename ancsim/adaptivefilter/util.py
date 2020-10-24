@@ -1,5 +1,4 @@
 import numpy as np
-import ancsim.settings as s
 import ancsim.utilities as util
 
 def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):

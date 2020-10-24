@@ -1,12 +1,42 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import ancsim.settings as s
 import ancsim.utilities as util
 from ancsim.signal.filterclasses import Filter_IntBuffer, FilterSum_IntBuffer, FilterMD_IntBuffer, FilterSum_Freqdomain
 from ancsim.adaptivefilter.util import calcBlockSizes, getWhiteNoiseAtSNR
 from ancsim.adaptivefilter.diagnostics import DiagnosticHandler, NoiseReductionExternalSignals
 from ancsim.adaptivefilter.diagnostics import NoiseReduction, SoundfieldImage, ConstantEstimateNMSE
+
+
+class Processor(ABC):
+    def __init__(self, config):
+        self.simBuffer = config["SIMBUFFER"]
+        self.simChunkSize = config["SIMCHUNKSIZE"]
+        self.c = config["C"]
+        self.samplerate = config["SAMPLERATE"]
+        self.spatialDims = config["SPATIALDIMS"]
+        self.endTimeStep = config["ENDTIMESTEP"]
+
+        self.buf = {}
+
+    def createNewBuffer(dim, name):
+        """dim is a tuple with the
+            buffer is accessed as self.buf[name] 
+            and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
+        self.buf[name] = np.zeros(dim + (self.simBuffer+self.simChunkSize,))
+
+    @abstractmethod
+    def process(self):
+        pass
+
+class ActiveNoiseControlProcessor(ABC):
+    def __init__(self, config):
+        super().__init__(config)
+        self.numRef = config["NUMREF"]
+        self.numError = config["NUMERROR"]
+        self.numSpeaker = config["NUMSPEAKER"]
+        self.numTarget = config["NUMTARGET"]
+        self.numEvals = config["NUMEVALS"]
 
 
 class AdaptiveFilterFF(ABC):
@@ -18,15 +48,15 @@ class AdaptiveFilterFF(ABC):
         self.numTarget = config["NUMTARGET"]
         self.numEvals = config["NUMEVALS"]
         self.filtLen = config["FILTLENGTH"]
-        self.errorMicSNR = config["ERRORMICSNR"]
-        self.refMicSNR = config["REFMICSNR"]
+        self.micSNR = config["MICSNR"]
+        self.saveRawData = config["SAVERAWDATA"]
         self.outputSmoothing = config["OUTPUTSMOOTHING"]
         self.plotFrequency = config["PLOTFREQUENCY"]
         self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
         self.c = config["C"]
         self.samplerate = config["SAMPLERATE"]
         self.spatialDims = config["SPATIALDIMS"]
-        self.endTimestep = config["ENDTIMESTEP"]
+        self.endTimeStep = config["ENDTIMESTEP"]
         self.simChunkSize = config["SIMCHUNKSIZE"]
         self.simBuffer = config["SIMBUFFER"]
         self.mu = mu
@@ -45,17 +75,19 @@ class AdaptiveFilterFF(ABC):
         self.diag = DiagnosticHandler(self.simBuffer, self.simChunkSize)
         self.diag.addNewDiagnostic("reduction_microphones", 
                                     NoiseReductionExternalSignals(self.numError, 
-                                    self.endTimeStep,
+                                    self.endTimeStep, self.simBuffer, self.simChunkSize,
                                     smoothingLen=self.outputSmoothing,
+                                    saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
         self.diag.addNewDiagnostic("reduction_regional", 
                                     NoiseReduction(self.numTarget, speakerRIR["target"], 
-                                    self.endTimeStep,
+                                    self.endTimeStep, self.simBuffer, self.simChunkSize,
                                     smoothingLen=self.outputSmoothing,
+                                    saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
         self.diag.addNewDiagnostic("soundfield_target", 
                                     SoundfieldImage(self.numEvals, speakerRIR["evals"], 
-                                    self.endTimeStep,
+                                    self.simBuffer, self.simChunkSize,
                                     beginAtBuffer=self.genSoundfieldAtChunk,
                                     plotFrequency=self.plotFrequency))
 
@@ -104,8 +136,8 @@ class AdaptiveFilterFF(ABC):
 
     def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals):
         blockSizes = calcBlockSizes(numSamples, self.idx, self.simBuffer, self.simChunkSize)
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.errorMicSNR)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.refMicSNR)
+        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.micSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.micSNR)
 
         numComputed = 0
         for blockSize in blockSizes:
@@ -137,15 +169,15 @@ class AdaptiveFilterFFComplex(ABC):
         self.numSpeaker = config["NUMSPEAKER"]
         self.numTarget = config["NUMTARGET"]
         self.numEvals = config["NUMEVALS"]
-        self.errorMicSNR = config["ERRORMICSNR"]
-        self.refMicSNR = config["REFMICSNR"]
+        self.micSNR = config["MICSNR"]
+        self.saveRawData = config["SAVERAWDATA"]
         self.outputSmoothing = config["OUTPUTSMOOTHING"]
         self.plotFrequency = config["PLOTFREQUENCY"]
         self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
         self.c = config["C"]
         self.samplerate = config["SAMPLERATE"]
         self.spatialDims = config["SPATIALDIMS"]
-        self.endTimestep = config["ENDTIMESTEP"]
+        self.endTimeStep = config["ENDTIMESTEP"]
         self.simChunkSize = config["SIMCHUNKSIZE"]
         self.simBuffer = config["SIMBUFFER"]
         self.mu = mu
@@ -171,17 +203,19 @@ class AdaptiveFilterFFComplex(ABC):
         self.diag = DiagnosticHandler(self.simBuffer, self.simChunkSize)
         self.diag.addNewDiagnostic("reduction_microphones", 
                                     NoiseReductionExternalSignals(self.numError, 
-                                    self.endTimeStep,
+                                    self.endTimeStep, self.simBuffer, self.simChunkSize,
+                                    smoothingLen = self.outputSmoothing,
+                                    saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
         self.diag.addNewDiagnostic("reduction_regional", 
                                     NoiseReduction(self.numTarget, speakerRIR["target"], 
-                                    self.endTimeStep,
+                                    self.endTimeStep, self.simBuffer, self.simChunkSize,
                                     smoothingLen=self.outputSmoothing,
+                                    saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
         self.diag.addNewDiagnostic("soundfield_target", 
                                     SoundfieldImage(self.numEvals, speakerRIR["evals"], 
-                                    self.endTimeStep,
-                                    smoothingLen=self.outputSmoothing,
+                                    self.simBuffer, self.simChunkSize,
                                     beginAtBuffer=self.genSoundfieldAtChunk,
                                     plotFrequency=self.plotFrequency))
         self.idx = self.simBuffer
@@ -229,8 +263,8 @@ class AdaptiveFilterFFComplex(ABC):
         if self.idx+numSamples >= (self.simChunkSize + self.simBuffer):
             self.resetBuffers()
 
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.errorMicSNR)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.refMicSNR)
+        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.micSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.micSNR)
 
         self.x[:,self.idx:self.idx+numSamples] = noiseAtRef + refMicNoise
         #self.diag.saveToBuffers(self.idx, noiseAtError, noiseAtTarget, noiseAtEvals, noiseAtEvals2)

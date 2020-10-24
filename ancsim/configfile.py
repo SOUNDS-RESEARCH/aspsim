@@ -8,8 +8,8 @@ def getConfig():
     config["NUMREF"] = 1
     config["NUMERROR"] = 28
     config["NUMSPEAKER"] = 16
-    config["NUMTARGET"] = 500
-    config["NUMEVALS"] = 2
+    config["NUMTARGET"] = 10**2*4
+    config["NUMEVALS"] = 2**2
 
     #SIMULATOR OPTIONS
     config["ENDTIMESTEP"] = 600000
@@ -45,7 +45,6 @@ def getConfig():
     config["ERRORMICRANDOMNESS"] = 1.2
 
     #ROOM AND REVERBERATION
-    config["SPATIALDIMENSIONS"] = 3
     config["REVERBERATION"] = True
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
@@ -54,8 +53,7 @@ def getConfig():
     config["REFDIRECTLYOBTAINED"] = True
 
     #ADAPTIVE FILTER PARAMETERS
-    config["ERRORMICSNR"] = 40
-    config["REFMICSNR"] = 40
+    config["MICSNR"] = 40
     config["BLOCKSIZE"] = 1024
     config["FILTLENGTH"] = 1024
 
@@ -67,7 +65,9 @@ def getConfig():
     #PLOTS AND MISC
     config["SAVERAWDATA"] = True
     config["SAVERAWDATAFREQUENCY"] = 6
-    config["PLOTOUTPUT"] = "tikz"
+    config["PLOTFREQUENCY"] = 6
+    config["GENSOUNDFIELDATCHUNK"] = 100000
+    config["PLOTOUTPUT"] = "pdf"
     config["LOADSESSION"] = True
     config["OUTPUTSMOOTHING"] = 64
 

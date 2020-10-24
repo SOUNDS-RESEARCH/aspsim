@@ -1,6 +1,5 @@
 import numpy as np
 
-import ancsim.settings as s
 import ancsim.utilities as util
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FxLMS_FF

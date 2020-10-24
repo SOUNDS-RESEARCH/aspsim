@@ -5,7 +5,6 @@ import os
 import json
 
 from ancsim.configfile import getConfig
-import ancsim.settings as s
 import ancsim.utilities as util
 from ancsim.simulatorsetup import setupPos, setupIR
 from ancsim.simulatorlogging import addToSimMetadata
@@ -26,12 +25,11 @@ def generateSession(sessionFolder, extraprefix=""):
     savePositions(sessionPath, pos)
     saveSourceFilters(sessionPath, sourceFilters)
     saveSpeakerFilters(sessionPath, speakerFilters)
-    saveSettings(sessionPath)
     saveConfig(sessionPath, config)
     addToSimMetadata(sessionPath, irMetadata)
 
-def loadSession(newConfig, newSettings, sessionsPath, newFolderPath):
-    sessionToLoad = searchForMatchingSession(sessionsPath, newConfig, newSettings)
+def loadSession(newConfig, sessionsPath, newFolderPath):
+    sessionToLoad = searchForMatchingSession(sessionsPath, newConfig)
     print("Loaded Session: ", str(sessionToLoad))
     pos = loadPositions(sessionToLoad)
     srcFilt = loadSourceFilters(sessionToLoad)
@@ -42,13 +40,11 @@ def loadSession(newConfig, newSettings, sessionsPath, newFolderPath):
 def copySimMetadata(fromFolder, toFolder):
     shutil.copy(fromFolder.joinpath("simmetadata.json"), toFolder.joinpath("simmetadata.json"))
 
-def searchForMatchingSession(sessionsPath, newConfig, newSettings):
+def searchForMatchingSession(sessionsPath, newConfig):
     for dirname in os.listdir(sessionsPath):
         currentSess = sessionsPath.joinpath(dirname)
-        loadedSettings = loadSettings(currentSess)
         loadedConfig = loadConfig(currentSess)
-        if configMatch(newConfig, loadedConfig) and \
-            settingsMatch(newSettings, loadedSettings):
+        if configMatch(newConfig, loadedConfig):
             return currentSess
     raise ValueError("No matching saved sessions")
 
@@ -141,7 +137,7 @@ def configMatch(config1, config2):
                         "SPMFILTLEN", "SAVERAWDATA",
                         "PLOTOUTPUT", "LOADSESSION", 
                         "SAVERAWDATAFREQUENCY", "SOURCEAMP", 
-                        "ERRORMICSNR", "REFMICSNR", 
+                        "MICSNR", 
                         "FILTLENGTH", "OUTPUTSMOOTHING",
                         "GENSOUNDFIELDATCHUNK", "PLOTFREQUNCY"]
 

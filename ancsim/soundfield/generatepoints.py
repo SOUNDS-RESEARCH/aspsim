@@ -1,5 +1,4 @@
 import numpy as np
-import ancsim.settings as s
 import ancsim.utilities as util
 
 def concentricalCircles(numPoints, numCircles, radius, angleOffset="random", zDistance=None):
