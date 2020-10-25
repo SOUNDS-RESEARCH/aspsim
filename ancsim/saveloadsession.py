@@ -115,8 +115,7 @@ def savePositions(path, pos):
             error=pos.error,
             speaker=pos.speaker,
             source=pos.source,
-            target=pos.target,
-            evals=pos.evals)
+            target=pos.target)
 
 def loadPositions(folder):
     posDict = np.load(folder.joinpath("pos.npz"))
@@ -127,7 +126,6 @@ def loadPositions(folder):
     pos.speaker = posDict["speaker"]
     pos.source = posDict["source"]
     pos.target = posDict["target"]
-    pos.evals = posDict["evals"]
     return pos
 
 def configMatch(config1, config2):

@@ -88,8 +88,8 @@ class KernelIP_FB(AdaptiveFilterFB):
 
 
 class KernelIP_FF(AdaptiveFilterFF):
-    def __init__(self, mu, beta, secPathError, secPathTarget, secPathEvals, kernelFilt):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, mu, beta, speakerRIR, kernelFilt):
+        super().__init__(mu, beta, speakerRIR)
         self.name = "KernelIP FF 8a"
         self.c = tf.convert_to_tensor(kernelFilt) 
         self.Htf = tf.Variable(tf.zeros(self.H.shape, dtype=tf.float64), dtype=tf.float64)

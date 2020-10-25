@@ -21,34 +21,28 @@ def saveRealtimeSimSetup(config):
     irData["sourceToError"] = irFunc(pos.source, pos.error).tolist()
     irData["sourceToRef"] = irFunc(pos.source, pos.ref).tolist()
     irData["sourceToTarget"] = irFunc(pos.source, pos.target).tolist()
-    irData["sourceToEvals"] = irFunc(pos.source, pos.evals).tolist()
 
     irData["speakerToError"] = irFunc(pos.speaker, pos.error).tolist()
     irData["speakerToTarget"] = irFunc(pos.speaker, pos.target).tolist()
-    irData["speakerToEvals"] = irFunc(pos.speaker, pos.evals).tolist()
 
     posData["error"] = pos.error.tolist()
     posData["ref"] = pos.ref.tolist()
     posData["speaker"] = pos.speaker.tolist()
     posData["source"] = pos.source.tolist()
     posData["target"] = pos.target.tolist()
-    posData["evals"] = pos.evals.tolist()
 
     metaData["numError"] = config["NUMERROR"]
     metaData["numRef"] = config["NUMREF"]
     metaData["numSpeaker"] = config["NUMSPEAKER"]
     metaData["numSource"] = config["NUMSOURCE"]
     metaData["numTarget"] = config["NUMTARGET"]
-    metaData["numEvals"] = config["NUMEVALS"]
 
     metaData["speakerToErrorLen"] = len(irData["speakerToError"][0][0])
     metaData["speakerToTargetLen"] = len(irData["speakerToTarget"][0][0])
-    metaData["speakerToEvalsLen"] = len(irData["speakerToEvals"][0][0])
 
     metaData["sourceToErrorLen"] = len(irData["sourceToError"][0][0])
     metaData["sourceToRefLen"] = len(irData["sourceToRef"][0][0])
     metaData["sourceToTargetLen"] = len(irData["sourceToTarget"][0][0])
-    metaData["sourceToEvalsLen"] = len(irData["sourceToEvals"][0][0])
 
     fullPath = "../real_time_anc/data/"
     with open(fullPath + "metaData.json", "w") as f:
@@ -85,19 +79,16 @@ def saveRealtimeSimSetup_2(config):
 
     irData["speakerToError"] = irFunc(pos.speaker, pos.error).tolist()
     irData["speakerToTarget"] = irFunc(pos.speaker, pos.target).tolist()
-    irData["speakerToEvals"] = irFunc(pos.speaker, pos.evals).tolist()
 
     irData["sourceToError"] = irFunc(pos.source, pos.error).tolist()
     irData["sourceToRef"] = irFunc(pos.source, pos.ref).tolist()
     irData["sourceToTarget"] = irFunc(pos.source, pos.target).tolist()
-    irData["sourceToEvals"] = irFunc(pos.source, pos.evals).tolist()
 
     posData["error"] = pos.error.tolist()
     posData["ref"] = pos.ref.tolist()
     posData["speaker"] = pos.speaker.tolist()
     posData["source"] = pos.source.tolist()
     posData["target"] = pos.target.tolist()
-    posData["evals"] = pos.evals.tolist()
 
     fName = "constants.h"    
     if os.path.isfile(fullPath+fName):
@@ -107,16 +98,13 @@ def saveRealtimeSimSetup_2(config):
     appendCppConstant("numSpeaker", config["NUMSPEAKER"], "int", fName, fullPath)
     appendCppConstant("numSource", config["NUMSOURCE"], "int", fName, fullPath)
     appendCppConstant("numTarget", config["NUMTARGET"], "int", fName, fullPath)
-    appendCppConstant("numEvals", config["NUMEVALS"], "int", fName, fullPath)
 
     appendCppConstant("speakerToErrorLen", len(irData["speakerToError"][0][0]), "int", fName, fullPath)
     appendCppConstant("speakerToTargetLen", len(irData["speakerToTarget"][0][0]), "int", fName, fullPath)
-    appendCppConstant("speakerToEvalsLen", len(irData["speakerToEvals"][0][0]), "int", fName, fullPath)
 
     appendCppConstant("sourceToErrorLen", len(irData["sourceToError"][0][0]), "int", fName, fullPath)
     appendCppConstant("sourceToRefLen", len(irData["sourceToRef"][0][0]), "int", fName, fullPath)
     appendCppConstant("sourceToTargetLen", len(irData["sourceToTarget"][0][0]), "int", fName, fullPath)
-    appendCppConstant("sourceToEvalsLen", len(irData["sourceToEvals"][0][0]), "int", fName, fullPath)
 
 
     

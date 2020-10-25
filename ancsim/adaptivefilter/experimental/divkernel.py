@@ -76,7 +76,7 @@ class KernelMPC_9b(AdaptiveFilterFF):
     def computeLoss(self, e):
         return np.sum(e**2,axis=0)
 
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals, errorMicNoise):
+    def forwardPassImplement(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget,errorMicNoise):
         blockSizes = calcBlockSizes(numSamples, self.idx, self.simBuffer, self.simChunkSize)
         numComputed = 0
         for b in blockSizes:

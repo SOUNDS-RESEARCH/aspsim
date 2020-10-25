@@ -29,7 +29,7 @@ def setupIR(pos, config):
     if config["REVERBERATION"]:
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
                                                 config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
-                    for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
+                    for targetPos in [pos.error, pos.ref, pos.target]]
         #for pointSetTo in ["error", "target", "evals", "evals2"]
         #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo], 
         #                                        config["ROOMSIZE"], config["ROOMCENTER"], 
@@ -40,14 +40,11 @@ def setupIR(pos, config):
                                                                 calculateMetadata=True)
         speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["ROOMSIZE"], config["ROOMCENTER"], 
                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])
-        speakerFilters["evals"] = irFunc(pos.speaker, pos.evals, config["ROOMSIZE"], config["ROOMCENTER"], 
-                                        config["MAXROOMIRLENGTH"],  config["RT60"], config["SAMPLERATE"])
     else:
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["SAMPLERATE"], config["C"])) 
-                    for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
+                    for targetPos in [pos.error, pos.ref, pos.target]]
         speakerFilters["error"] = irFunc(pos.speaker, pos.error, config["SAMPLERATE"], config["C"])
         speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["SAMPLERATE"], config["C"])
-        speakerFilters["evals"] = irFunc(pos.speaker, pos.evals, config["SAMPLERATE"], config["C"])
 
     if config["REFDIRECTLYOBTAINED"]:
         assert(config["NUMREF"] == config["NUMSOURCE"])

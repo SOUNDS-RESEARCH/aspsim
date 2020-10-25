@@ -203,15 +203,3 @@ def showRT60(multiChannelIR):
             singleIR = multiChannelIR[i,j,:]
             rt = pra.experimental.rt60.measure_rt60(singleIR)
             print("RT60 is: ", rt)
-
-
-def rt60 (singleIR):
-    pass
-
-if __name__ == "__main__":
-    import setupfunctions as setup
-    import matplotlib.pyplot as plt
-    pos = setup.getPositionsCylinder3d()
-    
-    irSimulatedRoom3d(pos.speaker, pos.evals)
-    irSimulatedRoom3d_matlab(pos.speaker, pos.evals)

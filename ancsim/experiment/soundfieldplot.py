@@ -5,25 +5,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import ancsim.experiment.multiexperimentutils as meu
+import ancsim.saveloadsession as sess
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.soundfield.roomimpulseresponse as rir
+from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
+import ancsim.utilities as util
 
 
-def generateSoundfieldForFolder(singleSetFolder):
+def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
     for singleRunFolder in os.listdir(singleSetFolder):
-        makeSoundfieldPlot(singleSetFolder+singleRunFolder)
+        makeSoundfieldPlot(singleSetFolder+singleRunFolder, sessionFolder)
 
-def makeSoundfieldPlot(singleRunFolder):
-    failed, config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints = loadSession(singleRunFolder)
-    if failed:
-        print("Session Load Failed")
-        return
+def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
+    config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(singleRunFolder, sessionFolder)
+    pointsToSim = pos.target
     
-    avgSoundfields = soundSim(config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints)
+    avgSoundfields = soundSim(config, pos.target, source, filterCoeffs, sourceRIR[1], sourceRIR[3], speakerRIR["target"])
 
-    maxVal = np.max([np.max(sf) for sf in avgSoundfields])
+    zeroValue = np.mean(util.db2pow(avgSoundfields[0]))
+    avgSoundfields = [util.pow2db(util.db2pow(sf) / zeroValue) for sf in avgSoundfields]
+    maxVal = np.max([np.max(sf) for sf in avgSoundfields])-10
     minVal = np.min([np.min(sf) for sf in avgSoundfields])
 
     fig, axes = plt.subplots(1, len(filterCoeffs)+1, figsize = (30, 7))
@@ -34,7 +37,7 @@ def makeSoundfieldPlot(singleRunFolder):
         clr = ax.pcolormesh(pointsToSim[:,0].reshape(imAxisLen, imAxisLen), 
                             pointsToSim[:,1].reshape(imAxisLen, imAxisLen), 
                         avgSoundfields[i].reshape(imAxisLen, imAxisLen), 
-                        vmin=minVal, vmax=maxVal, cmap="magma")
+                        vmin=minVal, vmax=maxVal, cmap="pink")
         fig.colorbar(clr, ax=ax)
 
         ax.plot(pos.speaker[:,0], pos.speaker[:,1], "o")
@@ -45,132 +48,96 @@ def makeSoundfieldPlot(singleRunFolder):
         ax.set_ylim(pointsToSim[:,1].min(), pointsToSim[:,1].max())
     outputPlot("tikz", singleRunFolder, "soundfield")
 
-def soundSim(config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints):
-    numSamplesToAverage = 2000
-    numPoints = sourceToPoints.shape[1]
-    refFiltLen = sourceToRef.shape[-1]
-    adaptiveFiltLen = filterCoeffs[0].shape[-1]
-    totNumSamples = numSamplesToAverage + refFiltLen + s["BLOCKSIZE"] + sourceToPoints.shape[-1] + adaptiveFiltLen
+def soundSim(config, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints):
+    minSamplesToAverage = 1000
+    numTotPoints = pointsToSim.shape[0]
+    refFiltLen = sourceToRef.ir.shape[-1]
+    #blockSize = np.max([np.max(coefs.shape) for coefs in filterCoeffs])
+    maxBlockSize = np.max(config["BLOCKSIZE"])
+    startBuffer = maxBlockSize * int(np.ceil((refFiltLen + sourceToPoints.ir.shape[-1] + maxBlockSize) / maxBlockSize))
+    samplesToAverage = maxBlockSize * int(np.ceil(minSamplesToAverage / maxBlockSize))
+    totNumSamples = startBuffer + samplesToAverage
     
-    sourceToRefFilt = FilterSum_IntBuffer(sourceToRef)
+    #sourceToRefFilt = FilterSum_IntBuffer(sourceToRef)
     sourceSig = source.getSamples(totNumSamples)
 
-    refSig = sourceToRefFilt.process(sourceSig)[:,refFiltLen:]
-    speakerSigs = genSpeakerSignals(s, totNumSamples, refSig, filterCoeffs, sourceToRef)
+    refSig = sourceToRef.process(sourceSig)[:,refFiltLen:]
+    speakerSigs = genSpeakerSignals(maxBlockSize, totNumSamples, refSig, filterCoeffs, refFiltLen)
 
     maxPointsInIter = 500
     avgSoundfield = []
 
-    soundfield = np.zeros((numPoints))
+    #Empty soundfield
+    soundfield = np.zeros((numTotPoints))
     i = 0
-    while i < numPoints:
+    while i < numTotPoints:
         print(i)
-        blockSize = np.min((maxPointsInIter, numPoints-i))
-        sourceToPointsFilt = FilterSum_IntBuffer(sourceToPoints[:,i:i+blockSize,:])
-        pointNoise = sourceToPointsFilt.process(sourceSig)[:,-numSamplesToAverage-s["BLOCKSIZE"]:-s["BLOCKSIZE"]]
-        soundfield[i:i+blockSize] = 10*np.log10(np.mean((pointNoise)**2,axis=-1))  
-        i += blockSize
+        numPoints = np.min((maxPointsInIter, numTotPoints-i))
+        sourceToPointsFilt = FilterSum_IntBuffer(sourceToPoints.ir[:,i:i+numPoints,:])
+        pointNoise = sourceToPointsFilt.process(sourceSig)[:,startBuffer:]
+        soundfield[i:i+numPoints] = 10*np.log10(np.mean((pointNoise)**2,axis=-1))  
+        i += numPoints
     avgSoundfield.append(soundfield)
 
+    #Soundfield for each set of filtercoefficients
     for speakerSig in speakerSigs:
-        soundfield = np.zeros((numPoints))
+        soundfield = np.zeros((numTotPoints))
         i = 0
-        while i < numPoints:
+        while i < numTotPoints:
             print(i)
-            blockSize = np.min((maxPointsInIter, numPoints-i))
-            sourceToPointsFilt = FilterSum_IntBuffer(sourceToPoints[:,i:i+blockSize,:])
-            speakerToPointsFilt = FilterSum_IntBuffer(speakerToPoints[:,i:i+blockSize,:])
-            pointSig = speakerToPointsFilt.process(speakerSig)[:,-numSamplesToAverage:]
-            pointNoise = sourceToPointsFilt.process(sourceSig)[:,-numSamplesToAverage-s["BLOCKSIZE"]:-s["BLOCKSIZE"]]
-            soundfield[i:i+blockSize] = 10*np.log10(np.mean((pointSig + pointNoise)**2,axis=-1))
-            i += blockSize
+            numPoints = np.min((maxPointsInIter, numTotPoints-i))
+            sourceToPointsFilt = FilterSum_IntBuffer(sourceToPoints.ir[:,i:i+numPoints,:])
+            speakerToPointsFilt = FilterSum_IntBuffer(speakerToPoints[:,i:i+numPoints,:])
+            pointSig = speakerToPointsFilt.process(speakerSig)[:,-samplesToAverage:]
+            pointNoise = sourceToPointsFilt.process(sourceSig)[:,-samplesToAverage-maxBlockSize:-maxBlockSize]
+            soundfield[i:i+numPoints] = 10*np.log10(np.mean((pointSig + pointNoise)**2,axis=-1))
+            i += numPoints
         avgSoundfield.append(soundfield)
     return avgSoundfield
     
-def genSpeakerSignals(s, totNumSamples, refSig, filterCoeffs, sourceToRef):
+def genSpeakerSignals(blockSize, totNumSamples, refSig, filterCoeffs, sourceToRefFiltLen):
     outputs = []
     for ir in filterCoeffs:
         if ir.dtype == np.float64:
             filt = FilterSum_IntBuffer(ir)
-            outputs.append(filt.process(refSig[:,:-s["BLOCKSIZE"]])[:,ir.shape[-1]:])
+            outputs.append(filt.process(refSig[:,:-blockSize])[:,ir.shape[-1]:])
         elif ir.dtype == np.complex128:
-            idx = s["BLOCKSIZE"]
-            numSamples = totNumSamples-sourceToRef.shape[-1]
+            idx = blockSize
+            numSamples = totNumSamples-sourceToRefFiltLen
             buf = np.zeros((ir.shape[1], numSamples))
-            while idx+s["BLOCKSIZE"] < numSamples:
-                refBlock = refSig[:,idx-s["BLOCKSIZE"]:idx+s["BLOCKSIZE"]]
+            while idx+blockSize < numSamples:
+                refBlock = refSig[:,idx-blockSize:idx+blockSize]
                 refFreq = np.fft.fft(refBlock,axis=-1).T[:,:,None]
                 Y = ir @ refFreq
                 
                 y = np.fft.ifft(Y, axis=0)
                 assert(np.mean(np.abs(np.imag(y))) < 0.00001)
                 y = np.squeeze(np.real(y)).T
-                buf[:,idx:idx+s["BLOCKSIZE"]] = y[:,s["BLOCKSIZE"]:]
+                buf[:,idx:idx+blockSize] = y[:,blockSize:]
                 #y[:,idx:idx+s.BLOCKSIZE] = y
-                idx += s["BLOCKSIZE"]
-            outputs.append(buf[:,s["BLOCKSIZE"]:-s["BLOCKSIZE"]])
+                idx += blockSize
+            outputs.append(buf[:,blockSize:-blockSize])
     return outputs
 
 
-def loadSession(singleRunFolder):
-    s = {}
-    s["SAMPLERATE"] = 4000
-    s["BLOCKSIZE"] = 512
-    try:
-        with open(singleRunFolder+"configfile.json") as f:
-            config = json.load(f)
-    except FileNotFoundError:
-        return True,None,None,None,None,None,None,None,None,None
-    
-    filterCoeffsFile = meu.getHighestNumberedFile_string(singleRunFolder, "filterCoeffs_", ".npz")
-    filterCoeffs = np.load(singleRunFolder+filterCoeffsFile)
-    filterNames  = [names for names in filterCoeffs.keys()]
-    filterCoeffs = [val for names,val in filterCoeffs.items()]
-    
-    pos = loadPositions(singleRunFolder+"pos.npz")
-    irGenPos = loadPositions("savedsession/pos.npz")
-    assert(posEqual(pos, irGenPos))
-    pointsToSim = irGenPos.evals2
-    
-    loadedEvalsIr = np.load("savedsession/evals_ir_close.npz")
-    sourceToPoints = loadedEvalsIr["sourceToEvals2"]
-    speakerToPoints = loadedEvalsIr["speakerToEvals2"]
+def loadSession(singleRunFolder, sessionFolder):
+    config = sess.loadConfig(singleRunFolder)
+    config["TARGETPOINTSPLACEMENT"] = "image"
+    config["NUMTARGET"] = 128**2
+    #config["NUMEVALS"] = 128**2
 
-    if config["REFDIRECTLYOBTAINED"]:
-        sourceToRef = np.ones((1,1,1))
-    else:
-        sourceToRef = rir.irSimulatedRoom3d(pos.source, pos.ref, config["ROOMSIZE"], config["ROOMCENTER"], sampleRate=s["SAMPLERATE"])
-
-    if config["SOURCETYPE"] == "sine":
-        source = sources.SineSource(50, config["NOISEFREQ"], s["SAMPLERATE"])
-    elif config["SOURCETYPE"] == "noise":
-        source = sources.BandlimitedNoiseSource(50, (config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]), s["SAMPLERATE"])
+    if config["LOADSESSION"]:
+        pos, sourceRIR, speakerRIR = sess.loadSession(config, sessionFolder, singleRunFolder)
     else:
         raise NotImplementedError
+    
+    controlFilterPath = meu.getHighestNumberedFile(singleRunFolder, "controlFilter_", ".npz")
+    if controlFilterPath is None:
+        raise ValueError
+    filterCoeffs = np.load(controlFilterPath)
+    filterNames  = [names for names in filterCoeffs.keys()]
+    filterCoeffs = [val for names,val in filterCoeffs.items()]
 
-    return False, config, s, pos, pointsToSim, source, filterCoeffs, sourceToRef, sourceToPoints, speakerToPoints
+    source = setupSource(config)
 
-
-def loadPositions(filename):
-    posDict = np.load(filename)
-    class AllArrays: pass
-    pos = AllArrays()
-    pos.ref = posDict["ref"]
-    pos.error = posDict["error"]
-    pos.speaker = posDict["speaker"]
-    pos.source = posDict["source"]
-    pos.evals = posDict["evals"]
-    pos.evals2 = posDict["evals2"]
-    return pos
-
-#Compares two positions sets, but not the evaluation sets (i.e. target, evals)
-def posEqual(pos1, pos2):
-    equal = (np.allclose(pos1.ref, pos2.ref) and 
-            np.allclose(pos1.error, pos2.error) and
-            np.allclose(pos1.speaker, pos2.speaker) and
-            np.allclose(pos1.source, pos2.source))
-    return equal
-
-
-if __name__ == "__main__":
-   makeSoundfieldPlot("multi_experiments/full_exp_2020_03_15_sinfix/figs_2020_04_14_23_46_1_200hz/")
+    return config, pos, source, filterCoeffs, sourceRIR, speakerRIR

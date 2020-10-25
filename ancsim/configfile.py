@@ -9,7 +9,6 @@ def getConfig():
     config["NUMERROR"] = 28
     config["NUMSPEAKER"] = 16
     config["NUMTARGET"] = 10**2*4
-    config["NUMEVALS"] = 2**2
 
     #SIMULATOR OPTIONS
     config["ENDTIMESTEP"] = 600000
@@ -42,7 +41,9 @@ def getConfig():
     config["SPEAKERDIM"] = 3
     config["SPEAKERANGLEOFFSET"] = "distribute"
     config["ERRORMICANGLEOFFSET"] = "distribute"
-    config["ERRORMICRANDOMNESS"] = 1.2
+    
+    possibleTargetPoints = ["target_region", "image"]
+    config["TARGETPOINTSPLACEMENT"] = possibleTargetPoints[0]
 
     #ROOM AND REVERBERATION
     config["REVERBERATION"] = True

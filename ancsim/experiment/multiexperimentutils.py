@@ -156,60 +156,6 @@ def addSummaryItems(label, value, folder):
             else:
                 json.dump({label: value}, writeFile, indent=4)
 
-# def generateSummary(filters, timeIdx, folder):
-#     fullSummary = {}
-#     fullSummary["Timestep"] = timeIdx
-#     nAvg = np.min((5000, s.SIMCHUNKSIZE)).item()
-#     fullSummary["SamplesAveraged"] = nAvg
-#     fullSummary["filters"] = {}
-    
-#     for filt in filters:
-#         currentSummary = {}
-        
-#         currentSummary["avgRegionalReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.targ.noiseReduction[timeIdx-nAvg:timeIdx])))
-#         currentSummary["avgPointReduction"] = util.pow2db(np.nanmean(util.db2pow(filt.diag.mics.noiseReduction[timeIdx-nAvg:timeIdx])))
-        
-#         fullSummary["filters"][filt.name] = currentSummary 
-    
-#     with open(folder.joinpath("anc_summary_"+str(timeIdx)+".json"), "w") as writeFile:
-#         json.dump(fullSummary, writeFile, indent=4)
-        
-    
-        
-
-# def saveRawData_old(filters, timeIdx, folderName):
-#     fileName = "rawreductiondata_"
-
-#     if len(filters) == 4:
-#         names = ["mpc", "freq", "kernel11", "kernel10"]
-#         for filt, name in zip(filters, names):
-#             np.savez(folderName + fileName+name+"_"+str(timeIdx), 
-#                     micsEPow = filt.diag.micsEPow[:timeIdx],
-#                     micsNoise = filt.diag.micsNoise[:timeIdx],
-#                     targEPow = filt.diag.targEPow[:timeIdx],
-#                     targNoise = filt.diag.targNoise[:timeIdx])
-#         np.savez_compressed(file=folderName+"filterCoeffs_"+str(timeIdx), 
-#                             mpc=filters[0].H, 
-#                             freq=filters[1].H,
-#                             kernel10=filters[2].H,
-#                             kernel11=filters[3].H)
-#     else:
-#         print("WARNING: CANT SAVE RAW DATA, NOT IMPLEMENTED FOR CURRENT SETUP")
-
-# def saveSetupData(folderName, pos, sourceFilters, speakerToEvals2):
-#     print("WARNING: Deprecated - Please use saveloadsession.py functionality instead")
-#     np.savez(file=folderName+"pos",
-#                 ref = pos.ref,
-#                 error = pos.error,
-#                 source = pos.source,
-#                 speaker = pos.speaker,
-#                 target = pos.target,
-#                 evals = pos.evals,
-#                 evals2 = pos.evals2)
-
-#     np.savez_compressed(file=folderName+"evals_ir_close", 
-#                         sourceToEvals2=sourceFilters[-1].ir, 
-#                         speakerToEvals2=speakerToEvals2)
 
 def extractFilterParameters(expFolder):
     allParameters = {}

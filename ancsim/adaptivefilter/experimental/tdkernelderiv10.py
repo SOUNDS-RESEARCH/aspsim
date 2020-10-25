@@ -115,8 +115,8 @@ class KernelIP10_interpolatederror(FxLMS_FF):
 
 #Derivation 10 but with simple heuristic norm, using the reference filtered through secondary paths
 class KernelIP10_xfnorm(AdaptiveFilterFF):
-    def __init__(self, config, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2, tdA):
-        super().__init__(config, mu, beta, secPathError, secPathTarget, secPathEvals, secPathEvals2)
+    def __init__(self, config, mu, beta, speakerRIR, tdA):
+        super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10 xfnorm"
         self.A = np.transpose(tdA, (1,2,0))
         #self.Afilt = FilterSum_IntBuffer(self.A)

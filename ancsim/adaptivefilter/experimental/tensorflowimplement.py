@@ -14,8 +14,7 @@ class AdaptiveFilter_tf(ABC):
         self.xf = tf.Variable(tf.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
         self.e = tf.Variable(tf.zeros((self.numError,self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
         self.eTarget = tf.Variable(tf.zeros((self.numTarget,self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-        self.eEvals = tf.Variable(tf.zeros((self.numEvals,self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
-
+    
         self.pointNoise = tf.Variable(tf.zeros((self.numError, self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
         self.targetNoise = tf.Variable(tf.zeros((self.numTarget, self.simChunkSize+s.SIMBUFFER), dtype=tf.float64), dtype=tf.float64)
 
@@ -30,10 +29,8 @@ class AdaptiveFilter_tf(ABC):
 
         self.secPathError = tf.convert_to_tensor(secPathError, dtype=tf.float64)
         self.secPathTarget = tf.convert_to_tensor(secPathTarget, dtype=tf.float64)
-        self.secPathEvals = tf.convert_to_tensor(secPathEvals, dtype=tf.float64)
         self.J = tf.convert_to_tensor(secPathError.shape[-1])
         self.tJ = tf.convert_to_tensor(secPathTarget.shape[-1])
-        self.evJ = tf.convert_to_tensor(secPathEvals.shape[-1])
 
         self.idx = tf.Variable(s.SIMBUFFER, dtype=tf.int64)
         self.updateIdx = tf.Variable(s.SIMBUFFER, dtype=tf.int64)
@@ -54,7 +51,7 @@ class AdaptiveFilter_tf(ABC):
         self.x.assign(tf.concat((self.x[:,-s.SIMBUFFER:], tf.zeros((self.x.shape[0], self.simChunkSize),dtype=tf.float64)) ,axis=-1))
         self.e.assign(tf.concat((self.e[:,-s.SIMBUFFER:], tf.zeros((self.e.shape[0], self.simChunkSize),dtype=tf.float64)) ,axis=-1))
         self.eTarget.assign(tf.concat((self.eTarget[:,-s.SIMBUFFER:],tf.zeros((self.eTarget.shape[0], self.simChunkSize), dtype=tf.float64)) ,axis=-1))
-        self.eEvals.assign(tf.concat((self.eEvals[:,-s.SIMBUFFER:],tf.zeros((self.eEvals.shape[0], self.simChunkSize), dtype=tf.float64)) ,axis=-1))
+        
         self.xf.assign(tf.concat((self.xf[:,:,:,-s.SIMBUFFER:], 
             tf.zeros((self.xf.shape[0], self.xf.shape[1], self.xf.shape[2], self.simChunkSize), dtype=tf.float64)),axis=-1))
         
@@ -87,8 +84,8 @@ class AdaptiveFilter_tf(ABC):
 
 
 class MPC_FF_tf(AdaptiveFilter_tf):
-    def __init__(self, mu,beta, secPathError, secPathTarget, secPathEvals, blockSize):
-        super().__init__(mu, beta, secPathError, secPathTarget, secPathEvals)
+    def __init__(self, mu,beta, speakerRIR, blockSize):
+        super().__init__(mu, beta, speakerRIR)
         self.name = "MPC FF TF"
         self.blockSize = tf.convert_to_tensor(blockSize, dtype=tf.int64)
         #self.tfForwardPass = tf.function(self.tfForwardPass)
@@ -109,20 +106,19 @@ class MPC_FF_tf(AdaptiveFilter_tf):
                                 (tf.reduce_sum(tf.square(Xf)) + self.beta)))
 
     @util.measure("TF")
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef,  noiseAtTarget, noiseAtEvals, errorMicNoise):
+    def forwardPass(self, numSamples, noiseAtError, noiseAtRef,  noiseAtTarget,  errorMicNoise):
         numSamples = tf.convert_to_tensor(numSamples, dtype=tf.int64)
         noiseAtError = tf.convert_to_tensor(noiseAtError, dtype=tf.float64)
         noiseAtRef = tf.convert_to_tensor(noiseAtRef, dtype = tf.float64)
         noiseAtTarget = tf.convert_to_tensor(noiseAtTarget, dtype = tf.float64)
-        noiseAtEvals = tf.convert_to_tensor(noiseAtEvals, dtype = tf.float64)
         errorMicNoise = tf.convert_to_tensor(errorMicNoise, dtype=tf.float64)
 
-        self.tfForwardPass(numSamples,noiseAtError, noiseAtRef,  noiseAtTarget, noiseAtEvals, errorMicNoise)
+        self.tfForwardPass(numSamples,noiseAtError, noiseAtRef,  noiseAtTarget, errorMicNoise)
 
         self.idx.assign_add(numSamples)
 
     @tf.function
-    def tfForwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals, errorMicNoise):
+    def tfForwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, errorMicNoise):
         self.saveToBuffers(noiseAtError, noiseAtTarget)
         for _ in range(numSamples):
             n = self.idx
@@ -138,10 +134,6 @@ class MPC_FF_tf(AdaptiveFilter_tf):
             tY = tf.reverse(self.y[:,n-self.tJ+1:n+1], axis=(-1,))
             tyf = tf.reduce_sum(tY[:,None,:]*self.secPathTarget, axis=(0,-1))[:,None]
             self.eTarget[:,n].assign(tf.squeeze(noiseAtTarget - tyf))
-            
-            evY = tf.reverse(self.y[:,n-self.evJ+1:n+1], axis=(-1,))
-            evyf = tf.reduce_sum(evY[:,None,:]*self.secPathEvals, axis=(0,-1))[:,None]
-            self.eEvals[:,n].assign(tf.squeeze(noiseAtEvals - evyf))
 
             X = tf.reverse(self.x[:,n-self.filtLen+1:n+1], axis=(-1,))
 

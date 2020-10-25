@@ -36,7 +36,6 @@ class ActiveNoiseControlProcessor(ABC):
         self.numError = config["NUMERROR"]
         self.numSpeaker = config["NUMSPEAKER"]
         self.numTarget = config["NUMTARGET"]
-        self.numEvals = config["NUMEVALS"]
 
 
 class AdaptiveFilterFF(ABC):
@@ -46,7 +45,6 @@ class AdaptiveFilterFF(ABC):
         self.numError = config["NUMERROR"]
         self.numSpeaker = config["NUMSPEAKER"]
         self.numTarget = config["NUMTARGET"]
-        self.numEvals = config["NUMEVALS"]
         self.filtLen = config["FILTLENGTH"]
         self.micSNR = config["MICSNR"]
         self.saveRawData = config["SAVERAWDATA"]
@@ -85,11 +83,11 @@ class AdaptiveFilterFF(ABC):
                                     smoothingLen=self.outputSmoothing,
                                     saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
-        self.diag.addNewDiagnostic("soundfield_target", 
-                                    SoundfieldImage(self.numEvals, speakerRIR["evals"], 
-                                    self.simBuffer, self.simChunkSize,
-                                    beginAtBuffer=self.genSoundfieldAtChunk,
-                                    plotFrequency=self.plotFrequency))
+        # self.diag.addNewDiagnostic("soundfield_target", 
+        #                             SoundfieldImage(self.numEvals, speakerRIR["evals"], 
+        #                             self.simBuffer, self.simChunkSize,
+        #                             beginAtBuffer=self.genSoundfieldAtChunk,
+        #                             plotFrequency=self.plotFrequency))
 
         self.idx = self.simBuffer
         self.updateIdx = self.simBuffer
@@ -121,7 +119,7 @@ class AdaptiveFilterFF(ABC):
     def resetBuffers(self):
         self.diag.saveBufferData("reduction_microphones", self.idx, self.e)
         self.diag.saveBufferData("reduction_regional", self.idx, self.y)
-        self.diag.saveBufferData("soundfield_target", self.idx, self.y)
+        #self.diag.saveBufferData("soundfield_target", self.idx, self.y)
         self.diag.resetBuffers(self.idx)
 
         self.y = np.concatenate((self.y[:,-self.simBuffer:], np.zeros((self.y.shape[0],self.simChunkSize))) ,axis=-1)
@@ -134,7 +132,7 @@ class AdaptiveFilterFF(ABC):
         self.idx -= self.simChunkSize
         self.updateIdx -= self.simChunkSize
 
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals):
+    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget):
         blockSizes = calcBlockSizes(numSamples, self.idx, self.simBuffer, self.simChunkSize)
         errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.micSNR)
         refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.micSNR)
@@ -147,7 +145,7 @@ class AdaptiveFilterFF(ABC):
 
             self.diag.saveBlockData("reduction_microphones", self.idx, noiseAtError[:,numComputed:numComputed+blockSize])
             self.diag.saveBlockData("reduction_regional", self.idx, noiseAtTarget[:,numComputed:numComputed+blockSize])
-            self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals[:,numComputed:numComputed+blockSize])
+            #self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals[:,numComputed:numComputed+blockSize])
             
             self.e[:,self.idx:self.idx+blockSize] = noiseAtError[:,numComputed:numComputed+blockSize] + \
                                                     errorMicNoise[:,numComputed:numComputed+blockSize] + \
@@ -168,7 +166,6 @@ class AdaptiveFilterFFComplex(ABC):
         self.numError = config["NUMERROR"]
         self.numSpeaker = config["NUMSPEAKER"]
         self.numTarget = config["NUMTARGET"]
-        self.numEvals = config["NUMEVALS"]
         self.micSNR = config["MICSNR"]
         self.saveRawData = config["SAVERAWDATA"]
         self.outputSmoothing = config["OUTPUTSMOOTHING"]
@@ -213,11 +210,11 @@ class AdaptiveFilterFFComplex(ABC):
                                     smoothingLen=self.outputSmoothing,
                                     saveRawData = self.saveRawData,
                                     plotFrequency=self.plotFrequency))
-        self.diag.addNewDiagnostic("soundfield_target", 
-                                    SoundfieldImage(self.numEvals, speakerRIR["evals"], 
-                                    self.simBuffer, self.simChunkSize,
-                                    beginAtBuffer=self.genSoundfieldAtChunk,
-                                    plotFrequency=self.plotFrequency))
+        # self.diag.addNewDiagnostic("soundfield_target", 
+        #                             SoundfieldImage(self.numEvals, speakerRIR["evals"], 
+        #                             self.simBuffer, self.simChunkSize,
+        #                             beginAtBuffer=self.genSoundfieldAtChunk,
+        #                             plotFrequency=self.plotFrequency))
         self.idx = self.simBuffer
         self.updateIdx = self.simBuffer
 
@@ -243,7 +240,7 @@ class AdaptiveFilterFFComplex(ABC):
     def resetBuffers(self):
         self.diag.saveBufferData("reduction_microphones", self.idx, self.e)
         self.diag.saveBufferData("reduction_regional", self.idx, self.y)
-        self.diag.saveBufferData("soundfield_target", self.idx, self.y)
+        #self.diag.saveBufferData("soundfield_target", self.idx, self.y)
         self.diag.resetBuffers(self.idx)
         #self.diag.saveDiagnostics(self.idx, e=self.e, y=self.y)
 
@@ -257,7 +254,7 @@ class AdaptiveFilterFFComplex(ABC):
         self.idx -= self.simChunkSize
         self.updateIdx -= self.simChunkSize
 
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, noiseAtEvals):
+    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget):
         assert (numSamples == self.blockSize)
 
         if self.idx+numSamples >= (self.simChunkSize + self.simBuffer):
@@ -273,7 +270,7 @@ class AdaptiveFilterFFComplex(ABC):
 
         self.diag.saveBlockData("reduction_microphones", self.idx, noiseAtError)
         self.diag.saveBlockData("reduction_regional", self.idx, noiseAtTarget)
-        self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals)
+        #self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals)
 
         self.e[:,self.idx:self.idx+numSamples] = noiseAtError + errorMicNoise + \
                                                 self.secPathFilt.process(self.y[:,self.idx:self.idx+numSamples])

@@ -11,35 +11,32 @@ def getPositionsLine1d(radius):
     pos.error = np.array([[0,0,0]])
     pos.speaker = np.array([[-1,0,0]])
     pos.target = np.array([[0,0,0]])
-    pos.evals = np.array([[0,0,0], [0,0,0], [0,0,0], [0,0,0]])
     pos.source = np.array([[-11,0,0]])
     pos.ref = np.array([[-10,0,0]])
     return pos
 
-def getPositionsCylinder3d_directref(config):
+def getPositionsCylinder3d_directref(config, micRandomness):
     zOffset = 0.1
     numCircles = 2
 
     class AllArrays: pass
     pos = AllArrays()
-    pos.error = gp.concentricalCircles(config["NUMERROR"], numCircles, (config["TARGETWIDTH"],config["TARGETWIDTH"]*config["ERRORMICRANDOMNESS"]), config["ERRORMICANGLEOFFSET"], zOffset)
+    pos.error = gp.concentricalCircles(config["NUMERROR"], numCircles, (config["TARGETWIDTH"],config["TARGETWIDTH"]*micRandomness), config["ERRORMICANGLEOFFSET"], zOffset)
     pos.speaker = gp.concentricalCircles(config["NUMSPEAKER"],numCircles, (config["TARGETWIDTH"]+1, (config["TARGETWIDTH"]+1)*1.05), config["SPEAKERANGLEOFFSET"], 2*zOffset)
     pos.target = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
-    pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], zAxis=0)
     pos.source = gp.equiangularCircle(config["NUMSOURCE"], (10,10), z=-1)
     pos.ref = np.copy(pos.source)# + np.array([[0.5,0.5,0.7]])
     return pos
 
-def getPositionsCylinder3d(config):
+def getPositionsCylinder3d(config, micRandomness):
     zOffset = 0.1
     numCircles = 2
 
     class AllArrays: pass
     pos = AllArrays()
-    pos.error = gp.concentricalCircles(config["NUMERROR"], numCircles, (config["TARGETWIDTH"],config["TARGETWIDTH"]*config["ERRORMICRANDOMNESS"]), config["ERRORMICANGLEOFFSET"], zOffset)
+    pos.error = gp.concentricalCircles(config["NUMERROR"], numCircles, (config["TARGETWIDTH"],config["TARGETWIDTH"]*micRandomness), config["ERRORMICANGLEOFFSET"], zOffset)
     pos.speaker = gp.concentricalCircles(config["NUMSPEAKER"],numCircles, (config["TARGETWIDTH"]+1, (config["TARGETWIDTH"]+1)*1.05), config["SPEAKERANGLEOFFSET"], 2*zOffset)
     pos.target = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
-    pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], zAxis=0)
     pos.source = gp.equiangularCircle(config["NUMSOURCE"], (10,10), z=-1)
     pos.ref = gp.equiangularCircle(config["NUMREF"], (config["TARGETWIDTH"]+2, (config["TARGETWIDTH"]+2)*1.05), np.random.rand(), z=0)
     return pos
@@ -53,7 +50,6 @@ def getPositionsCylinder3d_middlemics(config):
     pos.error = gp.concentricalCircles(config["NUMERROR"], numCircles, (0.1, 0.15), config["ERRORMICANGLEOFFSET"], zOffset)
     pos.speaker = gp.concentricalCircles(config["NUMSPEAKER"],numCircles, (config["TARGETWIDTH"]+1, (config["TARGETWIDTH"]+1)*1.05), config["SPEAKERANGLEOFFSET"], 2*zOffset)
     pos.target = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
-    pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], zAxis=0)
     pos.source = gp.equiangularCircle(config["NUMSOURCE"], (10,10), z=-1)
     pos.ref = gp.equiangularCircle(config["NUMREF"], (config["TARGETWIDTH"]+2, (config["TARGETWIDTH"]+2)*1.05), np.random.rand(), z=0)
     return pos
@@ -64,7 +60,6 @@ def getPositionsDisc2d(config):
     pos.error = gp.equiangularCircle(config["NUMERROR"], (1,1.4))
     pos.speaker = gp.equiangularCircle(config["NUMSPEAKER"], (2,2.4))
     pos.target = gp.sunflowerPattern(config["NUMTARGET"], config["TARGETWIDTH"])
-    pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"])
     pos.ref = gp.equiangularCircle(config["NUMREF"], (3,3.4))
     #pos.source = np.array([[-11,0.4]])
     pos.source = gp.equiangularCircle(config["NUMSOURCE"], (10,10))
@@ -85,18 +80,21 @@ def getPositionsRectangle3d(config):
     pos.error = gp.FourEquidistantRectangles(config["NUMERROR"], config["TARGETWIDTH"], 0.03, 
                                         -config["TARGETHEIGHT"]/2, config["TARGETHEIGHT"]/2)
     pos.speaker = gp.stackedEquidistantRectangles(config["NUMSPEAKER"],2, [config["SPEAKERDIM"], config["SPEAKERDIM"]], config["TARGETHEIGHT"])
-    pos.target = gp.uniformFilledCuboid_better(config["NUMTARGET"], (config["TARGETWIDTH"],config["TARGETWIDTH"], config["TARGETHEIGHT"]))
+    
+    if config["TARGETPOINTSPLACEMENT"] == "target_region":
+        pos.target = gp.uniformFilledCuboid_better(config["NUMTARGET"], (config["TARGETWIDTH"],config["TARGETWIDTH"], config["TARGETHEIGHT"]))
+    elif config["TARGETPOINTSPLACEMENT"] == "image":
+        wallMargin = 0.1
+        roomLims = (config["ROOMCENTER"][0] - config["ROOMSIZE"][0]/2 + wallMargin, 
+                    config["ROOMCENTER"][1] - config["ROOMSIZE"][1]/2 + wallMargin,
+                    config["ROOMCENTER"][0] + config["ROOMSIZE"][0]/2 - wallMargin,
+                    config["ROOMCENTER"][1] + config["ROOMSIZE"][1]/2 - wallMargin)
+        pos.target = gp.uniformFilledRectangle(config["NUMEVALS"], roomLims, zAxis=0)
 
-    wallMargin = 0.1
-    roomLims = (config["ROOMCENTER"][0] - config["ROOMSIZE"][0]/2 + wallMargin, 
-                config["ROOMCENTER"][1] - config["ROOMSIZE"][1]/2 + wallMargin,
-                config["ROOMCENTER"][0] + config["ROOMSIZE"][0]/2 - wallMargin,
-                config["ROOMCENTER"][1] + config["ROOMSIZE"][1]/2 - wallMargin)
-    #pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], roomLims, zAxis=0)
-    sf_image_margins = 0.2
-    sf_image_lim = [np.min(pos.speaker[:,0:2])-sf_image_margins, 
-                    np.max(pos.speaker[:,0:2])+sf_image_margins]
-    pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], lim=sf_image_lim, zAxis=0)
+    # sf_image_margins = 0.2
+    # sf_image_lim = [np.min(pos.speaker[:,0:2])-sf_image_margins, 
+    #                 np.max(pos.speaker[:,0:2])+sf_image_margins]
+    #pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], lim=sf_image_lim, zAxis=0)
 
     pos.source = np.array([[-3.5,0.4, 0.3]], dtype=np.float64)
     assert(config["NUMSOURCE"] == 1)

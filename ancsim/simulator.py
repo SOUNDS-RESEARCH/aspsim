@@ -47,8 +47,6 @@ class Simulator:
 
         #LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)
-        # if config["SAVERAWDATA"]:
-        #     meu.saveSetupData(self.folderPath, self.pos, self.sourceFilters, self.speakerFilters["evals"])
 
     def prepare(self, filters):
         assert(isinstance(filters, list))
@@ -63,7 +61,7 @@ class Simulator:
 
     def runSimulation(self):
         print("Filling buffers...")
-        noises = fillBuffers(self.filters, self.noiseSource, self.speakerFilters, self.sourceFilters, self.config)
+        noises = self._fillBuffers()
         for filt in self.filters:
             filt.prepare()
 
@@ -81,7 +79,7 @@ class Simulator:
                     break
                     
                 if np.max([nIdx+bSize for nIdx, bSize in zip(noiseIndices, self.config["BLOCKSIZE"])]) >= self.config["SIMBUFFER"]+self.config["SIMCHUNKSIZE"]:
-                    noises = self._updateNoises(n_tot, noises, self.noiseSource, self.sourceFilters)
+                    noises = self._updateNoises(n_tot, noises)
                     noiseIndices = [i-self.config["SIMCHUNKSIZE"] for i in noiseIndices]
 
                 for i, (filt, bSize, nIdx) in enumerate(zip(self.filters, self.config["BLOCKSIZE"], noiseIndices)):
@@ -100,15 +98,36 @@ class Simulator:
 
                 n_tot += 1
 
-    def _updateNoises(self, timeIdx, noises, noiseSource, sourceFilters):
-        noise = noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
-        if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
-            noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
-                            for noiseAtPoints, sf in zip(noises[0:-1], sourceFilters[0:-1])]
-            noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
-        else:
-           noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
-                           for noiseAtPoints, sf in zip(noises, sourceFilters)]
+    def _updateNoises(self, timeIdx, noises):
+        noise = self.noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
+        # if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
+        #     noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+        #                     for noiseAtPoints, sf in zip(noises[0:-1], self.sourceFilters[0:-1])]
+        #     noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
+        #else:
+        noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+                        for noiseAtPoints, sf in zip(noises, self.sourceFilters)]
+        return noises
+
+    def _fillBuffers(self):
+        noise = self.noiseSource.getSamples(self.config["SIMBUFFER"])
+        noises = [sf.process(noise) for sf in self.sourceFilters]
+
+        maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in self.speakerFilters.items()])
+        fillStartIdx = self.config["LARGESTBLOCKSIZE"] + np.max((self.config["FILTLENGTH"]+self.config["KERNFILTLEN"], maxSecPathLength))
+        fillNumBlocks = [(self.config["SIMBUFFER"]-fillStartIdx) // bs for bs in self.config["BLOCKSIZE"]]
+
+        startIdxs = []
+        for filtIdx, blockSize in enumerate(self.config["BLOCKSIZE"]):
+            startIdxs.append([])
+            for i in range(fillNumBlocks[filtIdx]):
+                startIdxs[filtIdx].append(self.config["SIMBUFFER"]-((fillNumBlocks[filtIdx]-i)*blockSize))
+
+        for filtIdx, (filt, blockSize) in enumerate(zip(self.filters, self.config["BLOCKSIZE"])):
+            filt.idx = startIdxs[filtIdx][0]
+            for i in startIdxs[filtIdx]:
+                filt.forwardPass(blockSize, *[noiseAtPoints[:,i:i+blockSize] for noiseAtPoints in noises])
+
         return noises
                 
                 
@@ -130,26 +149,7 @@ def setUniqueFilterNames(filters):
         filt.name = newName
 
 
-def fillBuffers(filters, noiseSource, speakerFilters, sourceFilters, config):
-    noise = noiseSource.getSamples(config["SIMBUFFER"])
-    noises = [sf.process(noise) for sf in sourceFilters]
 
-    maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in speakerFilters.items()])
-    fillStartIdx = config["LARGESTBLOCKSIZE"] + np.max((config["FILTLENGTH"]+config["KERNFILTLEN"], maxSecPathLength))
-    fillNumBlocks = [(config["SIMBUFFER"]-fillStartIdx) // bs for bs in config["BLOCKSIZE"]]
-
-    startIdxs = []
-    for filtIdx, blockSize in enumerate(config["BLOCKSIZE"]):
-        startIdxs.append([])
-        for i in range(fillNumBlocks[filtIdx]):
-            startIdxs[filtIdx].append(config["SIMBUFFER"]-((fillNumBlocks[filtIdx]-i)*blockSize))
-
-    for filtIdx, (filt, blockSize) in enumerate(zip(filters, config["BLOCKSIZE"])):
-        filt.idx = startIdxs[filtIdx][0]
-        for i in startIdxs[filtIdx]:
-            filt.forwardPass(blockSize, *[noiseAtPoints[:,i:i+blockSize] for noiseAtPoints in noises])
-
-    return noises
 
 
 def plotAnyPos(pos, folderPath, config):
