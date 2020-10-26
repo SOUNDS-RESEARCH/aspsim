@@ -4,13 +4,19 @@ from pathlib import Path
 import ancsim.soundfield.setuparrays as setup
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.roomimpulseresponse as rir
-from ancsim.signal.sources import SourceArray, SineSource, AudioFileSource, LinearChirpSource, BandlimitedNoiseSource
+from ancsim.signal.sources import (
+    SourceArray,
+    SineSource,
+    AudioFileSource,
+    LinearChirpSource,
+    BandlimitedNoiseSource,
+)
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 
 
 def setupIR(pos, config):
     print("Computing Room IR...")
-    metadata={}
+    metadata = {}
 
     if config["REVERBERATION"]:
         if config["SPATIALDIMS"] == 3:
@@ -27,34 +33,68 @@ def setupIR(pos, config):
 
     speakerFilters = {}
     if config["REVERBERATION"]:
-        # sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
-        #                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
+        # sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"],
+        #                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"]))
         #             for targetPos in [pos.error, pos.ref, pos.target]]
-        sourceFilters = {toKey : FilterSum_IntBuffer(irFunc(pos["source"], pos[toKey], config["ROOMSIZE"], config["ROOMCENTER"], 
-                                                config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
-                    for toKey in ["error", "ref", "target"]}
+        sourceFilters = {
+            toKey: FilterSum_IntBuffer(
+                irFunc(
+                    pos["source"],
+                    pos[toKey],
+                    config["ROOMSIZE"],
+                    config["ROOMCENTER"],
+                    config["MAXROOMIRLENGTH"],
+                    config["RT60"],
+                    config["SAMPLERATE"],
+                )
+            )
+            for toKey in ["error", "ref", "target"]
+        }
 
-
-        #for pointSetTo in ["error", "target", "evals", "evals2"]
-        #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo], 
-        #                                        config["ROOMSIZE"], config["ROOMCENTER"], 
+        # for pointSetTo in ["error", "target", "evals", "evals2"]
+        #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo],
+        #                                        config["ROOMSIZE"], config["ROOMCENTER"],
         #                                        config["MAXROOMIRLENGTH"])
-        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos["speaker"], pos["error"], 
-                                                            config["ROOMSIZE"], config["ROOMCENTER"], 
-                                                             config["MAXROOMIRLENGTH"],  config["RT60"], config["SAMPLERATE"], 
-                                                                calculateMetadata=True)
-        speakerFilters["target"] = irFunc(pos["speaker"], pos["target"], config["ROOMSIZE"], config["ROOMCENTER"], 
-                                        config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])
+        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(
+            pos["speaker"],
+            pos["error"],
+            config["ROOMSIZE"],
+            config["ROOMCENTER"],
+            config["MAXROOMIRLENGTH"],
+            config["RT60"],
+            config["SAMPLERATE"],
+            calculateMetadata=True,
+        )
+        speakerFilters["target"] = irFunc(
+            pos["speaker"],
+            pos["target"],
+            config["ROOMSIZE"],
+            config["ROOMCENTER"],
+            config["MAXROOMIRLENGTH"],
+            config["RT60"],
+            config["SAMPLERATE"],
+        )
     else:
-        sourceFilters = {toKey : FilterSum_IntBuffer(irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])) 
-                    for targetPos in ["error", "ref", "target"]}
-        speakerFilters["error"] = irFunc(pos["speaker"], pos["error"], config["SAMPLERATE"], config["C"])
-        speakerFilters["target"] = irFunc(pos["speaker"], pos["target"], config["SAMPLERATE"], config["C"])
+        sourceFilters = {
+            toKey: FilterSum_IntBuffer(
+                irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])
+            )
+            for targetPos in ["error", "ref", "target"]
+        }
+        speakerFilters["error"] = irFunc(
+            pos["speaker"], pos["error"], config["SAMPLERATE"], config["C"]
+        )
+        speakerFilters["target"] = irFunc(
+            pos["speaker"], pos["target"], config["SAMPLERATE"], config["C"]
+        )
 
     if config["REFDIRECTLYOBTAINED"]:
-        assert(config["NUMREF"] == config["NUMSOURCE"])
-        sourceFilters["ref"] = FilterSum_IntBuffer(np.ones((config["NUMREF"], config["NUMSOURCE"], 1)))
+        assert config["NUMREF"] == config["NUMSOURCE"]
+        sourceFilters["ref"] = FilterSum_IntBuffer(
+            np.ones((config["NUMREF"], config["NUMSOURCE"], 1))
+        )
     return sourceFilters, speakerFilters, metadata
+
 
 def setupPos(config):
     print("Setup Positions")
@@ -87,22 +127,43 @@ def setupPos(config):
 def setupSource(config):
     print("Setup Source")
     if config["SOURCETYPE"] == "sine":
-        noiseSource = SourceArray(SineSource, config["NUMSOURCE"], config["SOURCEAMP"], config["NOISEFREQ"], config["SAMPLERATE"])
+        noiseSource = SourceArray(
+            SineSource,
+            config["NUMSOURCE"],
+            config["SOURCEAMP"],
+            config["NOISEFREQ"],
+            config["SAMPLERATE"],
+        )
     elif config["SOURCETYPE"] == "noise":
-        noiseSource = SourceArray(BandlimitedNoiseSource, config["NUMSOURCE"], config["SOURCEAMP"], 
-                                [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], config["SAMPLERATE"])
+        noiseSource = SourceArray(
+            BandlimitedNoiseSource,
+            config["NUMSOURCE"],
+            config["SOURCEAMP"],
+            [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
+            config["SAMPLERATE"],
+        )
     elif config["SOURCETYPE"] == "chirp":
-        noiseSource = SourceArray(LinearChirpSource, config["NUMSOURCE"], config["SOURCEAMP"], 
-                                  [config["NOISEFREQ"], config["NOISEFREQ"]+config["NOISEBANDWIDTH"]], 8000, config["SAMPLERATE"])
+        noiseSource = SourceArray(
+            LinearChirpSource,
+            config["NUMSOURCE"],
+            config["SOURCEAMP"],
+            [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
+            8000,
+            config["SAMPLERATE"],
+        )
     elif config["SOURCETYPE"] == "recorded":
-        assert(config["NUMSOURCE"] == 1)
+        assert config["NUMSOURCE"] == 1
         packageDir = Path(__file__).parent
-        noiseSource = AudioFileSource(config["SOURCEAMP"][0], config["SAMPLERATE"], 
-                        packageDir.joinpath("audiofiles/"+config["AUDIOFILENAME"]), config["ENDTIMESTEP"], verbose=True)
+        noiseSource = AudioFileSource(
+            config["SOURCEAMP"][0],
+            config["SAMPLERATE"],
+            packageDir.joinpath("audiofiles/" + config["AUDIOFILENAME"]),
+            config["ENDTIMESTEP"],
+            verbose=True,
+        )
     else:
         raise ValueError
     return noiseSource
-
 
 
 # def setupKernelFilters(pos, config):
@@ -110,8 +171,8 @@ def setupSource(config):
 #     if config["SPATIALDIMS"] == 3:
 #         A = ki.getAKernelFreqDomain3d(pos.error, config["FREQKERNELFILTLEN"], config)
 
-#         if config["FREQKERNELFILTLEN"] >= 512: 
-#             #If the frequency domain filter is sampled too coarsely, 
+#         if config["FREQKERNELFILTLEN"] >= 512:
+#             #If the frequency domain filter is sampled too coarsely,
 #             #its likely better to just generate a new time domain filter
 #             tdA = ki.tdAFromFreq(A, filtLen = config["KERNFILTLEN"])
 #         else:
@@ -119,6 +180,3 @@ def setupSource(config):
 #     else:
 #         raise NotImplementedError
 #     return A, tdA
-
-
-

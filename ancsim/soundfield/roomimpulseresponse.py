@@ -6,55 +6,80 @@ import pyroomacoustics as pra
 import ancsim.signal.filterdesign as fd
 import ancsim.utilities as util
 
+
 def tfPointSource2d(fromPos, toPos, freq, c):
     assert (fromPos.shape[1] == 2) and (toPos.shape[1] == 2)
     dist = distfuncs.cdist(fromPos, toPos)
     k = 2 * np.pi * freq / c
-    
-    tf = (1j/4) * special.hankel2(0, k * dist)
-    return np.transpose(tf,(0,2,1))
+
+    tf = (1j / 4) * special.hankel2(0, k * dist)
+    return np.transpose(tf, (0, 2, 1))
+
 
 def tfPointSource3d(fromPos, toPos, freqs, c):
     assert (fromPos.shape[1] == 3) and (toPos.shape[1] == 3)
-    dist = distfuncs.cdist(fromPos, toPos)[None,:,:]
-    k = freqs[:,None,None] * 2*np.pi/c
-    tf = np.exp(-1j*dist*k) / (4*np.pi*dist)
+    dist = distfuncs.cdist(fromPos, toPos)[None, :, :]
+    k = freqs[:, None, None] * 2 * np.pi / c
+    tf = np.exp(-1j * dist * k) / (4 * np.pi * dist)
     return tf
+
 
 def irPointSource3d(fromPos, toPos, samplerate, c, maxOrder=25):
     dist = distfuncs.cdist(fromPos, toPos)
     sampleDelay = (samplerate * dist) / c
-    maxFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder//2) + 1
+    maxFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder // 2) + 1
     ir = np.zeros((dist.shape[0], dist.shape[1], maxFiltLen))
-    
-    attenuation = lambda d : 1 / (4 * np.pi * np.max((d,1e-2)))
-    
+
+    attenuation = lambda d: 1 / (4 * np.pi * np.max((d, 1e-2)))
+
     for row in range(dist.shape[0]):
         for col in range(dist.shape[1]):
-            ir[row, col, :] = fd.fracDelayLagrangeFilter(sampleDelay[row,col], maxOrder, maxFiltLen)
-            ir[row, col, :] *= attenuation(dist[row,col]) 
+            ir[row, col, :] = fd.fracDelayLagrangeFilter(
+                sampleDelay[row, col], maxOrder, maxFiltLen
+            )
+            ir[row, col, :] *= attenuation(dist[row, col])
     return ir
+
 
 def irPointSource2d(fromPos, toPos, samplerate, c, extraLen=100, maxOrder=25):
     dist = distfuncs.cdist(fromPos, toPos)
     sampleDelay = (samplerate * dist) / c
-    
-    delayFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder//2) + 1
-    maxFiltLen =  delayFiltLen + extraLen - 1
-    ir = np.zeros((dist.shape[0], dist.shape[1], maxFiltLen))    
+
+    delayFiltLen = int(np.max(sampleDelay)) + 1 + (maxOrder // 2) + 1
+    maxFiltLen = delayFiltLen + extraLen - 1
+    ir = np.zeros((dist.shape[0], dist.shape[1], maxFiltLen))
     for row in range(dist.shape[0]):
         for col in range(dist.shape[1]):
-            irFromImpact = 1 / (2*np.pi * np.sqrt(c**2*((sampleDelay[row,col]+0.5+np.arange(extraLen))/samplerate)**2 - (dist[row,col]**2)))
-            correctDelay = fd.fracDelayLagrangeFilter(sampleDelay[row,col], maxOrder, delayFiltLen)
+            irFromImpact = 1 / (
+                2
+                * np.pi
+                * np.sqrt(
+                    c ** 2
+                    * ((sampleDelay[row, col] + 0.5 + np.arange(extraLen)) / samplerate)
+                    ** 2
+                    - (dist[row, col] ** 2)
+                )
+            )
+            correctDelay = fd.fracDelayLagrangeFilter(
+                sampleDelay[row, col], maxOrder, delayFiltLen
+            )
             fullIr = np.convolve(irFromImpact, correctDelay, "full")
-            
-            ir[row,col,:] = fullIr
+
+            ir[row, col, :] = fullIr
     return ir
 
 
-def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, samplerate,
-                        calculateMetadata=False):
-    
+def irRoomImageSource3d(
+    fromPos,
+    toPos,
+    roomSize,
+    roomCenter,
+    irLen,
+    rt60,
+    samplerate,
+    calculateMetadata=False,
+):
+
     numFrom = fromPos.shape[0]
     numTo = toPos.shape[0]
     ir = np.zeros((numFrom, numTo, irLen))
@@ -65,38 +90,54 @@ def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampl
 
     eAbsorption, maxOrder = pra.inverse_sabine(rt60, roomSize)
     maxOrder += 20
-    #print("Energy Absorption: ", eAbsorption)
-    #print("Max Order: ", maxOrder)
+    # print("Energy Absorption: ", eAbsorption)
+    # print("Max Order: ", maxOrder)
 
     maxTruncError = np.NINF
     maxTruncValue = np.NINF
     maxNumIRAtOnce = 500
     numComputed = 0
     while numComputed < numTo:
-        room = pra.ShoeBox(roomSize, materials=pra.Material(eAbsorption), fs = samplerate, max_order=maxOrder)
-        #room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
-        
+        room = pra.ShoeBox(
+            roomSize,
+            materials=pra.Material(eAbsorption),
+            fs=samplerate,
+            max_order=maxOrder,
+        )
+        # room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
+
         for srcIdx in range(numFrom):
-            room.add_source((fromPos[srcIdx,:] + posOffset).T)
-            
-        blockSize = np.min((maxNumIRAtOnce, numTo-numComputed))
-        mics = pra.MicrophoneArray((toPos[numComputed:numComputed+blockSize,:] + posOffset[None,:]).T, room.fs)
+            room.add_source((fromPos[srcIdx, :] + posOffset).T)
+
+        blockSize = np.min((maxNumIRAtOnce, numTo - numComputed))
+        mics = pra.MicrophoneArray(
+            (toPos[numComputed : numComputed + blockSize, :] + posOffset[None, :]).T,
+            room.fs,
+        )
         room.add_microphone_array(mics)
-        
-        print("Computing RIR {} - {} of {}".format(numComputed*numFrom+1, (numComputed+blockSize)*numFrom, numTo*numFrom))
+
+        print(
+            "Computing RIR {} - {} of {}".format(
+                numComputed * numFrom + 1,
+                (numComputed + blockSize) * numFrom,
+                numTo * numFrom,
+            )
+        )
         room.compute_rir()
         for toIdx, receiver in enumerate(room.rir):
             for fromIdx, singleRIR in enumerate(receiver):
                 irLenToUse = np.min((len(singleRIR), irLen))
-                ir[fromIdx, numComputed+toIdx,:irLenToUse] = np.array(singleRIR)[:irLenToUse] 
+                ir[fromIdx, numComputed + toIdx, :irLenToUse] = np.array(singleRIR)[
+                    :irLenToUse
+                ]
         numComputed += blockSize
 
-        #print("RT 60: ", room.measure_rt60())
+        # print("RT 60: ", room.measure_rt60())
         if calculateMetadata:
             truncError, truncValue = calculateTruncationInfo(room.rir, irLen)
             maxTruncError = np.max((maxTruncError, truncError))
             maxTruncValue = np.max((maxTruncValue, truncValue))
-    
+
     if calculateMetadata:
         metadata = {}
         metadata["Max Normalized Truncation Error (dB)"] = maxTruncError
@@ -121,44 +162,57 @@ def calculateTruncationInfo(allRIR, truncLen):
             maxTruncValue = np.max((maxTruncValue, truncValue))
     return maxTruncError, maxTruncValue
 
+
 def calculateTruncationError(RIR, truncLen):
-    totPower = np.sum(RIR**2)
-    truncPower = np.sum(RIR[truncLen:]**2)
+    totPower = np.sum(RIR ** 2)
+    truncPower = np.sum(RIR[truncLen:] ** 2)
     truncError = truncPower / totPower
-    return 10*np.log10(truncError)
+    return 10 * np.log10(truncError)
+
 
 def calculateTruncationValue(RIR, truncLen):
     maxTruncValue = np.max(np.abs(RIR[truncLen:]))
     maxValue = np.max(np.abs(RIR))
-    return 20*np.log10(maxTruncValue / maxValue)
+    return 20 * np.log10(maxTruncValue / maxValue)
+
 
 def irSimulatedRoom3d_matlab(fromPos, toPos, samplerate, c, irLen=1024, reverbTime=0.4):
     eng = matlab.engine.start_matlab()
-    roomDim = [6, 5, 4]                # Room dimensions [x y z] (m)
-    center = np.array([x/2 for x in roomDim], dtype=np.float64)
-    
-    roomFromPos = fromPos + center[None,:]
-    roomToPos = toPos + center[None,:]
+    roomDim = [6, 5, 4]  # Room dimensions [x y z] (m)
+    center = np.array([x / 2 for x in roomDim], dtype=np.float64)
+
+    roomFromPos = fromPos + center[None, :]
+    roomToPos = toPos + center[None, :]
 
     mtype = "omnidirectional"  # Type of microphone
-    order = -1                 # -1 equals maximum reflection order!
-    numDim = 3                    # Room dimension
-    orientation = 0            # Microphone orientation (rad)
-    hp_filter = 1               # Enable high-pass filter
-    
+    order = -1  # -1 equals maximum reflection order!
+    numDim = 3  # Room dimension
+    orientation = 0  # Microphone orientation (rad)
+    hp_filter = 1  # Enable high-pass filter
+
     print("Computing Room IR...")
-    ir = np.array(eng.rir_gen_wrapper(c, matlab.double([samplerate]), matlab.double(roomToPos.tolist()), 
-                                matlab.double(roomFromPos.tolist()), matlab.double([roomDim]), 
-                                reverbTime, irLen, mtype, 
-                                order, numDim, orientation,hp_filter))
+    ir = np.array(
+        eng.rir_gen_wrapper(
+            c,
+            matlab.double([samplerate]),
+            matlab.double(roomToPos.tolist()),
+            matlab.double(roomFromPos.tolist()),
+            matlab.double([roomDim]),
+            reverbTime,
+            irLen,
+            mtype,
+            order,
+            numDim,
+            orientation,
+            hp_filter,
+        )
+    )
     return ir
-
-
 
 
 def showRT60(multiChannelIR):
     for i in range(multiChannelIR.shape[0]):
         for j in range(multiChannelIR.shape[1]):
-            singleIR = multiChannelIR[i,j,:]
+            singleIR = multiChannelIR[i, j, :]
             rt = pra.experimental.rt60.measure_rt60(singleIR)
             print("RT60 is: ", rt)

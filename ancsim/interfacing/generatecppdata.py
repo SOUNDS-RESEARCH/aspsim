@@ -17,7 +17,6 @@ def saveRealtimeSimSetup(config):
     raise NotImplementedError("Old, bad interpolation filter")
     kiFilt = ki.getCMatrixBlock3d(pos["error"], config["MCPOINTS"]).tolist()
 
-    
     irData["sourceToError"] = irFunc(pos["source"], pos["error"]).tolist()
     irData["sourceToRef"] = irFunc(pos["source"], pos["ref"]).tolist()
     irData["sourceToTarget"] = irFunc(pos["source"], pos["target"]).tolist()
@@ -57,13 +56,22 @@ def saveRealtimeSimSetup(config):
     with open(fullPath + "kiFilt.json", "w") as f:
         json.dump(kiFilt, f)
 
+
 def appendCppConstant(name, value, typeName, fileName, path):
     if not os.path.isfile(path + fileName):
         with open(path + fileName, "w") as f:
             f.write("#pragma once \n \n")
 
     with open(path + fileName, "a") as f:
-        f.write("static constexpr " + typeName + " " + name.upper() + " { " + str(value) + " }; \n")
+        f.write(
+            "static constexpr "
+            + typeName
+            + " "
+            + name.upper()
+            + " { "
+            + str(value)
+            + " }; \n"
+        )
 
 
 def saveRealtimeSimSetup_2(config):
@@ -90,24 +98,36 @@ def saveRealtimeSimSetup_2(config):
     posData["source"] = pos["source"].tolist()
     posData["target"] = pos["target"].tolist()
 
-    fName = "constants.h"    
-    if os.path.isfile(fullPath+fName):
-        os.remove(fullPath+fName)
+    fName = "constants.h"
+    if os.path.isfile(fullPath + fName):
+        os.remove(fullPath + fName)
     appendCppConstant("numError", config["NUMERROR"], "int", fName, fullPath)
     appendCppConstant("numRef", config["NUMREF"], "int", fName, fullPath)
     appendCppConstant("numSpeaker", config["NUMSPEAKER"], "int", fName, fullPath)
     appendCppConstant("numSource", config["NUMSOURCE"], "int", fName, fullPath)
     appendCppConstant("numTarget", config["NUMTARGET"], "int", fName, fullPath)
 
-    appendCppConstant("speakerToErrorLen", len(irData["speakerToError"][0][0]), "int", fName, fullPath)
-    appendCppConstant("speakerToTargetLen", len(irData["speakerToTarget"][0][0]), "int", fName, fullPath)
+    appendCppConstant(
+        "speakerToErrorLen", len(irData["speakerToError"][0][0]), "int", fName, fullPath
+    )
+    appendCppConstant(
+        "speakerToTargetLen",
+        len(irData["speakerToTarget"][0][0]),
+        "int",
+        fName,
+        fullPath,
+    )
 
-    appendCppConstant("sourceToErrorLen", len(irData["sourceToError"][0][0]), "int", fName, fullPath)
-    appendCppConstant("sourceToRefLen", len(irData["sourceToRef"][0][0]), "int", fName, fullPath)
-    appendCppConstant("sourceToTargetLen", len(irData["sourceToTarget"][0][0]), "int", fName, fullPath)
+    appendCppConstant(
+        "sourceToErrorLen", len(irData["sourceToError"][0][0]), "int", fName, fullPath
+    )
+    appendCppConstant(
+        "sourceToRefLen", len(irData["sourceToRef"][0][0]), "int", fName, fullPath
+    )
+    appendCppConstant(
+        "sourceToTargetLen", len(irData["sourceToTarget"][0][0]), "int", fName, fullPath
+    )
 
-
-    
     with open(fullPath + "metaData.json", "w") as f:
         json.dump(metaData, f)
 
@@ -122,9 +142,6 @@ def saveRealtimeSimSetup_2(config):
 
     with open(fullPath + "kiFilt.json", "w") as f:
         json.dump(kiFilt, f)
-
-
-
 
 
 if __name__ == "__main__":

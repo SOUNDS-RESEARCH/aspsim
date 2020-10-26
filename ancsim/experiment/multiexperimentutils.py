@@ -19,6 +19,7 @@ import ancsim.utilities as util
 #         with open(folder+"/anc_summary.json", "w") as writeFile:
 #             json.dump(summaryDict, writeFile, indent=4)
 
+
 def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
     firstSubFolder = True
     prevGoodIndices = []
@@ -27,10 +28,10 @@ def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
             continue
         if folderName.joinpath(subFolderName).is_dir():
             goodIndices = []
-            for filePath in folderName.joinpath(subFolderName).iterdir(): 
+            for filePath in folderName.joinpath(subFolderName).iterdir():
                 filename = filePath.name
                 if filename.startswith(prefix) and filename.endswith(suffix):
-                    summaryIdx = filename[len(prefix):len(filename)-len(suffix)]
+                    summaryIdx = filename[len(prefix) : len(filename) - len(suffix)]
                     try:
                         summaryIdx = int(summaryIdx)
                         if firstSubFolder or summaryIdx in prevGoodIndices:
@@ -42,42 +43,43 @@ def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
     return goodIndices
 
 
-
 def getHighestNumberedFile_string(folder, prefix, suffix):
     highestFileIdx = -1
     for filename in os.listdir(folder):
         if filename.startswith(prefix) and filename.endswith(suffix):
-            summaryIdx = filename[len(prefix):len(filename)-len(suffix)]
+            summaryIdx = filename[len(prefix) : len(filename) - len(suffix)]
             try:
                 summaryIdx = int(summaryIdx)
                 if summaryIdx > highestFileIdx:
                     highestFileIdx = summaryIdx
             except ValueError:
                 print("Warning: check prefix and suffix")
-    
+
     if highestFileIdx == -1:
         return None
     else:
         fname = prefix + str(highestFileIdx) + suffix
         return fname
 
+
 def getHighestNumberedFile(folder, prefix, suffix):
     highestFileIdx = -1
     for filePath in folder.iterdir():
         if filePath.name.startswith(prefix) and filePath.name.endswith(suffix):
-            summaryIdx = filePath.name[len(prefix):len(filePath.name)-len(suffix)]
+            summaryIdx = filePath.name[len(prefix) : len(filePath.name) - len(suffix)]
             try:
                 summaryIdx = int(summaryIdx)
                 if summaryIdx > highestFileIdx:
                     highestFileIdx = summaryIdx
             except ValueError:
                 print("Warning: check prefix and suffix")
-    
+
     if highestFileIdx == -1:
         return None
     else:
         fname = prefix + str(highestFileIdx) + suffix
         return folder.joinpath(fname)
+
 
 def findIndexInName(name):
     idx = []
@@ -89,19 +91,22 @@ def findIndexInName(name):
     if len(idx) == 0:
         return None
     idx = int("".join(idx[::-1]))
-    assert(name.endswith(str(idx)))
+    assert name.endswith(str(idx))
     return idx
 
-def findAllEarlierFiles(folder, name, currentIdx, nameIncludesIdx=True, errorIfFutureFilesExist=True):
+
+def findAllEarlierFiles(
+    folder, name, currentIdx, nameIncludesIdx=True, errorIfFutureFilesExist=True
+):
     if nameIncludesIdx:
-        name = name[:-len(str(currentIdx))]
+        name = name[: -len(str(currentIdx))]
     else:
         name = name + "_"
 
     earlierFiles = []
     for f in folder.iterdir():
         if f.stem.startswith(name):
-            fIdx = int(f.stem[len(name):])
+            fIdx = int(f.stem[len(name) :])
             if fIdx > currentIdx:
                 if errorIfFutureFilesExist:
                     raise ValueError
@@ -113,26 +118,20 @@ def findAllEarlierFiles(folder, name, currentIdx, nameIncludesIdx=True, errorIfF
     return earlierFiles
 
 
-
-
-
-
-
-
-
 def getLatestSummary(folder):
     latestSummaryIdx = -1
     for filename in os.listdir(folder):
         if "summary" in filename:
-            summaryIdx = int(filename.replace(".json","").split("_")[-1])
+            summaryIdx = int(filename.replace(".json", "").split("_")[-1])
             if summaryIdx > latestSummaryIdx:
                 latestSummaryIdx = summaryIdx
-    
+
     if latestSummaryIdx == -1:
         return None
     else:
         fname = "summary_" + str(latestSummaryIdx) + ".json"
         return fname
+
 
 def addSummaryItems(label, value, folder):
     filePath = folder.joinpath("summary.json")
@@ -162,7 +161,7 @@ def extractFilterParameters(expFolder):
     for subFolder in expFolder.iterdir():
         if subFolder.is_dir():
             metadataFile = subFolder.joinpath("filtermetadata.json")
-            with open(metadataFile,"r") as f:
+            with open(metadataFile, "r") as f:
                 metadata = json.load(f)
             for filtName, paramDict in metadata.items():
                 for paramName, paramValue in paramDict.items():
@@ -171,28 +170,33 @@ def extractFilterParameters(expFolder):
                     if paramName not in allParameters[filtName]:
                         allParameters[filtName][paramName] = []
                     allParameters[filtName][paramName].append(paramValue)
-    with open(expFolder.joinpath("full_experiment_filtermetadata.json"),"w") as f:
-        json.dump(allParameters,f, indent=4)
-        
+    with open(expFolder.joinpath("full_experiment_filtermetadata.json"), "w") as f:
+        json.dump(allParameters, f, indent=4)
+
+
 def extractSummaries(expFolder, summaryIdx="latest"):
     expData = []
     expDirs = [d for d in expFolder.iterdir() if expFolder.joinpath(d).is_dir()]
     for dirName in expDirs[:]:
         try:
             if summaryIdx == "latest":
-                #summaryName = getLatestSummary(expFolder.joinpath(dirName))
-                summaryName = getHighestNumberedFile(expFolder.joinpath(dirName), "summary_", ".json")
+                # summaryName = getLatestSummary(expFolder.joinpath(dirName))
+                summaryName = getHighestNumberedFile(
+                    expFolder.joinpath(dirName), "summary_", ".json"
+                )
             else:
-                summaryName ="summary_" + str(summaryIdx) + ".json"
+                summaryName = "summary_" + str(summaryIdx) + ".json"
 
             if summaryName is not None:
-                with open (expFolder.joinpath(dirName).joinpath(summaryName)) as jsonData:
+                with open(
+                    expFolder.joinpath(dirName).joinpath(summaryName)
+                ) as jsonData:
                     expData.append(json.load(jsonData))
-            else: 
+            else:
                 expDirs.remove(dirName)
         except FileNotFoundError:
             expDirs.remove(dirName)
-            
+
     summary = {}
     for expIdx, expResults in enumerate(expData):
         for diagName, diagResults in expResults.items():
@@ -202,18 +206,21 @@ def extractSummaries(expFolder, summaryIdx="latest"):
                 if filtName not in summary[diagName]:
                     summary[diagName][filtName] = []
                 summary[diagName][filtName].append(diagValue)
-            
+
     if summaryIdx == "latest":
         outputName = expFolder.joinpath("full_experiment_summary.json")
     else:
-        outputName =  expFolder.joinpath("full_experiment_summary_" + str(summaryIdx) + ".json")
+        outputName = expFolder.joinpath(
+            "full_experiment_summary_" + str(summaryIdx) + ".json"
+        )
     with open(outputName, "w") as writeFile:
         json.dump(summary, writeFile, indent=4)
-        
-        
+
 
 def extractAllSummaries(expFolder):
-    indices = indicesSameInAllFolders(expFolder, "summary_", ".json", ["reduction_by_frequency"])
+    indices = indicesSameInAllFolders(
+        expFolder, "summary_", ".json", ["reduction_by_frequency"]
+    )
     for idx in indices:
         extractSummaries(expFolder, idx)
 
@@ -223,50 +230,56 @@ def extractConfigs(expFolder):
     expDirs = [d for d in expFolder.iterdir() if expFolder.joinpath(d).is_dir()]
     for i in expDirs[:]:
         try:
-            with open (expFolder.joinpath(i).joinpath("configfile.json")) as jsonData:
+            with open(expFolder.joinpath(i).joinpath("configfile.json")) as jsonData:
                 expConfigs.append(json.load(jsonData))
         except FileNotFoundError:
             expDirs.remove(i)
-            
+
     totConf = {}
     for valType in expConfigs[0]:
         totConf[valType] = []
 
     for conf in expConfigs:
-        for key,val in conf.items():
+        for key, val in conf.items():
             totConf[key].append(val)
-    
+
     with open(expFolder.joinpath("full_experiment_config.json"), "w") as writeFile:
         json.dump(totConf, writeFile, indent=4)
+
 
 def extractSettings(expFolder):
     expData = []
     expDirs = [d for d in expFolder.iterdir() if expFolder.joinpath(d).is_dir()]
     allSet = {}
-    with open (expFolder.joinpath(expDirs[0]).joinpath("settings.py")) as file:
+    with open(expFolder.joinpath(expDirs[0]).joinpath("settings.py")) as file:
         for line in file.readlines():
             words = line.split()
             if len(words) > 0:
                 allSet[words[0]] = []
 
     for d in expDirs:
-        #with open (expFolder + "/" + d + "/settings.py") as file:
-        with open (expFolder.joinpath(d).joinpath("settings.py")) as file:
+        # with open (expFolder + "/" + d + "/settings.py") as file:
+        with open(expFolder.joinpath(d).joinpath("settings.py")) as file:
             for line in file.readlines():
                 words = line.split()
                 if len(words) > 0:
                     val = toNum(words[2])
                     if words[2][0] == "(":
-                        val=""
-                        val = val.join(words[2:]).strip("()").replace(" ", "").split(",")
+                        val = ""
+                        val = (
+                            val.join(words[2:]).strip("()").replace(" ", "").split(",")
+                        )
                         val = [toNum(v) for v in val]
                     elif words[2][0] == "[":
-                        val=""
-                        val = val.join(words[2:]).strip("[]").replace(" ", "").split(",")
+                        val = ""
+                        val = (
+                            val.join(words[2:]).strip("[]").replace(" ", "").split(",")
+                        )
                         val = [toNum(v) for v in val]
                     allSet[words[0]].append(val)
     with open(expFolder.joinpath("full_experiment_settings.json"), "w") as writeFile:
         json.dump(allSet, writeFile, indent=4)
+
 
 def toNum(val):
     constructors = [int, float, str]
@@ -277,11 +290,12 @@ def toNum(val):
         except ValueError:
             pass
 
-def openData(folder, selectIdx = "latest"):
+
+def openData(folder, selectIdx="latest"):
     if selectIdx == "latest":
         summaryName = "full_experiment_summary.json"
     elif isinstance(selectIdx, int):
-        summaryName = "full_experiment_summary_" + str(selectIdx) +".json"
+        summaryName = "full_experiment_summary_" + str(selectIdx) + ".json"
     with open(folder.joinpath(summaryName), "r") as f:
         summary = json.load(f)
 
@@ -289,27 +303,26 @@ def openData(folder, selectIdx = "latest"):
         settings = json.load(f)
     with open(folder.joinpath("full_experiment_config.json"), "r") as f:
         config = json.load(f)
-    with open(folder.joinpath("full_experiment_filtermetadata.json"),"r") as f:
+    with open(folder.joinpath("full_experiment_filtermetadata.json"), "r") as f:
         filtParams = json.load(f)
     return summary, settings, config, filtParams
 
-    
+
 def findFilterChangingEntries(allParams):
     changingEntries = {}
     for filtName, params in allParams.items():
         changingEntries[filtName] = findChangingEntries(params)
     return changingEntries
 
+
 def findChangingEntries(settings):
     changingEntries = []
     for entry in settings:
-        for val1,val2 in it.combinations(settings[entry],2):
+        for val1, val2 in it.combinations(settings[entry], 2):
             if val1 != val2:
                 changingEntries.append(entry)
-                break 
+                break
     return changingEntries
-
-
 
 
 if __name__ == "__main__":

@@ -2,24 +2,25 @@ import numpy as np
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 from abc import ABC, abstractmethod
 
+
 class AdaptiveFilterBase(ABC):
     def __init__(self, irLen, numIn, numOut, filterType=None):
         filterDim = (numIn, numOut, irLen)
         self.numIn = numIn
         self.numOut = numOut
         self.irLen = irLen
-        
+
         if filterType is not None:
             self.filt = filterType(ir=np.zeros(filterDim))
         else:
             self.filt = FilterSum_IntBuffer(ir=np.zeros(filterDim))
 
-        self.x = np.zeros((self.numIn, self.irLen, 1)) #Column vector
+        self.x = np.zeros((self.numIn, self.irLen, 1))  # Column vector
 
     def insertInSignal(self, ref):
-        assert(ref.shape[-1] == 1)
+        assert ref.shape[-1] == 1
         self.x = np.roll(self.x, 1, axis=1)
-        self.x[:,0:1,0] = ref
+        self.x[:, 0:1, 0] = ref
 
     def prepare(self):
         pass
@@ -38,12 +39,13 @@ class AdaptiveFilterBase(ABC):
             self.irLen = newIR.shape[2]
         self.filt.setIR(newIR)
 
+
 class AdaptiveFilterFreqDomain(ABC):
     def __init__(self, numFreq, numIn, numOut):
-        #filterDim = (numIn, numOut, irLen)
+        # filterDim = (numIn, numOut, irLen)
         self.numIn = numIn
         self.numOut = numOut
-        self.numFreq= numFreq
+        self.numFreq = numFreq
 
         self.ir = np.zeros((numFreq, numOut, numIn), dtype=np.complex128)
 

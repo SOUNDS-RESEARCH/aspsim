@@ -1,4 +1,5 @@
 import numpy as np
+
 np.random.seed(2)
 import os
 import sys
@@ -6,11 +7,13 @@ from pathlib import Path
 import shutil
 import json
 import time
-#from pathos.helpers import freeze_support
+
+# from pathos.helpers import freeze_support
 
 import ancsim.utilities as util
 from ancsim.configfile import configPreprocessing
-#from ancsim.experiment.saveloadsession import loadSession
+
+# from ancsim.experiment.saveloadsession import loadSession
 from ancsim.simulatorsetup import setupIR, setupPos, setupSource
 from ancsim.simulatorlogging import getFolderName, addToSimMetadata, writeFilterMetadata
 from ancsim.saveloadsession import saveSettings, saveConfig, loadSession, saveRawData
@@ -19,44 +22,52 @@ import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
 from ancsim.adaptivefilter.diagnostics import PlotDiagnosticDispatcher
 
+
 class Simulator:
-    def __init__(self, config, folderForPlots=Path(__file__).parent.parent.joinpath("figs"), 
-                    sessionFolder=None,
-                    generateSubFolder=True):
-        #PREPREPARATION
+    def __init__(
+        self,
+        config,
+        folderForPlots=Path(__file__).parent.parent.joinpath("figs"),
+        sessionFolder=None,
+        generateSubFolder=True,
+    ):
+        # PREPREPARATION
         self.filters = []
         self.config = config
 
         self.folderPath = getFolderName(config, folderForPlots, generateSubFolder)
 
-            
         printInfo(config, self.folderPath)
 
         saveConfig(self.folderPath, config)
 
-        #CONSTRUCTING SIMULATION
+        # CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
-            self.pos, self.sourceFilters, self.speakerFilters = \
-                loadSession(config, sessionFolder, self.folderPath)
+            self.pos, self.sourceFilters, self.speakerFilters = loadSession(
+                config, sessionFolder, self.folderPath
+            )
         else:
             self.pos = setupPos(config)
-            self.sourceFilters, self.speakerFilters, irMetadata = setupIR(self.pos, config)
+            self.sourceFilters, self.speakerFilters, irMetadata = setupIR(
+                self.pos, config
+            )
             addToSimMetadata(self.folderPath, irMetadata)
         self.noiseSource = setupSource(config)
 
-        #LOGGING AND DIAGNOSTICS
+        # LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)
 
     def prepare(self, filters):
-        assert(isinstance(filters, list))
+        assert isinstance(filters, list)
         self.filters = filters
         self.config = configPreprocessing(self.config, len(self.filters))
 
         setUniqueFilterNames(self.filters)
         writeFilterMetadata(self.filters, self.folderPath)
 
-        self.plotDispatcher = PlotDiagnosticDispatcher(self.filters, self.config["PLOTOUTPUT"])
-
+        self.plotDispatcher = PlotDiagnosticDispatcher(
+            self.filters, self.config["PLOTOUTPUT"]
+        )
 
     def runSimulation(self):
         print("Filling buffers...")
@@ -69,32 +80,58 @@ class Simulator:
         bufferIdx = -1
         noises = self._updateNoises(n_tot, noises)
         noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.filters))]
-        while n_tot < self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"]:
+        while n_tot < self.config["ENDTIMESTEP"] - self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
-            for n in range(self.config["SIMBUFFER"], self.config["SIMBUFFER"] + min(self.config["SIMCHUNKSIZE"], self.config["ENDTIMESTEP"]-n_tot)):
+            for n in range(
+                self.config["SIMBUFFER"],
+                self.config["SIMBUFFER"]
+                + min(self.config["SIMCHUNKSIZE"], self.config["ENDTIMESTEP"] - n_tot),
+            ):
                 if n_tot % 1000 == 0:
                     print("Timestep: ", n_tot)
-                if self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"] < n_tot:
+                if self.config["ENDTIMESTEP"] - self.config["LARGESTBLOCKSIZE"] < n_tot:
                     break
-                    
-                if np.max([nIdx+bSize for nIdx, bSize in zip(noiseIndices, self.config["BLOCKSIZE"])]) >= self.config["SIMBUFFER"]+self.config["SIMCHUNKSIZE"]:
-                    noises = self._updateNoises(n_tot, noises)
-                    noiseIndices = [i-self.config["SIMCHUNKSIZE"] for i in noiseIndices]
 
-                for i, (filt, bSize, nIdx) in enumerate(zip(self.filters, self.config["BLOCKSIZE"], noiseIndices)):
+                if (
+                    np.max(
+                        [
+                            nIdx + bSize
+                            for nIdx, bSize in zip(
+                                noiseIndices, self.config["BLOCKSIZE"]
+                            )
+                        ]
+                    )
+                    >= self.config["SIMBUFFER"] + self.config["SIMCHUNKSIZE"]
+                ):
+                    noises = self._updateNoises(n_tot, noises)
+                    noiseIndices = [
+                        i - self.config["SIMCHUNKSIZE"] for i in noiseIndices
+                    ]
+
+                for i, (filt, bSize, nIdx) in enumerate(
+                    zip(self.filters, self.config["BLOCKSIZE"], noiseIndices)
+                ):
                     if n_tot % bSize == 0:
-                        #filt.forwardPass(bSize, *[noiseAtPoints[:,nIdx:nIdx+bSize] for noiseAtPoints in noises])
-                        filt.forwardPass(bSize, {pointName : noiseAtPoints[:,nIdx:nIdx+bSize] for 
-                                                        pointName, noiseAtPoints in noises.items()})
+                        # filt.forwardPass(bSize, *[noiseAtPoints[:,nIdx:nIdx+bSize] for noiseAtPoints in noises])
+                        filt.forwardPass(
+                            bSize,
+                            {
+                                pointName: noiseAtPoints[:, nIdx : nIdx + bSize]
+                                for pointName, noiseAtPoints in noises.items()
+                            },
+                        )
                         filt.updateFilter()
                         noiseIndices[i] += bSize
 
                 if n_tot % self.config["SIMCHUNKSIZE"] == 0 and n_tot > 0:
                     if self.config["PLOTOUTPUT"] != "none":
-                        self.plotDispatcher.dispatch(self.filters, n_tot, bufferIdx, self.folderPath)
+                        self.plotDispatcher.dispatch(
+                            self.filters, n_tot, bufferIdx, self.folderPath
+                        )
                     if self.config["SAVERAWDATA"] and (
-                        bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0 \
-                            or bufferIdx-1 == 0):
+                        bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0
+                        or bufferIdx - 1 == 0
+                    ):
                         saveRawData(self.filters, n_tot, self.folderPath)
 
                 n_tot += 1
@@ -102,36 +139,61 @@ class Simulator:
     def _updateNoises(self, timeIdx, noises):
         noise = self.noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
         # if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
-        #     noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+        #     noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1)
         #                     for noiseAtPoints, sf in zip(noises[0:-1], self.sourceFilters[0:-1])]
         #     noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
-        #else:
-        noises = {filtName : np.concatenate((noises[filtName][:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
-                        for filtName, sf in self.sourceFilters.items()}
+        # else:
+        noises = {
+            filtName: np.concatenate(
+                (noises[filtName][:, -self.config["SIMBUFFER"] :], sf.process(noise)),
+                axis=-1,
+            )
+            for filtName, sf in self.sourceFilters.items()
+        }
         return noises
 
     def _fillBuffers(self):
         noise = self.noiseSource.getSamples(self.config["SIMBUFFER"])
-        noises = {filtName : sf.process(noise) for filtName, sf in self.sourceFilters.items()}
+        noises = {
+            filtName: sf.process(noise) for filtName, sf in self.sourceFilters.items()
+        }
 
-        maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in self.speakerFilters.items()])
-        fillStartIdx = self.config["LARGESTBLOCKSIZE"] + np.max((self.config["FILTLENGTH"]+self.config["KERNFILTLEN"], maxSecPathLength))
-        fillNumBlocks = [(self.config["SIMBUFFER"]-fillStartIdx) // bs for bs in self.config["BLOCKSIZE"]]
+        maxSecPathLength = np.max(
+            [speakerFilt.shape[-1] for _, speakerFilt, in self.speakerFilters.items()]
+        )
+        fillStartIdx = self.config["LARGESTBLOCKSIZE"] + np.max(
+            (self.config["FILTLENGTH"] + self.config["KERNFILTLEN"], maxSecPathLength)
+        )
+        fillNumBlocks = [
+            (self.config["SIMBUFFER"] - fillStartIdx) // bs
+            for bs in self.config["BLOCKSIZE"]
+        ]
 
         startIdxs = []
         for filtIdx, blockSize in enumerate(self.config["BLOCKSIZE"]):
             startIdxs.append([])
             for i in range(fillNumBlocks[filtIdx]):
-                startIdxs[filtIdx].append(self.config["SIMBUFFER"]-((fillNumBlocks[filtIdx]-i)*blockSize))
+                startIdxs[filtIdx].append(
+                    self.config["SIMBUFFER"]
+                    - ((fillNumBlocks[filtIdx] - i) * blockSize)
+                )
 
-        for filtIdx, (filt, blockSize) in enumerate(zip(self.filters, self.config["BLOCKSIZE"])):
+        for filtIdx, (filt, blockSize) in enumerate(
+            zip(self.filters, self.config["BLOCKSIZE"])
+        ):
             filt.idx = startIdxs[filtIdx][0]
             for i in startIdxs[filtIdx]:
-                filt.forwardPass(blockSize, {pointName : noiseAtPoints[:,i:i+blockSize] for pointName, noiseAtPoints in noises.items()})
+                filt.forwardPass(
+                    blockSize,
+                    {
+                        pointName: noiseAtPoints[:, i : i + blockSize]
+                        for pointName, noiseAtPoints in noises.items()
+                    },
+                )
 
         return noises
-                
-                
+
+
 def printInfo(config, folderPath):
     print("Session folder: ", folderPath.name)
     print("Number of mics: ", config["NUMERROR"])
@@ -150,19 +212,25 @@ def setUniqueFilterNames(filters):
         filt.name = newName
 
 
-
-
-
 def plotAnyPos(pos, folderPath, config):
     print("Setup Positions")
     if config["SPATIALDIMS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
-            psc.plotPos3dDisc(pos, folderPath,config, config["PLOTOUTPUT"])
+            psc.plotPos3dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
         elif config["ARRAYSHAPES"] == "rectangle":
             if config["REVERBERATION"]:
-                psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
+                psc.plotPos3dRect(
+                    pos,
+                    folderPath,
+                    config,
+                    config["ROOMSIZE"],
+                    config["ROOMCENTER"],
+                    printMethod=config["PLOTOUTPUT"],
+                )
             else:
-                psc.plotPos3dRect(pos, folderPath,config, printMethod=config["PLOTOUTPUT"])
+                psc.plotPos3dRect(
+                    pos, folderPath, config, printMethod=config["PLOTOUTPUT"]
+                )
     elif config["SPATIALDIMS"] == 2:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:
@@ -175,10 +243,6 @@ def plotAnyPos(pos, folderPath, config):
         raise ValueError
 
 
-
-
-
-
 # if __name__ == "__main__":
 #     #freeze_support()
 #     import configfile
@@ -187,5 +251,3 @@ def plotAnyPos(pos, folderPath, config):
 #         sim(folderForPlots, config=configfile.config)
 #     else:
 #         sim(config=configfile.config)
-    
-    
