@@ -93,39 +93,30 @@ def saveSpeakerFilters(folderPath, speakerFilters):
     np.savez(folderPath.joinpath("speakerfilters.npz"), **speakerFilters)
 
 def loadSpeakerFilters(folderPath):
-    loadedFile = np.load(folderPath.joinpath("speakerfilters.npz"))
-    speakerFilters = {}
-    for key in loadedFile.files:
-        speakerFilters[key] = loadedFile[key]
+    with np.load(folderPath.joinpath("speakerfilters.npz")) as loadedFile:
+        speakerFilters = {}
+        for key in loadedFile.files:
+            speakerFilters[key] = loadedFile[key]
     return speakerFilters
 
 def saveSourceFilters(folderPath, sourceFilters):
-    np.savez(folderPath.joinpath("sourcefilters.npz"), *[filt.ir for filt in sourceFilters])
+    np.savez(folderPath.joinpath("sourcefilters.npz"), **{key:filt.ir for key, filt in sourceFilters.items()})
 
 def loadSourceFilters(folderPath):
-    srcFilt = np.load(folderPath.joinpath("sourcefilters.npz"))
-    sourceFilters = []
-    for arrayName in srcFilt.files:
-        sourceFilters.append(FilterSum_IntBuffer(srcFilt[arrayName]))
+    with np.load(folderPath.joinpath("sourcefilters.npz")) as srcFilt:
+        sourceFilters = {}
+        for key in srcFilt.files:
+            sourceFilters[key] = FilterSum_IntBuffer(srcFilt[key])
     return sourceFilters
 
 def savePositions(path, pos):
-    np.savez(path.joinpath("pos.npz"), 
-            ref=pos.ref,
-            error=pos.error,
-            speaker=pos.speaker,
-            source=pos.source,
-            target=pos.target)
+    np.savez(path.joinpath("pos.npz"), **pos)
 
 def loadPositions(folder):
-    posDict = np.load(folder.joinpath("pos.npz"))
-    class AllArrays: pass
-    pos = AllArrays()
-    pos.ref = posDict["ref"]
-    pos.error = posDict["error"]
-    pos.speaker = posDict["speaker"]
-    pos.source = posDict["source"]
-    pos.target = posDict["target"]
+    with np.load(folder.joinpath("pos.npz")) as loadedPos:
+        pos = {}
+        for key in loadedPos.files:
+            pos[key] = loadedPos[key]
     return pos
 
 def configMatch(config1, config2):

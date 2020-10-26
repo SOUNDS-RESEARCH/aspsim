@@ -66,7 +66,7 @@ def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
 #==================================================================================
 
 
-#FREQUENCY DOMAIN 2D DISC KERNEL INTERPOLATION FILTER
+#FREQUENCY DOMAIN 2D DISC KERNEL INTERPOLATION WEIGHTING FILTER
 def kernelInterpolationFR(errorMicPos, freq, 
                           regParam, truncOrder, radius, c):
     if isinstance(freq, (int, float)):
@@ -543,7 +543,7 @@ def printReqFiltLen(reqFiltLen, tol, maxLen):
 
 def test_c1_c2_similarity(pos):
     np.random.seed(1)
-    c1 = getCMatrixCylinder3d(pos.error, 200)
+    c1 = getCMatrixCylinder3d(pos["error"], 200)
 
     dif = np.abs(c1 - c2)
     dif = np.max(dif, axis=0)
@@ -560,22 +560,4 @@ def testSpeedKernelFilt(errorPos):
     normal = time.time() - start
     print("MP: ", mp)
     print("Normal: ", normal)
-    
-    
-if __name__ == "__main__":
-    freeze_support()
-    import setupfunctions as setup
-    import matplotlib.pyplot as plt
-    import time
-    pos = setup.getPositionsCylinder3d()
-    #getCMatrixCylinder3d(pos.error)
-    #testMultiprocessing(pos)
-    
-    #testConstantIntegral()
-    #testConstantIntegralVol()
-    #testCenterOfGravity()
-    #testSpeedKernelFilt(pos.error)
-    findNecessaryKernLen(pos.error)
-
-
     

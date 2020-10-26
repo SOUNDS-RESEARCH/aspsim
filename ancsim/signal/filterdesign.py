@@ -198,7 +198,7 @@ def testFilterDesignFunc(samplerate):
     
     numFreqSamples = 2**12 + 1
     freqs = (samplerate / (2*numFreqSamples)) * np.arange(numFreqSamples)
-    freqsamples = ki.kernelInterpolationFR(pos.error, freqs)
+    freqsamples = ki.kernelInterpolationFR(pos["error"], freqs)
     freqsamples = np.transpose(freqsamples, (1,2,0))    
     
     filt1 = tdFilterFromFreq(freqsamples, 214, method="minphase", window="hamming")

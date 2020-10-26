@@ -100,11 +100,11 @@ def plotPos(pos, folder, config, printMethod="pdf"):
         
     #Plot with sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    ax.plot(pos.speaker[:,0], pos.speaker[:,1], "o")
-    ax.plot(pos.error[:,0], pos.error[:,1], "x")
-    ax.plot(pos.source[:,0], pos.source[:,1], "o")
-    if hasattr(pos, "ref"):
-        ax.plot(pos.ref[:,0], pos.ref[:,1], "x")
+    ax.plot(pos["speaker"][:,0], pos["speaker"][:,1], "o")
+    ax.plot(pos["error"][:,0], pos["error"][:,1], "x")
+    ax.plot(pos["source"][:,0], pos["source"][:,1], "o")
+    if "ref" in pos:
+        ax.plot(pos["ref"][:,0], pos["ref"][:,1], "x")
     
     setLook(ax, config)
 
@@ -112,10 +112,10 @@ def plotPos(pos, folder, config, printMethod="pdf"):
 
     #Plot without sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    ax.plot(pos.speaker[:,0], pos.speaker[:,1], "o")
-    ax.plot(pos.error[:,0], pos.error[:,1], "x")
-    if hasattr(pos, "ref"):
-        ax.plot(pos.ref[:,0], pos.ref[:,1], "x")
+    ax.plot(pos["speaker"][:,0], pos["speaker"][:,1], "o")
+    ax.plot(pos["error"][:,0], pos["error"][:,1], "x")
+    if "ref" in pos:
+        ax.plot(pos["ref"][:,0], pos["ref"][:,1], "x")
     setLook(ax, config)
     outputPlot(printMethod,folder,"positions_close")
 
@@ -150,19 +150,19 @@ def plotPos3dDisc(pos, folder, config, printMethod="pdf"):
 
     #Plot with primary sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    plotMultipleCircles(ax, pos.error, "x", "Error mic")
-    plotMultipleCircles(ax,pos.speaker, "o", "Sec Speaker")
-    ax.plot(pos.source[:,0], pos.source[:,1], "o")
-    if hasattr(pos, "ref"):
-        ax.plot(pos.ref[:,0], pos.ref[:,1], "x")
+    plotMultipleCircles(ax, pos["error"], "x", "Error mic")
+    plotMultipleCircles(ax,pos["speaker"], "o", "Sec Speaker")
+    ax.plot(pos["source"][:,0], pos["source"][:,1], "o")
+    if "ref" in pos:
+        ax.plot(pos["ref"][:,0], pos["ref"][:,1], "x")
     setLook(ax, config)
 
     outputPlot(printMethod,folder,"positions")
 
     #Plot without primary sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    plotMultipleCircles(ax, pos.error, "x", "Error mic")
-    plotMultipleCircles(ax,pos.speaker, "o", "Sec Speaker")
+    plotMultipleCircles(ax, pos["error"], "x", "Error mic")
+    plotMultipleCircles(ax,pos["speaker"], "o", "Sec Speaker")
     setLook(ax, config)
     outputPlot(printMethod,folder,"positions_close")
 
@@ -205,23 +205,23 @@ def plotPos3dRect(pos, folder, config, roomSize=None, roomCenter=None, printMeth
 
     #Plot with primary sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    plotMultipleRects(ax, pos.error, "x", "Error mic")
-    plotMultipleRects(ax, pos.speaker, "o", "Sec Speaker")
-    ax.plot(pos.source[:,0], pos.source[:,1], "o")
-    if hasattr(pos, "ref"):
-        ax.plot(pos.ref[:,0], pos.ref[:,1], "x")
+    plotMultipleRects(ax, pos["error"], "x", "Error mic")
+    plotMultipleRects(ax, pos["speaker"], "o", "Sec Speaker")
+    ax.plot(pos["source"][:,0], pos["source"][:,1], "o")
+    if "ref" in pos:
+        ax.plot(pos["ref"][:,0], pos["ref"][:,1], "x")
     setLook(ax, config)
     ax.autoscale()
     outputPlot(printMethod,folder,"positions")
 
     #Plot without primary sources
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
-    plotMultipleRects(ax, pos.error, "x", "Error mic")
-    plotMultipleRects(ax,pos.speaker, "o", "Sec Speaker")
+    plotMultipleRects(ax, pos["error"], "x", "Error mic")
+    plotMultipleRects(ax,pos["speaker"], "o", "Sec Speaker")
     setLook(ax, config)
     margin = 0.1
-    ax.set_xlim(pos.speaker[:,0].min()-margin, pos.speaker[:,0].max()+margin)
-    ax.set_ylim(pos.speaker[:,1].min()-margin, pos.speaker[:,1].max()+margin)
+    ax.set_xlim(pos["speaker"][:,0].min()-margin, pos["speaker"][:,0].max()+margin)
+    ax.set_ylim(pos["speaker"][:,1].min()-margin, pos["speaker"][:,1].max()+margin)
     outputPlot(printMethod,folder,"positions_close")
 
 
@@ -296,11 +296,11 @@ def showSoundfield(sound, noise, pixelPos, pos, algoNames, timeIdx, folder,
             fig.colorbar(clr, ax=axes[i,j])
             
             axes[i,j].set_title("Power Reduction (dB)")
-            axes[i,j].plot(pos.speaker[:,0], pos.speaker[:,1], "o")
-            axes[i,j].plot(pos.source[:,0], pos.source[:,1], "o", color="m")
-            axes[i,j].plot(pos.error[:,0], pos.error[:,1], "x", color="y")
-            if hasattr(pos, "ref"):
-                axes[i,j].plot(pos.ref[:,0], pos.ref[:,1], "x", color="y")
+            axes[i,j].plot(pos["speaker"][:,0], pos["speaker"][:,1], "o")
+            axes[i,j].plot(pos["source"][:,0], pos["source"][:,1], "o", color="m")
+            axes[i,j].plot(pos["error"][:,0], pos["error"][:,1], "x", color="y")
+            if "ref" in pos:
+                axes[i,j].plot(pos["ref"][:,0], pos["ref"][:,1], "x", color="y")
             axes[i,j].axis("equal")
             axes[i,j].spines['right'].set_visible(False)
             axes[i,j].spines['top'].set_visible(False)

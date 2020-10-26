@@ -9,6 +9,7 @@ def getConfig():
     config["NUMERROR"] = 28
     config["NUMSPEAKER"] = 16
     config["NUMTARGET"] = 10**2*4
+    #config["NUMTARGET"] = 32**2
 
     #SIMULATOR OPTIONS
     config["ENDTIMESTEP"] = 600000

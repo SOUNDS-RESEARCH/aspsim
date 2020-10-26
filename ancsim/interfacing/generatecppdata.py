@@ -15,21 +15,21 @@ def saveRealtimeSimSetup(config):
     irFunc = setup.pointSourceIR3d
 
     raise NotImplementedError("Old, bad interpolation filter")
-    kiFilt = ki.getCMatrixBlock3d(pos.error, config["MCPOINTS"]).tolist()
+    kiFilt = ki.getCMatrixBlock3d(pos["error"], config["MCPOINTS"]).tolist()
 
     
-    irData["sourceToError"] = irFunc(pos.source, pos.error).tolist()
-    irData["sourceToRef"] = irFunc(pos.source, pos.ref).tolist()
-    irData["sourceToTarget"] = irFunc(pos.source, pos.target).tolist()
+    irData["sourceToError"] = irFunc(pos["source"], pos["error"]).tolist()
+    irData["sourceToRef"] = irFunc(pos["source"], pos["ref"]).tolist()
+    irData["sourceToTarget"] = irFunc(pos["source"], pos["target"]).tolist()
 
-    irData["speakerToError"] = irFunc(pos.speaker, pos.error).tolist()
-    irData["speakerToTarget"] = irFunc(pos.speaker, pos.target).tolist()
+    irData["speakerToError"] = irFunc(pos["speaker"], pos["error"]).tolist()
+    irData["speakerToTarget"] = irFunc(pos["speaker"], pos["target"]).tolist()
 
-    posData["error"] = pos.error.tolist()
-    posData["ref"] = pos.ref.tolist()
-    posData["speaker"] = pos.speaker.tolist()
-    posData["source"] = pos.source.tolist()
-    posData["target"] = pos.target.tolist()
+    posData["error"] = pos["error"].tolist()
+    posData["ref"] = pos["ref"].tolist()
+    posData["speaker"] = pos["speaker"].tolist()
+    posData["source"] = pos["source"].tolist()
+    posData["target"] = pos["target"].tolist()
 
     metaData["numError"] = config["NUMERROR"]
     metaData["numRef"] = config["NUMREF"]
@@ -75,20 +75,20 @@ def saveRealtimeSimSetup_2(config):
     irFunc = setup.pointSourceIR3d
 
     raise NotImplementedError("Old, bad interpolation filter")
-    kiFilt = ki.getCMatrixBlock3d(pos.error, config["MCPOINTS"]).tolist()
+    kiFilt = ki.getCMatrixBlock3d(pos["error"], config["MCPOINTS"]).tolist()
 
-    irData["speakerToError"] = irFunc(pos.speaker, pos.error).tolist()
-    irData["speakerToTarget"] = irFunc(pos.speaker, pos.target).tolist()
+    irData["speakerToError"] = irFunc(pos["speaker"], pos["error"]).tolist()
+    irData["speakerToTarget"] = irFunc(pos["speaker"], pos["target"]).tolist()
 
-    irData["sourceToError"] = irFunc(pos.source, pos.error).tolist()
-    irData["sourceToRef"] = irFunc(pos.source, pos.ref).tolist()
-    irData["sourceToTarget"] = irFunc(pos.source, pos.target).tolist()
+    irData["sourceToError"] = irFunc(pos["source"], pos["error"]).tolist()
+    irData["sourceToRef"] = irFunc(pos["source"], pos["ref"]).tolist()
+    irData["sourceToTarget"] = irFunc(pos["source"], pos["target"]).tolist()
 
-    posData["error"] = pos.error.tolist()
-    posData["ref"] = pos.ref.tolist()
-    posData["speaker"] = pos.speaker.tolist()
-    posData["source"] = pos.source.tolist()
-    posData["target"] = pos.target.tolist()
+    posData["error"] = pos["error"].tolist()
+    posData["ref"] = pos["ref"].tolist()
+    posData["speaker"] = pos["speaker"].tolist()
+    posData["source"] = pos["source"].tolist()
+    posData["target"] = pos["target"].tolist()
 
     fName = "constants.h"    
     if os.path.isfile(fullPath+fName):

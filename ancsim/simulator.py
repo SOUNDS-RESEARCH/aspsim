@@ -33,7 +33,6 @@ class Simulator:
         printInfo(config, self.folderPath)
 
         saveConfig(self.folderPath, config)
-        saveSettings(self.folderPath)
 
         #CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
@@ -68,7 +67,7 @@ class Simulator:
         print("SIM START")
         n_tot = 0
         bufferIdx = -1
-        noises = self._updateNoises(n_tot, noises,  self.noiseSource, self.sourceFilters)
+        noises = self._updateNoises(n_tot, noises)
         noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.filters))]
         while n_tot < self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
@@ -84,7 +83,9 @@ class Simulator:
 
                 for i, (filt, bSize, nIdx) in enumerate(zip(self.filters, self.config["BLOCKSIZE"], noiseIndices)):
                     if n_tot % bSize == 0:
-                        filt.forwardPass(bSize, *[noiseAtPoints[:,nIdx:nIdx+bSize] for noiseAtPoints in noises])
+                        #filt.forwardPass(bSize, *[noiseAtPoints[:,nIdx:nIdx+bSize] for noiseAtPoints in noises])
+                        filt.forwardPass(bSize, {pointName : noiseAtPoints[:,nIdx:nIdx+bSize] for 
+                                                        pointName, noiseAtPoints in noises.items()})
                         filt.updateFilter()
                         noiseIndices[i] += bSize
 
@@ -105,13 +106,13 @@ class Simulator:
         #                     for noiseAtPoints, sf in zip(noises[0:-1], self.sourceFilters[0:-1])]
         #     noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
         #else:
-        noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
-                        for noiseAtPoints, sf in zip(noises, self.sourceFilters)]
+        noises = {filtName : np.concatenate((noises[filtName][:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1) 
+                        for filtName, sf in self.sourceFilters.items()}
         return noises
 
     def _fillBuffers(self):
         noise = self.noiseSource.getSamples(self.config["SIMBUFFER"])
-        noises = [sf.process(noise) for sf in self.sourceFilters]
+        noises = {filtName : sf.process(noise) for filtName, sf in self.sourceFilters.items()}
 
         maxSecPathLength = np.max([speakerFilt.shape[-1] for _, speakerFilt,  in self.speakerFilters.items()])
         fillStartIdx = self.config["LARGESTBLOCKSIZE"] + np.max((self.config["FILTLENGTH"]+self.config["KERNFILTLEN"], maxSecPathLength))
@@ -126,7 +127,7 @@ class Simulator:
         for filtIdx, (filt, blockSize) in enumerate(zip(self.filters, self.config["BLOCKSIZE"])):
             filt.idx = startIdxs[filtIdx][0]
             for i in startIdxs[filtIdx]:
-                filt.forwardPass(blockSize, *[noiseAtPoints[:,i:i+blockSize] for noiseAtPoints in noises])
+                filt.forwardPass(blockSize, {pointName : noiseAtPoints[:,i:i+blockSize] for pointName, noiseAtPoints in noises.items()})
 
         return noises
                 

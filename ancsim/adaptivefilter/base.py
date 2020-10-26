@@ -132,22 +132,22 @@ class AdaptiveFilterFF(ABC):
         self.idx -= self.simChunkSize
         self.updateIdx -= self.simChunkSize
 
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget):
+    def forwardPass(self, numSamples, noises):
         blockSizes = calcBlockSizes(numSamples, self.idx, self.simBuffer, self.simChunkSize)
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.micSNR)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.micSNR)
+        errorMicNoise = getWhiteNoiseAtSNR(noises["error"], (self.numError, numSamples), self.micSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noises["ref"], (self.numRef, numSamples), self.micSNR)
 
         numComputed = 0
         for blockSize in blockSizes:
-            self.x[:,self.idx:self.idx+blockSize] = noiseAtRef[:,numComputed:numComputed+blockSize] + \
+            self.x[:,self.idx:self.idx+blockSize] = noises["ref"][:,numComputed:numComputed+blockSize] + \
                                                     refMicNoise[:,numComputed:numComputed+blockSize]
             self.forwardPassImplement(blockSize)
 
-            self.diag.saveBlockData("reduction_microphones", self.idx, noiseAtError[:,numComputed:numComputed+blockSize])
-            self.diag.saveBlockData("reduction_regional", self.idx, noiseAtTarget[:,numComputed:numComputed+blockSize])
+            self.diag.saveBlockData("reduction_microphones", self.idx, noises["error"][:,numComputed:numComputed+blockSize])
+            self.diag.saveBlockData("reduction_regional", self.idx, noises["target"][:,numComputed:numComputed+blockSize])
             #self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals[:,numComputed:numComputed+blockSize])
             
-            self.e[:,self.idx:self.idx+blockSize] = noiseAtError[:,numComputed:numComputed+blockSize] + \
+            self.e[:,self.idx:self.idx+blockSize] = noises["error"][:,numComputed:numComputed+blockSize] + \
                                                     errorMicNoise[:,numComputed:numComputed+blockSize] + \
                                                     self.secPathFilt.process(self.y[:,self.idx:self.idx+blockSize])
 
@@ -254,25 +254,25 @@ class AdaptiveFilterFFComplex(ABC):
         self.idx -= self.simChunkSize
         self.updateIdx -= self.simChunkSize
 
-    def forwardPass(self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget):
+    def forwardPass(self, numSamples, noises):
         assert (numSamples == self.blockSize)
 
         if self.idx+numSamples >= (self.simChunkSize + self.simBuffer):
             self.resetBuffers()
 
-        errorMicNoise = getWhiteNoiseAtSNR(noiseAtError, (self.numError, numSamples), self.micSNR)
-        refMicNoise = getWhiteNoiseAtSNR(noiseAtRef, (self.numRef, numSamples), self.micSNR)
+        errorMicNoise = getWhiteNoiseAtSNR(noises["error"], (self.numError, numSamples), self.micSNR)
+        refMicNoise = getWhiteNoiseAtSNR(noises["ref"], (self.numRef, numSamples), self.micSNR)
 
-        self.x[:,self.idx:self.idx+numSamples] = noiseAtRef + refMicNoise
+        self.x[:,self.idx:self.idx+numSamples] = noises["ref"] + refMicNoise
         #self.diag.saveToBuffers(self.idx, noiseAtError, noiseAtTarget, noiseAtEvals, noiseAtEvals2)
 
         self.forwardPassImplement(numSamples)
 
-        self.diag.saveBlockData("reduction_microphones", self.idx, noiseAtError)
-        self.diag.saveBlockData("reduction_regional", self.idx, noiseAtTarget)
+        self.diag.saveBlockData("reduction_microphones", self.idx, noises["error"])
+        self.diag.saveBlockData("reduction_regional", self.idx, noises["target"])
         #self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals)
 
-        self.e[:,self.idx:self.idx+numSamples] = noiseAtError + errorMicNoise + \
+        self.e[:,self.idx:self.idx+numSamples] = noises["error"] + errorMicNoise + \
                                                 self.secPathFilt.process(self.y[:,self.idx:self.idx+numSamples])
 
         self.idx += numSamples

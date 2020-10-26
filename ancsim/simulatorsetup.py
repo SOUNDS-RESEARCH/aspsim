@@ -27,28 +27,33 @@ def setupIR(pos, config):
 
     speakerFilters = {}
     if config["REVERBERATION"]:
-        sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
+        # sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
+        #                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
+        #             for targetPos in [pos.error, pos.ref, pos.target]]
+        sourceFilters = {toKey : FilterSum_IntBuffer(irFunc(pos["source"], pos[toKey], config["ROOMSIZE"], config["ROOMCENTER"], 
                                                 config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])) 
-                    for targetPos in [pos.error, pos.ref, pos.target]]
+                    for toKey in ["error", "ref", "target"]}
+
+
         #for pointSetTo in ["error", "target", "evals", "evals2"]
         #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo], 
         #                                        config["ROOMSIZE"], config["ROOMCENTER"], 
         #                                        config["MAXROOMIRLENGTH"])
-        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, 
+        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos["speaker"], pos["error"], 
                                                             config["ROOMSIZE"], config["ROOMCENTER"], 
                                                              config["MAXROOMIRLENGTH"],  config["RT60"], config["SAMPLERATE"], 
                                                                 calculateMetadata=True)
-        speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["ROOMSIZE"], config["ROOMCENTER"], 
+        speakerFilters["target"] = irFunc(pos["speaker"], pos["target"], config["ROOMSIZE"], config["ROOMCENTER"], 
                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"])
     else:
-        sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["SAMPLERATE"], config["C"])) 
-                    for targetPos in [pos.error, pos.ref, pos.target]]
-        speakerFilters["error"] = irFunc(pos.speaker, pos.error, config["SAMPLERATE"], config["C"])
-        speakerFilters["target"] = irFunc(pos.speaker, pos.target, config["SAMPLERATE"], config["C"])
+        sourceFilters = {toKey : FilterSum_IntBuffer(irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])) 
+                    for targetPos in ["error", "ref", "target"]}
+        speakerFilters["error"] = irFunc(pos["speaker"], pos["error"], config["SAMPLERATE"], config["C"])
+        speakerFilters["target"] = irFunc(pos["speaker"], pos["target"], config["SAMPLERATE"], config["C"])
 
     if config["REFDIRECTLYOBTAINED"]:
         assert(config["NUMREF"] == config["NUMSOURCE"])
-        sourceFilters[1] = FilterSum_IntBuffer(np.ones((config["NUMREF"], config["NUMSOURCE"], 1)))
+        sourceFilters["ref"] = FilterSum_IntBuffer(np.ones((config["NUMREF"], config["NUMSOURCE"], 1)))
     return sourceFilters, speakerFilters, metadata
 
 def setupPos(config):

@@ -20,9 +20,9 @@ def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
 
 def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
     config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(singleRunFolder, sessionFolder)
-    pointsToSim = pos.target
+    pointsToSim = pos["target"]
     
-    avgSoundfields = soundSim(config, pos.target, source, filterCoeffs, sourceRIR[1], sourceRIR[3], speakerRIR["target"])
+    avgSoundfields = soundSim(config, pos["target"], source, filterCoeffs, sourceRIR[1], sourceRIR[3], speakerRIR["target"])
 
     zeroValue = np.mean(util.db2pow(avgSoundfields[0]))
     avgSoundfields = [util.pow2db(util.db2pow(sf) / zeroValue) for sf in avgSoundfields]
@@ -40,9 +40,9 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
                         vmin=minVal, vmax=maxVal, cmap="pink")
         fig.colorbar(clr, ax=ax)
 
-        ax.plot(pos.speaker[:,0], pos.speaker[:,1], "o")
-        ax.plot(pos.source[:,0], pos.source[:,1], "o", color="m")
-        ax.plot(pos.error[:,0], pos.error[:,1], "x", color="y")
+        ax.plot(pos["speaker"][:,0], pos["speaker"][:,1], "o")
+        ax.plot(pos["source"][:,0], pos["source"][:,1], "o", color="m")
+        ax.plot(pos["error"][:,0], pos["error"][:,1], "x", color="y")
         ax.axis("equal")
         ax.set_xlim(pointsToSim[:,0].min(), pointsToSim[:,0].max())
         ax.set_ylim(pointsToSim[:,1].min(), pointsToSim[:,1].max())

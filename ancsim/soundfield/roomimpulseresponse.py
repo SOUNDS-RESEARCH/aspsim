@@ -108,47 +108,6 @@ def irRoomImageSource3d(fromPos, toPos, roomSize, roomCenter, irLen, rt60, sampl
         return ir, metadata
     return ir
 
-def irRoomImageSource3d_deprecated(fromPos, toPos, roomSize, roomCenter, irLen, 
-                        absorption, maxOrder, sampleRate,
-                        showTruncationError=False):
-    numFrom = fromPos.shape[0]
-    numTo = toPos.shape[0]
-    ir = np.zeros((numFrom, numTo, irLen))
-    roomCenter = np.array(roomCenter)
-    roomSize = np.array(roomSize)
-
-    posOffset = roomSize / 2 - roomCenter
-
-    maxTruncError = np.NINF
-    maxTruncValue = np.NINF
-    maxNumIRAtOnce = 500
-    numComputed = 0
-    while numComputed < numTo:
-        room = pra.ShoeBox(roomSize, fs = sampleRate, absorption=absorption, max_order=maxOrder)
-        
-        for srcIdx in range(numFrom):
-            room.add_source((fromPos[srcIdx,:] + posOffset).T)
-            
-        blockSize = np.min((maxNumIRAtOnce, numTo-numComputed))
-        mics = pra.MicrophoneArray((toPos[numComputed:numComputed+blockSize,:] + posOffset[None,:]).T, room.fs)
-        room.add_microphone_array(mics)
-        
-        room.compute_rir()
-        for toIdx, receiver in enumerate(room.rir):
-            for fromIdx, singleRIR in enumerate(receiver):
-                irLenToUse = np.min((len(singleRIR), irLen))
-                ir[fromIdx, numComputed+toIdx,:irLenToUse] = np.array(singleRIR)[:irLenToUse] 
-        numComputed += blockSize
-
-        if showTruncationError:
-            truncError, truncValue = calculateTruncationInfo(room.rir, irLen)
-            maxTruncError = np.max((maxTruncError, truncError))
-            maxTruncValue = np.max((maxTruncValue, truncValue))
-    
-    if showTruncationError:
-        print("Largest Relative Truncation Error: ", maxTruncError, " dB")
-        print("Largest Relative Truncated Value: ", maxTruncValue, " dB")
-    return ir          
 
 def calculateTruncationInfo(allRIR, truncLen):
     maxTruncError = np.NINF
