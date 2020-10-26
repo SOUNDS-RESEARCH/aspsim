@@ -5,7 +5,6 @@ class Region (ABC):
     def __init__ (self):
         pass
 
-
     def equally_spaced_in_volume(self):
         pass
 
