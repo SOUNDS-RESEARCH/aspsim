@@ -20,36 +20,77 @@ from ancsim.adaptivefilter.diagnostics import (
 )
 
 
-class Processor(ABC):
+class AudioProcessor(ABC):
     def __init__(self, config):
         self.simBuffer = config["SIMBUFFER"]
         self.simChunkSize = config["SIMCHUNKSIZE"]
-        self.c = config["C"]
-        self.samplerate = config["SAMPLERATE"]
-        self.spatialDims = config["SPATIALDIMS"]
         self.endTimeStep = config["ENDTIMESTEP"]
+        self.samplerate = config["SAMPLERATE"]
+
+        self.spatialDims = config["SPATIALDIMS"]
+        self.c = config["C"]
+        self.micSNR = config["MICSNR"]
+
+        self.saveRawData = config["SAVERAWDATA"]
+        self.outputSmoothing = config["OUTPUTSMOOTHING"]
+        self.plotFrequency = config["PLOTFREQUENCY"]
+        self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
 
         self.buf = {}
 
-    def createNewBuffer(dim, name):
+        self.diag = DiagnosticHandler(self.simBuffer, self.simChunkSize)
+
+        self.idx = self.simBuffer
+
+        self.metadata = {}
+
+    def createNewBuffer(name, dim):
         """dim is a tuple with the
         buffer is accessed as self.buf[name]
         and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
+        if isinstance(dim, int):
+            dim = (dim,)
+        assert name not in self.buf
         self.buf[name] = np.zeros(dim + (self.simBuffer + self.simChunkSize,))
 
     @abstractmethod
-    def process(self):
+    def process(self, numSamples, noises):
         pass
 
+    def resetBuffers(self):
+        self.diag.resetBuffers(self.idx)
 
-class ActiveNoiseControlProcessor(ABC):
+        for bufName, buf in self.buf.items():
+            self.buffers[bufName] = np.concatenate(
+                (
+                    buf[..., -s.SIMBUFFER :],
+                    np.zeros(buf.shape[:-1] + (self.simChunkSize,)),
+                ),
+                axis=-1,
+            )
+
+        self.idx -= self.simChunkSize
+        self.updateIdx -= self.simChunkSize
+
+
+class ActiveNoiseControlProcessor(AudioProcessor):
     def __init__(self, config):
         super().__init__(config)
         self.numRef = config["NUMREF"]
         self.numError = config["NUMERROR"]
         self.numSpeaker = config["NUMSPEAKER"]
         self.numTarget = config["NUMTARGET"]
+        self.filtLen = config["FILTLENGTH"]
 
+        self.createNewBuffer("ref", self.numRef)
+        self.createNewBuffer("error", self.numError)
+        self.createNewBuffer("speaker", self.numSpeaker)
+        self.createNewBuffer("target", self.numTarget)
+
+        self.updateIdx = self.simBuffer
+
+    def process(self, numSamples, noises):
+        
 
 class AdaptiveFilterFF(ABC):
     def __init__(self, config, mu, beta, speakerRIR):
@@ -175,7 +216,7 @@ class AdaptiveFilterFF(ABC):
         for bufName, buf in self.buffers.items():
             self.buffers[bufName] = np.concatenate(
                 (
-                    buf[..., -s.SIMBUFFER :],
+                    buf[..., -self.simBuffer :],
                     np.zeros(buf.shape[:-1] + (self.simChunkSize,)),
                 ),
                 axis=-1,
