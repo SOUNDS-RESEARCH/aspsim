@@ -26,7 +26,7 @@ def getConfig():
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
 
-    irOptions = ["freespace", "ism", "real"]
+    irOptions = ["freespace", "ism", "recorded"]
     config["REVERB"] = irOptions[2]
     #config["REALIMPULSERESPONSES"] = True
     config["SPATIALDIMENSIONS"] = 3
@@ -71,7 +71,7 @@ def configInstantCheck(conf):
 
     assert(conf["KERNFILTLEN"] % 2 == 1)
 
-    if conf["REVERB"] == "real":
+    if conf["REVERB"] == "recorded":
         assert(conf["LOADSESSION"])
 
     assert(len(conf["SOURCEAMP"]) == conf["NUMSOURCE"])

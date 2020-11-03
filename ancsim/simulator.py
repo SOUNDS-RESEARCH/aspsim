@@ -162,7 +162,7 @@ def plotAnyPos(pos, folderPath, config):
         if config["ARRAYSHAPES"] == "circle":
             psc.plotPos3dDisc(pos, folderPath,config, config["PLOTOUTPUT"])
         elif config["ARRAYSHAPES"] == "rectangle":
-            if config["REVERBERATION"]:
+            if config["REVERB"] == "ism":
                 psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
             else:
                 psc.plotPos3dRect(pos, folderPath,config, printMethod=config["PLOTOUTPUT"])

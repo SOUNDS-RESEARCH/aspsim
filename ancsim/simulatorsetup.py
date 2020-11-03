@@ -29,7 +29,7 @@ def setupIR(pos, config):
         raise ValueError
 
     speakerFilters = {}
-    if config["REVERB"] == "image_source_method":
+    if config["REVERB"] == "ism":
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"], 
                                                 config["MAXROOMIRLENGTH"], config["RT60"])) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
@@ -45,7 +45,7 @@ def setupIR(pos, config):
     elif config["REVERB"] == "freespace":
         sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos)) 
                     for targetPos in [pos.error, pos.ref, pos.target, pos.evals]]
-        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(pos.speaker, pos.error, calculateMetadata=True)
+        speakerFilters["error"] = irFunc(pos.speaker, pos.error)
         speakerFilters["target"] = irFunc(pos.speaker, pos.target)
         speakerFilters["evals"] = irFunc(pos.speaker, pos.evals)
     else:
