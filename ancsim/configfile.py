@@ -58,8 +58,9 @@ def getConfig():
     possibleTargetPoints = ["target_region", "image"]
     config["TARGETPOINTSPLACEMENT"] = possibleTargetPoints[0]
 
-    # ROOM AND REVERBERATION
-    config["REVERBERATION"] = True
+    irOptions = ["freespace", "ism", "recorded"]
+    config["REVERB"] = irOptions[2]
+    config["SPATIALDIMS"] = 3
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
     config["RT60"] = 0.24
@@ -106,6 +107,13 @@ def configInstantCheck(conf):
 
     assert len(conf["SOURCEAMP"]) == conf["NUMSOURCE"]
 
+<<<<<<< HEAD
+=======
+    if conf["REVERB"] == "recorded":
+        assert(conf["LOADSESSION"])
+
+    assert(len(conf["SOURCEAMP"]) == conf["NUMSOURCE"])
+>>>>>>> use_other_irs
 
 def configPreprocessing(conf, numFilt):
     if isinstance(conf["BLOCKSIZE"], int):
@@ -114,6 +122,7 @@ def configPreprocessing(conf, numFilt):
     conf["LARGESTBLOCKSIZE"] = int(max(conf["BLOCKSIZE"]))
 
     configSimCheck(conf, numFilt)
+    configInstantCheck(conf)
     return conf
 
 

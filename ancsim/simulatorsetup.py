@@ -18,21 +18,23 @@ def setupIR(pos, config):
     print("Computing Room IR...")
     metadata = {}
 
-    if config["REVERBERATION"]:
+    if config["REVERB"] == "ism":
         if config["SPATIALDIMS"] == 3:
             irFunc = rir.irRoomImageSource3d
         else:
             raise NotImplementedError
-    else:
+    elif config["REVERB"] == "freespace":
         if config["SPATIALDIMS"] == 3:
             irFunc = rir.irPointSource3d
         elif config["SPATIALDIMS"] == 2:
             irFunc = rir.irPointSource2d
         else:
             raise NotImplementedError
+    else:
+        raise ValueError
 
     speakerFilters = {}
-    if config["REVERBERATION"]:
+    if config["REVERB"] == "ism":
         # sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"],
         #                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"]))
         #             for targetPos in [pos.error, pos.ref, pos.target]]
@@ -51,10 +53,6 @@ def setupIR(pos, config):
             for toKey in ["error", "ref", "target"]
         }
 
-        # for pointSetTo in ["error", "target", "evals", "evals2"]
-        #    speakerFilters[pointSetTo] = irFunc(pos["speaker"], pos[pointSetTo],
-        #                                        config["ROOMSIZE"], config["ROOMCENTER"],
-        #                                        config["MAXROOMIRLENGTH"])
         speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(
             pos["speaker"],
             pos["error"],
@@ -74,7 +72,7 @@ def setupIR(pos, config):
             config["RT60"],
             config["SAMPLERATE"],
         )
-    else:
+    elif config["REVERB"] == "freespace":
         sourceFilters = {
             toKey: FilterSum_IntBuffer(
                 irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])
