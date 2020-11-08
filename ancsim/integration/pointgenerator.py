@@ -4,7 +4,7 @@ import numpy as np
 def selectPointGen(config, randomState=None):
     if config["ARRAYSHAPES"] == "circle":
         return cylinder(config["TARGETWIDTH"], config["TARGETHEIGHT"], randomState)
-    elif config["ARRAYSHAPES"] == "rectangle":
+    elif config["ARRAYSHAPES"] in  ("cuboid", "rectangle", "doublerectangle"):
         return block(
             [config["TARGETWIDTH"], config["TARGETWIDTH"]],
             config["TARGETHEIGHT"],

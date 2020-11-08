@@ -116,20 +116,24 @@ class ExperimentSpec:
 
 
 class SimAttribute:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, attrName, itemName=None):
+        self.attrName = attrName
+        self.itemName = itemName
 
     def getValue(self, sim):
         # return deepcopy(getattr(sim, self.name))
-        getter = op.attrgetter(self.name)
-        return getter(sim)
+        getter = op.attrgetter(self.attrName)
+        val = getter(sim)
+        if self.itemName is not None:
+            val = val[self.itemName]
+        return val
 
 
 def insertSimAttributes(listOfParamDicts, sim):
     for filtIdx, paramDict in enumerate(listOfParamDicts):
         for paramName, paramValue in paramDict.items():
             if isinstance(paramValue, SimAttribute):
-                listOfParamDicts[filtIdx][paramName] = paramValue.getValue(sim)
+                listOfParamDicts[filtIdx][paramName] = copy.deepcopy(paramValue.getValue(sim))
     return listOfParamDicts
 
     #     if isinstance(filtArg, SimAttribute):
@@ -205,7 +209,7 @@ def runSimMultiProcessing(
     filters = []
     for fc, params in zip(filterClasses, filterArguments):
         # filters.append(fc(speakerRIR=copy.deepcopy(sim.speakerFilters), **params))
-        filters.append(fc(**params))
+        filters.append(fc(config=config, **params))
     sim.prepare(filters)
     sim.runSimulation()
 

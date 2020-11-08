@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from enum import Enum
+import soundfile as sf
 
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.experiment.multiexperimentutils as meu
@@ -75,3 +76,32 @@ def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 
 def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
+	
+	
+
+def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):
+    maxValue = np.NINF
+    lastTimeIdx = np.Inf
+    for output in outputs.values():
+        for signal in output.values():
+            maxValue = np.max((maxValue, np.max(np.abs(signal[~np.isnan(signal)]))))
+            lastTimeIdx = int(np.min((lastTimeIdx, np.max(np.where(~np.isnan(signal))))))
+
+    startIdx = np.max((lastTimeIdx-metadata["maxlength"], 0))
+
+    for algoName, output in outputs.items():
+        for audioName, signal in output.items():
+            for channelIdx in range(signal.shape[0]):
+                if signal.shape[0] > 1:
+                    fileName = "_".join((name, algoName, audioName, str(channelIdx), str(timeIdx)))
+                else:
+                    fileName = "_".join((name, algoName, audioName, str(timeIdx)))
+                filePath = folder.joinpath(fileName + ".wav")
+
+                signalToWrite = signal[channelIdx,startIdx:lastTimeIdx]/maxValue
+                rampLength = int(0.2*metadata["samplerate"])
+                ramp = np.linspace(0,1,rampLength)
+                signalToWrite[:rampLength] *= ramp
+                signalToWrite[-rampLength:] *= (1-ramp)
+
+                sf.write(str(filePath),signalToWrite, metadata["samplerate"])

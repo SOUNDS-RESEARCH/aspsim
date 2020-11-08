@@ -25,14 +25,12 @@ def getPositionsCylinder3d_directref(config, micRandomness):
         config["NUMERROR"],
         numCircles,
         (config["TARGETWIDTH"], config["TARGETWIDTH"] * micRandomness),
-        config["ERRORMICANGLEOFFSET"],
         zOffset,
     )
     pos["speaker"] = gp.concentricalCircles(
         config["NUMSPEAKER"],
         numCircles,
         (config["TARGETWIDTH"] + 1, (config["TARGETWIDTH"] + 1) * 1.05),
-        config["SPEAKERANGLEOFFSET"],
         2 * zOffset,
     )
     pos["target"] = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
@@ -50,14 +48,12 @@ def getPositionsCylinder3d(config, micRandomness):
         config["NUMERROR"],
         numCircles,
         (config["TARGETWIDTH"], config["TARGETWIDTH"] * micRandomness),
-        config["ERRORMICANGLEOFFSET"],
         zOffset,
     )
     pos["speaker"] = gp.concentricalCircles(
         config["NUMSPEAKER"],
         numCircles,
         (config["TARGETWIDTH"] + 1, (config["TARGETWIDTH"] + 1) * 1.05),
-        config["SPEAKERANGLEOFFSET"],
         2 * zOffset,
     )
     pos["target"] = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
@@ -80,14 +76,12 @@ def getPositionsCylinder3d_middlemics(config):
         config["NUMERROR"],
         numCircles,
         (0.1, 0.15),
-        config["ERRORMICANGLEOFFSET"],
         zOffset,
     )
     pos["speaker"] = gp.concentricalCircles(
         config["NUMSPEAKER"],
         numCircles,
         (config["TARGETWIDTH"] + 1, (config["TARGETWIDTH"] + 1) * 1.05),
-        config["SPEAKERANGLEOFFSET"],
         2 * zOffset,
     )
     pos["target"] = gp.uniformCylinder(config["NUMTARGET"], config["TARGETWIDTH"], 0.2)
@@ -112,7 +106,7 @@ def getPositionsDisc2d(config):
     return pos
 
 
-def getPositionsRectangle3d(config):
+def getPositionsCuboid3d(config):
     pos = {}
     numErrorInner = config["NUMERROR"] // 2
     numErrorOuter = config["NUMERROR"] - numErrorInner
@@ -162,3 +156,13 @@ def getPositionsRectangle3d(config):
     pos["ref"] = copy.deepcopy(pos["source"])
     assert config["NUMREF"] == 1
     return pos
+
+
+def getPositionsRectangle3d(config):
+    assert config["NUMSOURCE"] == 1
+    assert config["NUMREF"] == 1
+
+
+def getPositionsDoubleRectangle3d(config):
+    numErrorInner = config["NUMERROR"] // 2
+    numErrorOuter = config["NUMERROR"] - numErrorInner

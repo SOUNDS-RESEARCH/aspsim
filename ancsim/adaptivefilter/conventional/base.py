@@ -1,5 +1,5 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterSum_Freqdomain
 from abc import ABC, abstractmethod
 
 
@@ -38,6 +38,24 @@ class AdaptiveFilterBase(ABC):
             self.numOut = newIR.shape[1]
             self.irLen = newIR.shape[2]
         self.filt.setIR(newIR)
+
+
+
+class AdaptiveFilterFreq(ABC):
+    def __init__(self, numFreq, numIn, numOut):
+        assert numFreq % 2 == 0
+        self.numIn = numIn
+        self.numOut = numOut
+        self.numFreq = numFreq
+
+        self.filt = FilterSum_Freqdomain(numFreq=numFreq, numIn=numIn, numOut=numOut)
+
+    @abstractmethod
+    def update(self):
+        pass
+
+    def process(self, signalToProcess):
+        return self.filt.process(signalToProcess)
 
 
 class AdaptiveFilterFreqDomain(ABC):

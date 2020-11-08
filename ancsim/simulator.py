@@ -8,15 +8,12 @@ import shutil
 import json
 import time
 
-# from pathos.helpers import freeze_support
-
 import ancsim.utilities as util
 from ancsim.configfile import configPreprocessing
 
-# from ancsim.experiment.saveloadsession import loadSession
 from ancsim.simulatorsetup import setupIR, setupPos, setupSource
 from ancsim.simulatorlogging import getFolderName, addToSimMetadata, writeFilterMetadata
-from ancsim.saveloadsession import saveSettings, saveConfig, loadSession, saveRawData
+from ancsim.saveloadsession import saveConfig, loadSession, saveRawData
 
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
@@ -38,7 +35,6 @@ class Simulator:
         self.folderPath = getFolderName(config, folderForPlots, generateSubFolder)
 
         printInfo(config, self.folderPath)
-
         saveConfig(self.folderPath, config)
 
         # CONSTRUCTING SIMULATION
@@ -138,11 +134,6 @@ class Simulator:
 
     def _updateNoises(self, timeIdx, noises):
         noise = self.noiseSource.getSamples(self.config["SIMCHUNKSIZE"])
-        # if (timeIdx // self.config["SIMCHUNKSIZE"]) < self.config["GENSOUNDFIELDATCHUNK"]-2:
-        #     noises = [np.concatenate((noiseAtPoints[:,-self.config["SIMBUFFER"]:], sf.process(noise)),axis=-1)
-        #                     for noiseAtPoints, sf in zip(noises[0:-1], self.sourceFilters[0:-1])]
-        #     noises.append(np.zeros((self.config["NUMEVALS"],self.config["SIMCHUNKSIZE"]+self.config["SIMBUFFER"])))
-        # else:
         noises = {
             filtName: np.concatenate(
                 (noises[filtName][:, -self.config["SIMBUFFER"] :], sf.process(noise)),
@@ -195,7 +186,7 @@ class Simulator:
 
 
 def printInfo(config, folderPath):
-    print("Session folder: ", folderPath.name)
+    print("Figure folder: ", folderPath.name)
     print("Number of mics: ", config["NUMERROR"])
     print("Number of speakers: ", config["NUMSPEAKER"])
 
@@ -217,7 +208,7 @@ def plotAnyPos(pos, folderPath, config):
     if config["SPATIALDIMS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
             psc.plotPos3dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
-        elif config["ARRAYSHAPES"] == "rectangle":
+        elif config["ARRAYSHAPES"] in ("cuboid", "rectangle", "doublerectangle"):
             if config["REVERB"] == "ism":
                 psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
             else:
@@ -234,13 +225,3 @@ def plotAnyPos(pos, folderPath, config):
             raise NotImplementedError
     else:
         raise ValueError
-
-
-# if __name__ == "__main__":
-#     #freeze_support()
-#     import configfile
-#     if len(sys.argv) == 2:
-#         folderForPlots = sys.argv[1]
-#         sim(folderForPlots, config=configfile.config)
-#     else:
-#         sim(config=configfile.config)

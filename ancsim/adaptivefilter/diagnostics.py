@@ -844,3 +844,46 @@ class saveTotalPower:
     def saveBlockData(self, idx, newPrimaryNoise):
         numSamples = newPrimaryNoise.shape[-1]
         self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
+
+
+class RecordAudio:
+    def __init__(self, acousticPath, samplerate, maxLength, endTimeStep, simBuffer,
+                 simChunkSize, beginAtBuffer=0, plotFrequency=1):
+        self.pathFilter = FilterSum(ir=acousticPath)
+        self.simBuffer = simBuffer
+        self.simChunkSize = simChunkSize
+        self.chunkIdx = 0
+
+        self.withANC = np.full((self.pathFilter.numOut, endTimeStep), np.nan)
+        self.withoutANC = np.full((self.pathFilter.numOut, endTimeStep), np.nan)
+
+        self.primaryNoise = np.zeros((self.pathFilter.numOut, self.simBuffer+self.simChunkSize))
+
+        self.info = DiagnosticFunctionalityInfo(
+            dplot.createAudioFiles,
+            beginAtBuffer,
+            plotFrequency
+        )
+        self.metadata = {"samplerate" : samplerate,
+                        "maxlength" : maxLength}
+
+    def getOutput(self):
+        return {"with_anc" : self.withANC, 
+                "without_anc" : self.withoutANC}
+    
+    def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, y):
+        secondaryNoise = self.pathFilter.process(y[:, startIdx:endIdx])
+        self.withANC[:, saveStartIdx:saveEndIdx] = self.primaryNoise[:,startIdx:endIdx] + secondaryNoise
+        self.withoutANC[:,saveStartIdx:saveEndIdx] = self.primaryNoise[:,startIdx:endIdx]
+
+    def saveBlockData(self, idx, newPrimaryNoise):
+        self.primaryNoise[:,idx:idx+newPrimaryNoise.shape[-1]] = newPrimaryNoise
+
+    def resetBuffers(self):
+        self.primaryNoise = np.concatenate(
+            (
+                self.primaryNoise[:, -self.simBuffer:],
+                np.zeros((self.primaryNoise.shape[0], self.simChunkSize)),
+            ),
+            axis=-1,
+        )

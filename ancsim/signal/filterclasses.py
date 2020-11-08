@@ -414,7 +414,7 @@ class MovingAverage:
         self.forgetFactor = forgetFactor
         self.invForgetFactor = 1 - forgetFactor
         self.initialized = False
-        self.numInit = int(np.ceil(1 / self.invForgetFactor))
+        self.numInit = ceil(1 / self.invForgetFactor)
         self.initCounter = 0
 
     def update(self, newDataPoint):

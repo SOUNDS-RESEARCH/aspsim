@@ -3,7 +3,7 @@ import ancsim.utilities as util
 
 
 def concentricalCircles(
-    numPoints, numCircles, radius, angleOffset="random", zDistance=None
+    numPoints, numCircles, radius, zDistance=None, angleOffset="distribute"
 ):
     a = numCircles // 2
     if zDistance is not None:

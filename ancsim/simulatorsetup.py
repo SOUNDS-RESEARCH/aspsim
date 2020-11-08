@@ -102,11 +102,21 @@ def setupPos(config):
                 pos = setup.getPositionsCylinder3d_directref(config)
             else:
                 pos = setup.getPositionsCylinder3d(config)
-        elif config["ARRAYSHAPES"] == "rectangle":
+        elif config["ARRAYSHAPES"] == "cuboid":
             if config["REFDIRECTLYOBTAINED"]:
-                pos = setup.getPositionsRectangle3d(config)
+                pos = setup.getPositionsCuboid3d(config)
             else:
                 raise NotImplementedError
+        elif config["ARRAYSHAPES"] == "rectangle":
+            if config["REFDIRECTLYOBTAINED"]:
+                raise NotImplementedError
+            else:
+                pos = setup.getPositionsRectangle3d(config)
+        elif config["ARRAYSHAPES"] == "doublerectangle":
+            if config["REFDIRECTLYOBTAINED"]:
+                raise NotImplementedError
+            else:
+                pos = setup.getPositionsDoubleRectangle3d(config)
     elif config["SPATIALDIMS"] == 2:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:

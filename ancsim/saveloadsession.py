@@ -11,8 +11,6 @@ from ancsim.simulatorlogging import addToSimMetadata
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 import ancsim.experiment.multiexperimentutils as meu
 
-import importlib.util
-
 
 def generateSession(sessionFolder, extraprefix=""):
     sessionPath = util.getUniqueFolderName("session_" + extraprefix, sessionFolder)
@@ -70,41 +68,15 @@ def loadControlFilter(sessionPath):
     return controlFilt
 
 
-def saveSettings(pathToSave):
-    packageDir = Path(__file__).parent
-    shutil.copy(packageDir.joinpath("settings.py"), pathToSave.joinpath("settings.py"))
-
-
 def saveConfig(pathToSave, config):
     packageDir = Path(__file__).parent
     with open(pathToSave.joinpath("configfile.json"), "w") as f:
         json.dump(config, f, indent=4)
 
-    # shutil.copy(packageDir.joinpath("configfile.py"), pathToSave.joinpath("configfile.py"))
-
-
-def loadSettings(sessionPath):
-    spec = importlib.util.spec_from_file_location(
-        "loadedSettingsModule", str(sessionPath.joinpath("settings.py"))
-    )
-    loadedSettings = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(loadedSettings)
-    return loadedSettings
-
-
 def loadConfig(sessionPath):
     with open(sessionPath.joinpath("configfile.json"), "r") as f:
         conf = json.load(f)
     return conf
-
-
-# def loadConfig(sessionPath):
-#     spec = importlib.util.spec_from_file_location("loadedConfigModule", str(sessionPath.joinpath("configfile.py")))
-#     loadedConfig = importlib.util.module_from_spec(spec)
-#     spec.loader.exec_module(loadedConfig)
-#     conf = loadedConfig.getConfig()
-#     return conf
-
 
 def saveSpeakerFilters(folderPath, speakerFilters):
     np.savez(folderPath.joinpath("speakerfilters.npz"), **speakerFilters)
@@ -147,24 +119,27 @@ def loadPositions(folder):
 
 def configMatch(config1, config2):
     allowedDifferent = [
+        "ENDTIMESTEP",
+        "SIMBUFFER",
+        "SIMCHUNKSIZE",
         "AUDIOFILENAME",
         "SOURCETYPE",
         "NOISEFREQ",
         "NOISEBANDWIDTH",
-        "BLOCKSIZE",
-        "MCPOINTS",
-        "KERNFILTLEN",
-        "SPMFILTLEN",
-        "SAVERAWDATA",
-        "PLOTOUTPUT",
-        "LOADSESSION",
-        "SAVERAWDATAFREQUENCY",
         "SOURCEAMP",
         "MICSNR",
+        "BLOCKSIZE",
         "FILTLENGTH",
+        "SPMFILTLEN",
+        "MCPOINTS",
+        "KERNFILTLEN",
+        "SAVERAWDATA",
+        "SAVERAWDATAFREQUENCY",
+        "PLOTOUTPUT",
+        "LOADSESSION",
         "OUTPUTSMOOTHING",
         "GENSOUNDFIELDATCHUNK",
-        "PLOTFREQUNCY",
+        "PLOTFREQUENCY",
     ]
 
     confView1 = {
@@ -175,19 +150,3 @@ def configMatch(config1, config2):
     }
     # print("Config ", confView1 == confView2)
     return confView1 == confView2
-
-
-def settingsMatch(settings1, settings2):
-    # allowedDifferent = [ "ENDTIMESTEP", "ERRORMICNOISE", "FILTLENGTH", "GENSOUNDFIELDATCHUNK",
-    #                     "", "PLOTFREQUENCY", "OUTPUTSMOOTHING", "REFMICNOISE",
-    #                     "SIMBUFFER", "SIMCHUNKSIZE"]
-
-    entriesToCheck = ["SAMPLERATE", "C"]
-    sView1 = {
-        key: value for key, value in settings1.__dict__.items() if key in entriesToCheck
-    }
-    sView2 = {
-        key: value for key, value in settings2.__dict__.items() if key in entriesToCheck
-    }
-    # print("Settings ", sView1 == sView2)
-    return sView1 == sView2

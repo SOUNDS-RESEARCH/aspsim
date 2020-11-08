@@ -90,7 +90,7 @@ class ActiveNoiseControlProcessor(AudioProcessor):
         self.updateIdx = self.simBuffer
 
     def process(self, numSamples, noises):
-        
+        pass
 
 class AdaptiveFilterFF(ABC):
     def __init__(self, config, mu, beta, speakerRIR):
@@ -113,6 +113,8 @@ class AdaptiveFilterFF(ABC):
         self.simBuffer = config["SIMBUFFER"]
         self.mu = mu
         self.beta = beta
+
+        self.rng = np.random.RandomState(5)
 
         self.controlFilt = FilterSum_IntBuffer(
             np.zeros((self.numRef, self.numSpeaker, self.filtLen))
@@ -230,10 +232,10 @@ class AdaptiveFilterFF(ABC):
             numSamples, self.idx, self.simBuffer, self.simChunkSize
         )
         errorMicNoise = getWhiteNoiseAtSNR(
-            noises["error"], (self.numError, numSamples), self.micSNR
+            self.rng, noises["error"], (self.numError, numSamples), self.micSNR
         )
         refMicNoise = getWhiteNoiseAtSNR(
-            noises["ref"], (self.numRef, numSamples), self.micSNR
+            self.rng, noises["ref"], (self.numRef, numSamples), self.micSNR
         )
 
         numComputed = 0
@@ -291,6 +293,8 @@ class AdaptiveFilterFFComplex(ABC):
         self.mu = mu
         self.beta = beta
         self.blockSize = blockSize
+
+        self.rng = np.random.RandomState(5)
 
         self.H = np.zeros(
             (2 * blockSize, self.numSpeaker, self.numRef), dtype=np.complex128
@@ -405,10 +409,10 @@ class AdaptiveFilterFFComplex(ABC):
             self.resetBuffers()
 
         errorMicNoise = getWhiteNoiseAtSNR(
-            noises["error"], (self.numError, numSamples), self.micSNR
+            self.rng, noises["error"], (self.numError, numSamples), self.micSNR
         )
         refMicNoise = getWhiteNoiseAtSNR(
-            noises["ref"], (self.numRef, numSamples), self.micSNR
+            self.rng, noises["ref"], (self.numRef, numSamples), self.micSNR
         )
 
         self.x[:, self.idx : self.idx + numSamples] = noises["ref"] + refMicNoise

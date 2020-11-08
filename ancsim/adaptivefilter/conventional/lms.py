@@ -1,10 +1,11 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum_IntBuffer, SinglePoleLowPass
+from ancsim.signal.filterclasses import FilterSum_IntBuffer, SinglePoleLowPass, MovingAverage
 from ancsim.adaptivefilter.conventional.base import (
     AdaptiveFilterBase,
     AdaptiveFilterFreqDomain,
+    AdaptiveFilterFreq,
 )
-
+import ancsim.signal.freqdomainfiltering as fdf
 
 class LMS(AdaptiveFilterBase):
     """Dimension of filter is (input channels, output channels, IR length)"""
@@ -73,7 +74,8 @@ class NLMS(AdaptiveFilterBase):
 class BlockNLMS(AdaptiveFilterBase):
     """Block based processing and normalization
     Dimension of filter is (input channels, output channels, IR length)
-        Normalizes with a scalar, common for all channels"""
+        Normalizes with a scalar, common for all channels
+        identical to FastBlockNLMS with scalar normalization"""
 
     def __init__(
         self, irLen, numIn, numOut, stepSize, regularization=1e-3, filterType=None
@@ -101,10 +103,13 @@ class BlockNLMS(AdaptiveFilterBase):
             )
 
         norm = 1 / (np.sum(ref ** 2) + self.beta)
+        #print(norm)
+        print("Block normalization: ", norm)
         self.filt.ir += self.mu * norm * grad
 
 
 class NLMS_FREQ(AdaptiveFilterFreqDomain):
+    """Looks like it doesn't overlap add, should probably use FastBlockNLMS instead"""
     def __init__(self, numFreq, numIn, numOut, stepSize, regularization=1e-4):
         super().__init__(numFreq, numIn, numOut)
         self.mu = stepSize
@@ -121,7 +126,70 @@ class NLMS_FREQ(AdaptiveFilterFreqDomain):
         self.ir += self.mu * normalization * error @ np.transpose(ref.conj(), (0, 2, 1))
 
 
-class FastBlockNLMS(AdaptiveFilterFreqDomain):
+class FastBlockNLMS(AdaptiveFilterFreq):
+    """Identical to BlockNLMS when scalar normalization is used"""
+    def __init__(
+        self,
+        blockSize,
+        numIn,
+        numOut,
+        stepSize,
+        regularization=1e-3,
+        powerEstForgetFactor=0.99,
+        normalization="scalar",
+    ):
+        super().__init__(2 * blockSize, numIn, numOut)
+        self.mu = stepSize
+        self.beta = regularization
+        self.blockSize = blockSize
+
+        if normalization == "scalar":
+            self.normFunc = self.scalarNormalization
+        elif normalization == "freqIndependent":
+            self.refPowerEstimate = MovingAverage(powerEstForgetFactor, (2 * blockSize, 1, 1))
+            self.normFunc = self.freqIndependentNormalization
+        elif normalization == "channelIndependent":
+            self.normFunc = self.channelIndependentNormalization
+        else:
+            raise ValueError
+            
+    def scalarNormalization(self, ref, freqRef):
+        return 1 / (np.sum(ref[...,self.blockSize:]**2) + self.beta)
+
+    def freqIndependentNormalization(self, ref, freqRef):
+        self.refPowerEstimate.update(np.sum(np.abs(freqRef[:,:,None])**2, axis=(1,2), keepdims=True))
+        return 1 / (self.refPowerEstimate.state + self.beta)
+    
+    def channelIndependentNormalization(self, ref, freqRef):
+        return 1 / (np.mean(np.abs(X)**2,axis=0, keepdims=True) + self.beta)
+
+
+    def update(self, ref, error):
+        """ref is two blocks, the latter of which 
+            corresponds to the single error block"""
+        assert ref.shape == (self.numIn, 2 * self.blockSize)
+        assert error.shape == (self.numOut, self.blockSize)
+
+        X = fdf.fftWithTranspose(ref)
+        tdGrad = fdf.correlateEuclidianTF(error, X)
+        gradient = fdf.fftWithTranspose(np.concatenate((tdGrad, np.zeros_like(tdGrad)),axis=-1))
+        norm = self.normFunc(ref, X)
+        print("Fast block normalization: ", norm)
+        
+        self.filt.tf += self.mu * norm * gradient
+
+    # def process(self, signal):
+    #     """"""
+    #     assert signal.shape[-1] == self.blockSize
+    #     concatBlock = np.concatenate((self.lastBlock, signal),axis=-1)
+    #     self.lastBlock[:] = signal
+    #     return fdf.convolveSum(self.ir, concatBlock)
+
+
+
+
+
+class FastBlockNLMS_old(AdaptiveFilterFreqDomain):
     def __init__(
         self,
         blockSize,
@@ -173,7 +241,7 @@ class FastBlockNLMS(AdaptiveFilterFreqDomain):
 
         if np.mean(np.abs(np.imag(output))) > 0.00001:
             print(
-                "WARNING: Frequency domain adaptive filter truncates significant imaginary component"
+                "WARNING: Fast block adaptive filter produces significant imaginary component"
             )
 
         return np.real(output)

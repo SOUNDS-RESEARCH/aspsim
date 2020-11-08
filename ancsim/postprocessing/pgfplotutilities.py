@@ -8,8 +8,10 @@ def loadPGFPlotData(filePath):
 
 
 def savePGFPlotData(filePath, data, suffix="_processed", fmt="%f %f"):
+    splitFileName = filePath.stem.split("-")
+    newFileName = "".join(splitFileName[:-1]) + suffix + "-"+splitFileName[-1]
     np.savetxt(
-        filePath.parent.joinpath(filePath.stem + suffix + filePath.suffix),
+        filePath.parent.joinpath(newFileName + filePath.suffix),
         data,
         fmt=fmt,
     )
@@ -57,6 +59,9 @@ def sortPGFPlotData(filePath, axisToSortBy=0, idxToSortBy=0):
 
 
 def reduceSize(filePath, decimation=1, precision=3, decimationSections=tuple()):
+    """Multiple decimation values can be given as a tuple. 
+        decimationSections parameter must then be a tuple of one less value,
+        stating at which sample to switch between the decimation values"""
     data = loadPGFPlotData(filePath)
     numDataPoints = data.shape[0]
 

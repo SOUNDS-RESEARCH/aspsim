@@ -33,31 +33,6 @@ def deleteEarlierTikzPlot(folder, name):
             except PermissionError:
                 pass
 
-
-# def deleteEarlierTikzPlot(folder, name):
-#     currentIdx = findIndexInName(name)
-#     if currentIdx is None:
-#         return
-#     startName = name[:-len(str(currentIdx))]
-
-#     for f in folder.iterdir():
-#         if f.stem.startswith(startName):
-#             if f.is_dir():
-#                 fIdx = int(f.stem[len(startName):])
-#                 if fIdx > currentIdx:
-#                     raise ValueError
-#                 elif currentIdx == fIdx:
-#                     continue
-#                 for plotFile in f.iterdir():
-#                     assert(plotFile.stem.startswith(startName))
-#                     if plotFile.suffix == ".pdf":
-#                         plotFile.rename(folder.joinpath(plotFile.stem+plotFile.suffix))
-#                     else:
-#                         assert(plotFile.suffix == ".tsv" or plotFile.suffix == ".tex")
-#                         plotFile.unlink()
-#                 f.rmdir()
-
-
 def outputPlot(printMethod, folder="", name="", keepOnlyLatestTikz=True):
     if printMethod == "show":
         plt.show()
@@ -106,10 +81,8 @@ def outputPlot(printMethod, folder="", name="", keepOnlyLatestTikz=True):
         raise ValueError
     plt.close("all")
 
-<<<<<<< HEAD
 
-def plotPos(pos, folder, config, printMethod="pdf"):
-=======
+
 def setBasicPlotLook(ax):
     ax.grid(True)
     ax.spines['right'].set_visible(False)
@@ -124,21 +97,20 @@ def plot3Din2D(ax, posData, symbol="x", name=""):
         alpha = np.linspace(0.4, 1, len(uniqueZValues))
 
     for i, zVal in enumerate(uniqueZValues):
-        idx = np.where(posData[:,2] == zVal)
+        idx = np.where(posData[:,2] == zVal)[0]
 
         ax.plot(posData[idx,0], posData[idx,1], symbol, label=name+": z = " + zVal, alpha=alpha[i])
 
-    
 
-def plotPos(pos, folder, printMethod="pdf"):
+def plotPos(pos, folder, config, printMethod="pdf"):
     [fig, ax] = plt.subplots(1,1, figsize=(8,8))
     ax.set_title("Positions")
 
-    plot3Din2D(ax, pos.speaker, "o", "loudspeaker")
-    plot3Din2D(ax, pos.source, "o", "source")
-    plot3Din2D(ax, pos.error, "x", "error mic")
+    plot3Din2D(ax, pos["speaker"], "o", "loudspeaker")
+    plot3Din2D(ax, pos["source"], "o", "source")
+    plot3Din2D(ax, pos["error"], "x", "error mic")
     if hasattr(pos, "ref"):
-        plot3Din2D(ax, pos.ref, "x", "reference")
+        plot3Din2D(ax, pos["ref"], "x", "reference")
 
     ax.autoscale()
     outputPlot(printMethod, folder, "positions")
@@ -146,7 +118,6 @@ def plotPos(pos, folder, printMethod="pdf"):
     
 
 def plotPos2dDisc(pos, folder, config, printMethod="pdf"):
->>>>>>> use_other_irs
     def setLook(ax, config):
         ax.grid(True)
         ax.spines["right"].set_visible(False)
@@ -276,27 +247,35 @@ def plotPos3dRect(
             ax.add_patch(roomOutline)
 
     def plotMultipleRects(ax, posArray, symbol="x", name=""):
-        currentz = posArray[0, -1]
-        rectIdx = [0]
-        for i in range(posArray.shape[0]):
-            if not np.isclose(posArray[i, -1], currentz):
-                currentz = posArray[i, -1]
-                rectIdx.append(i)
-        rectIdx.append(posArray.shape[0])
+        zValues = np.unique(posArray[:,2])
+        for z in zValues:
+            idx = np.where(posArray[:,2] == z)[0]
+            ax.plot(posArray[idx,0], posArray[idx,1], symbol, 
+                    label=f"{name}, height = {z}")
 
-        for i in range(len(rectIdx) - 1):
-            ax.plot(
-                posArray[rectIdx[i] : rectIdx[i + 1], 0],
-                posArray[rectIdx[i] : rectIdx[i + 1], 1],
-                symbol,
-                label=name + ", " + "z = " + str(posArray[rectIdx[i], 2]),
-            )
+    # def plotMultipleRects(ax, posArray, symbol="x", name=""):
+    #     currentz = posArray[0, -1]
+    #     rectIdx = [0]
+    #     for i in range(posArray.shape[0]):
+    #         if not np.isclose(posArray[i, -1], currentz):
+    #             currentz = posArray[i, -1]
+    #             rectIdx.append(i)
+    #     rectIdx.append(posArray.shape[0])
+
+    #     for i in range(len(rectIdx) - 1):
+    #         ax.plot(
+    #             posArray[rectIdx[i] : rectIdx[i + 1], 0],
+    #             posArray[rectIdx[i] : rectIdx[i + 1], 1],
+    #             symbol,
+    #             label=name + ", " + "z = " + str(posArray[rectIdx[i], 2]),
+    #         )
 
     # Plot with primary sources
     [fig, ax] = plt.subplots(1, 1, figsize=(8, 8))
     plotMultipleRects(ax, pos["error"], "x", "Error mic")
     plotMultipleRects(ax, pos["speaker"], "o", "Sec Speaker")
     ax.plot(pos["source"][:, 0], pos["source"][:, 1], "o")
+
     if "ref" in pos:
         ax.plot(pos["ref"][:, 0], pos["ref"][:, 1], "x")
     setLook(ax, config)

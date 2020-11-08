@@ -180,7 +180,7 @@ class AudioFileSource:
                 )
 
         # assert(srAudio == samplerate)
-        assert endTimeStep < self.audioSamples.shape[0]
+        assert endTimestep < self.audioSamples.shape[0]
 
     def getSamples(self, numSamples):
         sig = self.audioSamples[

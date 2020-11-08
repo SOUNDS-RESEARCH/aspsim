@@ -43,6 +43,14 @@ def correlateSumFT(freqFilter, timeSignal):
     freqSignal = fftWithTranspose(timeSignal, addEmptyDim=False)
     return correlateSumFF(freqFilter, freqSignal)
 
+def correlateSumTF(timeFilter, freqSignal):
+    """"""
+    freqFilter = fftWithTranspose(
+        np.concatenate((np.zeros_like(timeFilter), timeFilter), axis=-1),
+        addEmptyDim=False,
+    )
+    return correlateSumFF(freqFilter, freqSignal)
+
 
 def correlateSumFF(freqFilter, freqSignal):
     """signal is FFT of two blocks worth of signal
@@ -75,6 +83,14 @@ def correlateEuclidianFT(freqFilter, timeSignal):
     freqSignal = fftWithTranspose(timeSignal, addEmptyDim=False)
     return correlateEuclidianFF(freqFilter, freqSignal)
 
+def correlateEuclidianTF(timeFilter, freqSignal):
+    """"""
+    freqFilter = fftWithTranspose(
+        np.concatenate((np.zeros_like(timeFilter), timeFilter), axis=-1),
+        addEmptyDim=False,
+    )
+    return correlateEuclidianFF(freqFilter, freqSignal)
+
 
 def correlateEuclidianFF(freqFilter, freqSignal):
     """signal is two blocks long signal
@@ -101,10 +117,6 @@ def convolveSum(freqFilter, timeSignal):
     assert freqFilter.shape[0] == timeSignal.shape[-1]
     assert freqFilter.shape[0] % 2 == 0
     outputLen = freqFilter.shape[0] // 2
-
-    # print("shapes")
-    # print(freqFilter.shape)
-    # print(timeSignal.shape)
 
     filteredSignal = freqFilter @ fftWithTranspose(timeSignal, addEmptyDim=True)
     filteredSignal = ifftWithTranspose(filteredSignal, removeEmptyDim=True)

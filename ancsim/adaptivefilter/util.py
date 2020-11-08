@@ -12,16 +12,16 @@ def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):
         sampleCounter += bLen
         leftInBuffer -= bLen
         if leftInBuffer == 0:
-            leftInBuffer = bufferSize
+            leftInBuffer = chunkSize
     return blockSizes
 
 
-def getWhiteNoiseAtSNR(signal, dim, snr, identicalChannelPower=False):
+def getWhiteNoiseAtSNR(rng, signal, dim, snr, identicalChannelPower=False):
     """generates Additive White Gaussian Noise
     signal to calculate signal level. time dimension is last dimension
     dim is dimension of output AWGN
     snr, signal to noise ratio, in dB"""
-    generatedNoise = np.random.standard_normal(dim)
+    generatedNoise = rng.standard_normal(dim)
     if identicalChannelPower:
         powerOfSignal = util.avgPower(signal)
     else:

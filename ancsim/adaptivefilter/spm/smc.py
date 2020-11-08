@@ -2,13 +2,38 @@ import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
-from ancsim.adaptivefilter.conventional.lms import NLMS
+from ancsim.adaptivefilter.conventional.lms import NLMS, FastBlockNLMS
 from ancsim.adaptivefilter.conventional.rls import RLS
 from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia
 from ancsim.utilities import measure
 
+
+class FastBlockFxLMSSMC(FastBlockFxLMS):
+    def __init__(config, mu, beta, speakerRIR, blockSize, muPrim, muSec, secPathEstLen):
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        self.name = "Fast Block FxLMS SMC w/ NLMS"
+        self.muPrim = muPrim
+        self.muSec = muSec
+        self.sLen = secPathEstLen
+        self.pLen = secPathEstLen
+        
+        self.spmIdx = self.updateIdx
+
+        self.secPathNLMS = FastBlockNLMS()
+        self.primPathNLMS = FastBlockNLMS()
+
+    def updateFilter(self):
+        super().updateFilter()
+        self.updateSPM()
+
+    def updateSPM(self):
+        self.secPathNLMS.process()
+        #self.secPathEstimate.update()
+
+
+        self.secPathEstimate.tf = self.secPathNLMS.
 
 class FxLMSSMC(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""

@@ -241,7 +241,8 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
             ir=np.concatenate(
                 (
                     reducedSecPath,
-                    np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,))),
+                    np.zeros((reducedSecPath.shape[:-1] + (blockSize-reducedSecPath.shape[-1],))),
+                    #np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,))),
                 ),
                 axis=-1,
             ),

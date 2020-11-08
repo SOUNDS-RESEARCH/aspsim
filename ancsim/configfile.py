@@ -9,7 +9,7 @@ def getConfig():
     config["NUMREF"] = 1
     config["NUMERROR"] = 28
     config["NUMSPEAKER"] = 16
-    config["NUMTARGET"] = 10 ** 2 * 4
+    config["NUMTARGET"] = 10**2 * 4
     # config["NUMTARGET"] = 32**2
 
     # SIMULATOR OPTIONS
@@ -41,19 +41,17 @@ def getConfig():
     ]
 
     config["AUDIOFILENAME"] = "secret_mountains_high_horse_instruments.wav"
-    config["SOURCETYPE"] = possibleSources[3]
+    config["SOURCETYPE"] = possibleSources[1]
     config["NOISEFREQ"] = 100
     config["NOISEBANDWIDTH"] = 400
     config["SOURCEAMP"] = 50
 
     # ARRAY PLACEMENT
-    possibleShapes = ["circle", "rectangle"]
+    possibleShapes = ["circle", "rectangle", "doublerectangle", "cuboid"]
     config["ARRAYSHAPES"] = possibleShapes[1]
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
     config["SPEAKERDIM"] = 3
-    config["SPEAKERANGLEOFFSET"] = "distribute"
-    config["ERRORMICANGLEOFFSET"] = "distribute"
 
     possibleTargetPoints = ["target_region", "image"]
     config["TARGETPOINTSPLACEMENT"] = possibleTargetPoints[0]
@@ -82,9 +80,9 @@ def getConfig():
     config["SAVERAWDATAFREQUENCY"] = 6
     config["PLOTFREQUENCY"] = 6
     config["GENSOUNDFIELDATCHUNK"] = 100000
-    config["PLOTOUTPUT"] = "pdf"
+    config["PLOTOUTPUT"] = "tikz"
     config["LOADSESSION"] = True
-    config["OUTPUTSMOOTHING"] = 64
+    config["OUTPUTSMOOTHING"] = 1024
 
     # configInstantCheck(config)
     return configInstantProcessing(config)
@@ -107,13 +105,10 @@ def configInstantCheck(conf):
 
     assert len(conf["SOURCEAMP"]) == conf["NUMSOURCE"]
 
-<<<<<<< HEAD
-=======
     if conf["REVERB"] == "recorded":
         assert(conf["LOADSESSION"])
 
     assert(len(conf["SOURCEAMP"]) == conf["NUMSOURCE"])
->>>>>>> use_other_irs
 
 def configPreprocessing(conf, numFilt):
     if isinstance(conf["BLOCKSIZE"], int):
