@@ -13,9 +13,9 @@ import ancsim.integration.pointgenerator as gen
 
 
 # INTERPOLATE SOUND FIELD FROM SET OF POINTS TO SET OF POINTS
-def kernelHelmholtz3d(toPoints, fromPoints, waveNum):
-    distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
-    return special.spherical_jn(0, distMat * waveNum)
+# def kernelHelmholtz3d(toPoints, fromPoints, waveNum):
+#     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
+#     return special.spherical_jn(0, distMat * waveNum)
 
 def kernelHelmholtz2d(toPoints, fromPoints, waveNum):
     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
@@ -31,7 +31,7 @@ def kernelHelmholtz2d(toPoints, fromPoints, waveNum):
 #     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
 #     return special.spherical_jn(0, distMat * waveNum[:,None,None])
 
-def kernelHelmholtz3d_new(points1, points2, waveNum):
+def kernelHelmholtz3d(points1, points2, waveNum):
     """points1 is shape (numPoints1, 3)
         points2 is shape (numPoints2, 3)
         waveNum is shape (numFreqs)
