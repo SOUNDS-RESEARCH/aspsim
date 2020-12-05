@@ -22,7 +22,7 @@ def meanNearTimeIdx(outputs, timeIdx):
 
     for filtName, output in outputs.items():
         # val = diagnostic.getOutput()[timeIdx-numToAverage:timeIdx]
-        val = output[timeIdx - numToAverage : timeIdx]
+        val = output[...,timeIdx - numToAverage : timeIdx]
         filterArray = np.logical_not(np.isnan(val))
         summaryValues[filtName] = np.mean(val[filterArray])
     return summaryValues

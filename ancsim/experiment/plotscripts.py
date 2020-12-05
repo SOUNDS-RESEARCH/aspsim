@@ -91,15 +91,15 @@ def setBasicPlotLook(ax):
 def plot3Din2D(ax, posData, symbol="x", name=""):
     uniqueZValues = np.unique(posData[:,2].round(decimals=4))
     
-    if len(uniqueZValues) == 1:
-        alpha = np.array([1])
-    else:
-        alpha = np.linspace(0.4, 1, len(uniqueZValues))
+    # if len(uniqueZValues) == 1:
+    #     alpha = np.array([1])
+    # else:
+    #     alpha = np.linspace(0.4, 1, len(uniqueZValues))
 
     for i, zVal in enumerate(uniqueZValues):
-        idx = np.where(posData[:,2] == zVal)[0]
+        idx = np.where(np.around(posData[:,2],4) == zVal)[0]
 
-        ax.plot(posData[idx,0], posData[idx,1], symbol, label=name+": z = " + zVal, alpha=alpha[i])
+        ax.plot(posData[idx,0], posData[idx,1], symbol, label=f"{name}: z = {zVal}")
 
 
 def plotPos(pos, folder, config, printMethod="pdf"):
@@ -109,8 +109,8 @@ def plotPos(pos, folder, config, printMethod="pdf"):
     plot3Din2D(ax, pos["speaker"], "o", "loudspeaker")
     plot3Din2D(ax, pos["source"], "o", "source")
     plot3Din2D(ax, pos["error"], "x", "error mic")
-    if hasattr(pos, "ref"):
-        plot3Din2D(ax, pos["ref"], "x", "reference")
+    if "ref" in pos:
+        plot3Din2D(ax, pos["ref"], "x", "reference mic")
 
     ax.autoscale()
     outputPlot(printMethod, folder, "positions")

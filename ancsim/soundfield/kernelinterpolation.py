@@ -17,10 +17,62 @@ def kernelHelmholtz3d(toPoints, fromPoints, waveNum):
     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
     return special.spherical_jn(0, distMat * waveNum)
 
-
 def kernelHelmholtz2d(toPoints, fromPoints, waveNum):
     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
     return special.j0(distMat * waveNum)
+
+# def kernelHelmholtz3d(toPoints, fromPoints, waveNum):
+#     """toPoints is shape (numToPoints, 3)
+#         fromPoints is shape (numFromPoints, 3)
+#         waveNum is shape (numFreqs)
+
+#         returns shape (numFreqs, numFromPoints, numToPoints)
+#     """
+#     distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
+#     return special.spherical_jn(0, distMat * waveNum[:,None,None])
+
+def kernelHelmholtz3d_new(points1, points2, waveNum):
+    """points1 is shape (numPoints1, 3)
+        points2 is shape (numPoints2, 3)
+        waveNum is shape (numFreqs)
+
+        returns shape (numFreqs, numPoints1, numPoints2)
+    """
+    distMat = distfuncs.cdist(points1, points2)
+    return special.spherical_jn(0, distMat[None,:,:] * waveNum[:,None,None])
+
+def kernelDirectional3d(points1, points2, waveNum, angle, beta):
+    """points1 is shape (numPoints1, 3)
+        points2 is shape (numPoints2, 3)
+        waveNum is shape (numFreqs)
+        angle is tuple (theta, phi) defined as in util.spherical2cart
+        
+        returns shape (numFreqs, numPoints1, numPoints2)
+    """
+    #distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
+    rDiff = points1[:,None,:] - points2[None,:,:]
+
+    angleFactor = beta * util.spherical2cart(np.ones((1,1)), np.array(angle)[None,:])[None,None,...]
+
+    posFactor = 1j * waveNum[:,None,None,None] * rDiff[None,...]
+
+    return special.spherical_jn(0, 1j*np.sum((angleFactor + posFactor)**2, axis=-1))
+    
+    # \kappa(r_1, r_2) = j_0( j (
+    # (\beta \sin\theta\cos\phi + j k x_12)^2 + 
+    # (\beta \sin\theta\sin\phi + j k y_12)^2 + 
+    # (\beta\cos\theta + j k z_12)^2 )^1/2)
+
+
+
+def integrableAwFunc(k, posErr, beta=0, ang=0):
+    def intFunc(r):
+        r_diff = (np.tile((r.T)[None,:,:], (posErr.shape[0],1,1)) - np.tile(posErr[:,None,:], (1,r.shape[1],1)))[None,:,:,:]
+        distance = 1j*np.sqrt((beta*np.cos(ang) + 1j*k[:,None,None]*r_diff[:,:,:,0])**2 + (beta*np.sin(ang) + 1j*k[:,None,None]*r_diff[:,:,:,1])**2)
+        kappa = special.jn(0, distance)
+        funcVal = kappa[:, :, None, :].conj() * kappa[:, None, :, :]
+        return funcVal
+    return intFunc
 
 
 def soundfieldInterpolationFIR(
@@ -49,7 +101,7 @@ def soundfieldInterpolation(
 
     assert numFreq % 2 == 0
 
-    freqs = fd.getFrequencyValues(numFreq, samplerate)[:, None, None]
+    freqs = fd.getFrequencyValues(numFreq, samplerate)#[:, None, None]
     waveNum = 2 * np.pi * freqs / c
     ipParams = getKRRParameters(kernelFunc, regParam, toPoints, fromPoints, waveNum)
     ipParams = fd.insertNegativeFrequencies(ipParams, even=True)

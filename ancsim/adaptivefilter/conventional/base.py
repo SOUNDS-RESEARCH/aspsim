@@ -56,6 +56,9 @@ class AdaptiveFilterFreq(ABC):
 
     def process(self, signalToProcess):
         return self.filt.process(signalToProcess)
+    
+    def processWithoutSum(self, signalToProcess):
+        return self.filt.processWithoutSum(signalToProcess)
 
 
 class AdaptiveFilterFreqDomain(ABC):

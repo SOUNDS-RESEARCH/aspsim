@@ -168,7 +168,7 @@ def runExperiment(
 ):
     mainFolder = util.getUniqueFolderName("full_exp_", parentFolder)
     mainFolder.mkdir()
-    ncpu = mp.cpu_count() - 2
+    ncpu = mp.cpu_count() - 1
 
     mpArgs = [[] for _ in range(5)]
     for newConfigs, newParams in spec.genExperimentSets():

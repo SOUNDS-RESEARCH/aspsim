@@ -3,6 +3,7 @@ from copy import deepcopy
 from enum import Enum
 from abc import ABC, abstractmethod
 from functools import partial
+import itertools as it
 
 import ancsim.utilities as util
 import ancsim.experiment.plotscripts as psc
@@ -62,7 +63,6 @@ class PlotDiagnosticDispatcher:
     def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
 
         if not isinstance(funcInfo.outputType, (list, tuple)):
-            print(funcInfo.outputType)
             funcInfo.outputType = [funcInfo.outputType]
         for i, outType in enumerate(funcInfo.outputType):
             if len(funcInfo.outputType) == 1:
@@ -302,6 +302,54 @@ class RecordSpectrum:
         self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
 
 
+class RecordIR():
+    def __init__(
+        self,
+        trueValue,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        maxNumIR, #tuple
+        beginAtBuffer=0,
+        plotFrequency=1,
+    ):
+        self.selectIR = [slice(None,numIr) for numIr in maxNumIR]
+        self.selectIR.append(slice(None))
+        self.selectIR = tuple(self.selectIR)
+        self.trueValue = trueValue[self.selectIR].reshape((-1, trueValue.shape[-1]))
+        self.endTimeStep = endTimeStep
+        self.simBuffer = simBuffer
+        self.simChunkSize = simChunkSize
+
+        self.latestIR = np.zeros_like(self.trueValue)
+
+        self.metadata = {"xlabel" : "Samples", "ylabel" : "Amplitude", "label" : ["True Value", "Estimate"]}
+
+        self.info = DiagnosticFunctionalityInfo(
+                DIAGNOSTICTYPE.perSimBuffer,
+                dplot.plotIR,
+                SUMMARYFUNCTION.none,
+                beginAtBuffer=beginAtBuffer,
+                plotFrequency=plotFrequency,
+            )
+
+    def getOutput(self):
+        return [self.trueValue, self.latestIR]
+
+    def saveDiagnostics(self, bufferIdx, ir):
+        self.latestIR[...] = ir[self.selectIR].reshape((-1, ir.shape[-1]))
+
+    def resetBuffers(self):
+        pass
+
+    def saveBlockData(self, idx):
+        pass
+
+
+
+
+
+
 class PerBlockDiagnostic(ABC):
     def __init__(
         self,
@@ -362,7 +410,7 @@ class ConstantEstimateNMSE(PerBlockDiagnostic):
             plotFrequency=plotFrequency,
             **kwargs
         )
-        self.trueValue = trueValue
+        self.trueValue = np.copy(trueValue)
         self.trueValuePower = np.sum(np.abs(trueValue) ** 2)
 
         self.metadata["title"] = "Constant Estimate NMSE"
@@ -370,10 +418,53 @@ class ConstantEstimateNMSE(PerBlockDiagnostic):
 
     def saveBlockData(self, idx, currentEstimate):
         totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
-        self.dataBuffer[totIdx] = 10 * np.log10(
+        self.dataBuffer[totIdx] = 10 * np.log10(1e-30 + 
             np.sum(np.abs(self.trueValue - currentEstimate) ** 2) / self.trueValuePower
         )
 
+class ConstantEstimateNMSEAllCombinations(PerBlockDiagnostic):
+    def __init__(
+        self,
+        trueValue,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        beginAtBuffer=0,
+        plotFrequency=1,
+        **kwargs
+    ):
+        super().__init__(
+            endTimeStep,
+            simBuffer,
+            simChunkSize,
+            beginAtBuffer=beginAtBuffer,
+            plotFrequency=plotFrequency,
+            **kwargs
+        )
+        self.trueValue = np.copy(trueValue)
+        self.trueValuePower = np.sum(np.abs(trueValue) ** 2)
+
+
+        assert self.trueValue.ndim == 3
+        numChannels = np.math.factorial(self.trueValue.shape[1]) * \
+                        np.math.factorial(self.trueValue.shape[2])
+        self.dataBuffer = np.full((numChannels, endTimeStep), np.nan)
+
+        
+        
+
+        self.metadata["title"] = "Constant Estimate NMSE"
+        self.metadata["ylabel"] = "NMSE (dB)"
+
+    def saveBlockData(self, idx, currentEstimate):
+        totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
+
+        for i,(ax1,ax2) in enumerate(it.product(it.permutations(range(self.trueValue.shape[1])), 
+                                                it.permutations(range(self.trueValue.shape[2])))):
+            crntEst = currentEstimate[:,ax1,:]
+            self.dataBuffer[i,totIdx] = 10 * np.log10(1e-30 + 
+                np.sum(np.abs(self.trueValue - crntEst[:,:,ax2]) ** 2) / self.trueValuePower
+            )
 
 class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
     def __init__(
@@ -398,10 +489,10 @@ class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
             **kwargs
         )
         numFreqBins = trueValue.shape[0]
-        self.lowBin = int(numFreqBins * lowFreq / sampleRate)
+        self.lowBin = int(numFreqBins * lowFreq / sampleRate)+1
         self.highBin = int(numFreqBins * highFreq / sampleRate)
 
-        self.trueValue = trueValue[self.lowBin : self.highBin, :, :]
+        self.trueValue = np.copy(trueValue[self.lowBin : self.highBin, ...])
         self.trueValuePower = np.sum(np.abs(self.trueValue) ** 2)
 
         self.metadata["title"] = "Constant Estimate NMSE Selected Frequencies"
@@ -414,13 +505,102 @@ class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
         self.dataBuffer[totIdx] = 10 * np.log10(
             np.sum(
                 np.abs(
-                    self.trueValue - currentEstimate[self.lowBin : self.highBin, :, :]
+                    self.trueValue - currentEstimate[self.lowBin : self.highBin, ...]
                 )
                 ** 2
             )
             / self.trueValuePower
         )
 
+
+
+class ConstantEstimatePhaseDifferenceSelectedFrequencies(PerBlockDiagnostic):
+    def __init__(
+        self,
+        trueValue,
+        lowFreq,
+        highFreq,
+        sampleRate,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        beginAtBuffer=0,
+        plotFrequency=1,
+        **kwargs
+    ):
+        super().__init__(
+            endTimeStep,
+            simBuffer,
+            simChunkSize,
+            beginAtBuffer=beginAtBuffer,
+            plotFrequency=plotFrequency,
+            **kwargs
+        )
+
+        self.dataBuffer = np.full((endTimeStep), np.nan)
+        numFreqBins = trueValue.shape[0]
+        self.lowBin = int(numFreqBins * lowFreq / sampleRate)+1
+        self.highBin = int(numFreqBins * highFreq / sampleRate)
+        self.truePhase = np.copy(np.angle(trueValue[self.lowBin:self.highBin,...]))
+
+        self.metadata["title"] = "Constant Estimate Phase"
+        self.metadata["ylabel"] = "Average Difference (rad)"
+        #self.metadata["label_suffix_channel"] = ["mean", "max"]
+
+    def saveBlockData(self, idx, currentEstimate):
+        totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
+        phaseDiff = np.abs(self.truePhase - np.angle(currentEstimate[self.lowBin:self.highBin,...]))
+        phaseDiff = phaseDiff % np.pi
+        #pha = np.min((np.abs(2*np.pi-phaseDiff),np.abs(phaseDiff), np.abs(2*np.pi+phaseDiff)))
+        self.dataBuffer[totIdx] = np.mean(phaseDiff)
+        #self.dataBuffer[1, totIdx] = np.max(phaseDiff)
+
+
+
+class ConstantEstimateWeightedPhaseDifference(PerBlockDiagnostic):
+    def __init__(
+        self,
+        trueValue,
+        lowFreq,
+        highFreq,
+        sampleRate,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        beginAtBuffer=0,
+        plotFrequency=1,
+        **kwargs
+    ):
+        super().__init__(
+            endTimeStep,
+            simBuffer,
+            simChunkSize,
+            beginAtBuffer=beginAtBuffer,
+            plotFrequency=plotFrequency,
+            **kwargs
+        )
+
+        self.dataBuffer = np.full((endTimeStep), np.nan)
+        numFreqBins = trueValue.shape[0]
+        self.lowBin = int(numFreqBins * lowFreq / sampleRate)+1
+        self.highBin = int(numFreqBins * highFreq / sampleRate)
+        self.truePhase = np.copy(np.angle(trueValue[self.lowBin:self.highBin,...]))
+
+        trueTotal = np.sum(np.abs(trueValue[self.lowBin:self.highBin,...]), axis=0, keepdims=True)
+        self.weight = np.abs(trueValue[self.lowBin:self.highBin,...]) / trueTotal
+
+        self.metadata["title"] = "Constant Estimate Phase"
+        self.metadata["ylabel"] = "Average Difference (rad)"
+        #self.metadata["label_suffix_channel"] = ["mean", "max"]
+
+    def saveBlockData(self, idx, currentEstimate):
+        totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
+        phaseDiff = np.abs(self.truePhase - np.angle(currentEstimate[self.lowBin:self.highBin,...]))
+        phaseDiff = phaseDiff % np.pi
+        #phaseDiff *= self.weight
+        #pha = np.min((np.abs(2*np.pi-phaseDiff),np.abs(phaseDiff), np.abs(2*np.pi+phaseDiff)))
+        self.dataBuffer[totIdx] = np.mean(np.sum(self.weight * phaseDiff,axis=0))
+        #self.dataBuffer[1, totIdx] = np.max(phaseDiff)
 
 class ConstantEstimateAmpDifference(PerBlockDiagnostic):
     def __init__(
@@ -442,7 +622,7 @@ class ConstantEstimateAmpDifference(PerBlockDiagnostic):
             **kwargs
         )
 
-        self.trueAmplitude = np.abs(trueValue)
+        self.trueAmplitude = np.copy(np.abs(trueValue))
         self.trueAmpSum = np.sum(self.trueAmplitude)
 
         self.metadata["title"] = "Constant Estimate Amplitude"
@@ -476,7 +656,7 @@ class ConstantEstimatePhaseDifference(PerBlockDiagnostic):
             **kwargs
         )
 
-        self.truePhase = np.angle(trueValue)
+        self.truePhase = np.copy(np.angle(trueValue))
 
         self.metadata["title"] = "Constant Estimate Phase"
         self.metadata["ylabel"] = "Average Difference (rad)"
@@ -533,15 +713,67 @@ class SignalEstimateNMSE:
 
     def saveBlockData(self, idx, estimate, trueValue):
         numSamples = estimate.shape[-1]
+        
         totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
 
         nmse = np.sum(
-            np.abs(estimate - trueValue) ** 2, axis=0
+            np.abs(estimate - trueValue) ** 2, axis=tuple([i for i in range(estimate.ndim-1)])
         ) / self.trueValuePowerSmoother.process(
-            np.sum(np.abs(trueValue) ** 2, axis=0, keepdims=True)
+            np.sum(np.abs(trueValue) ** 2, axis=tuple([i for i in range(estimate.ndim-1)]))[None,:]
         )
 
         self.recordedValues[totIdx : totIdx + numSamples] = 10 * np.log10(nmse)
+
+
+class SignalEstimateNMSEBlock:
+    def __init__(
+        self,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        beginAtBuffer=0,
+        plotFrequency=1,
+        **kwargs
+    ):
+        """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
+        self.simBuffer = simBuffer
+        self.simChunkSize = simChunkSize
+        self.info = DiagnosticFunctionalityInfo(
+            DIAGNOSTICTYPE.perSample,
+            dplot.functionOfTimePlot,
+            SUMMARYFUNCTION.meanNearTimeIdx,
+            beginAtBuffer=beginAtBuffer,
+            plotFrequency=plotFrequency,
+        )
+
+        self.recordedValues = np.full((endTimeStep), np.nan)
+        self.bufferIdx = 0
+        self.metadata = {
+            "title": "Signal Estimate NMSE",
+            "xlabel": "Samples",
+            "ylabel": "NMSE (dB)",
+        }
+        # self.errorSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)))
+
+    def getOutput(self):
+        return self.recordedValues
+
+    def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx):
+        pass
+
+    def resetBuffers(self):
+        self.bufferIdx += 1
+
+    def saveBlockData(self, idx, estimate, trueValue):
+        numSamples = estimate.shape[-1]
+        
+        totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
+
+        nmse = np.sum(np.abs(estimate - trueValue) ** 2) / np.sum(np.abs(trueValue)**2)
+
+        self.recordedValues[totIdx] = 10 * np.log10(1e-30+nmse)
+
+#plt.plot(np.sum(np.abs(1*self.buffers["xf"][...,self.idx-self.blockSize:self.idx] - trueXf)**2,axis=(0,1,2)) / np.sum(np.abs(trueXf)**2))
 
 
 class RecordScalar:
@@ -612,6 +844,45 @@ class RecordVector:
     def saveBlockData(self, idx, value):
         totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
         self.recordedValues[:, totIdx] = value
+
+
+class RecordVectorSummary:
+    def __init__(
+        self,
+        endTimeStep,
+        simBuffer,
+        simChunkSize,
+        beginAtBuffer=0,
+        plotFrequency=1,
+        **kwargs
+    ):
+        self.simBuffer = simBuffer
+        self.simChunkSize = simChunkSize
+        self.info = DiagnosticFunctionalityInfo(
+            DIAGNOSTICTYPE.perBlock,
+            dplot.functionOfTimePlot,
+            beginAtBuffer=beginAtBuffer,
+            plotFrequency=plotFrequency,
+        )
+
+        self.recordedValues = np.full((3, endTimeStep), np.nan)
+        #self.recordedMax = np.full((1, endTimeStep), np.nan)
+        #self.recordedMin = np.full((1, endTimeStep), np.nan)
+        #self.recordedMean = np.full((1, endTimeStep), np.nan)
+        self.bufferIdx = 0
+        self.metadata = {"title": "Value of ", "xlabel": "Samples", "ylabel": "value", "label_suffix_channel" : ["max", "mean", "min"]}
+
+    def getOutput(self):
+        return self.recordedValues
+
+    def resetBuffers(self):
+        self.bufferIdx += 1
+
+    def saveBlockData(self, idx, value):
+        totIdx = self.bufferIdx * self.simChunkSize + (idx - self.simBuffer)
+        self.recordedValues[0, totIdx] = np.max(value)
+        self.recordedValues[1, totIdx] = np.mean(value)
+        self.recordedValues[2, totIdx] = np.min(value)
 
 
 class NoiseReduction:

@@ -254,6 +254,17 @@ class FilterSum_Freqdomain:
         ]
         return np.real(outputSamples[..., self.irLen :])
 
+    def processWithoutSum(self, samplesToProcess):
+        assert samplesToProcess.shape == self.buffer.shape
+        freqsToProcess = fdf.fftWithTranspose(
+            np.concatenate((self.buffer, samplesToProcess), axis=-1), addEmptyDim=True)
+        tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
+        outputSamples = fdf.ifftWithTranspose(
+            np.swapaxes(self.tf.reshape(tfNewShape),-1,-2) * freqsToProcess)
+
+        self.buffer[...] = samplesToProcess
+        return np.real(outputSamples[..., self.irLen :])
+
     def setFilter(self, tfNew):
         if tfNew.shape != self.tf.shape:
             self.irLen = tfNew.shape[0] // 2
@@ -262,6 +273,13 @@ class FilterSum_Freqdomain:
             self.numIn = tfNew.shape[2]
             self.buffer = np.zeros_like(self.buffer)
         self.ir = irNew
+
+    def setIR(self, irNew):
+        assert irNew.shape == (self.numIn, self.numOut, self.irLen)
+        self.tf = np.transpose(
+                np.fft.fft(np.concatenate((irNew, np.zeros_like(irNew)), axis=-1), axis=-1),
+                (2, 1, 0),
+            )
 
 
 class FilterIndividualInputs:
@@ -414,7 +432,7 @@ class MovingAverage:
         self.forgetFactor = forgetFactor
         self.invForgetFactor = 1 - forgetFactor
         self.initialized = False
-        self.numInit = ceil(1 / self.invForgetFactor)
+        self.numInit = int(np.ceil(1 / self.invForgetFactor))
         self.initCounter = 0
 
     def update(self, newDataPoint):

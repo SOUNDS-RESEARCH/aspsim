@@ -76,7 +76,7 @@ class Simulator:
         bufferIdx = -1
         noises = self._updateNoises(n_tot, noises)
         noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.filters))]
-        while n_tot < self.config["ENDTIMESTEP"] - self.config["LARGESTBLOCKSIZE"]:
+        while n_tot < self.config["ENDTIMESTEP"]-self.config["LARGESTBLOCKSIZE"]:
             bufferIdx += 1
             for n in range(
                 self.config["SIMBUFFER"],
@@ -208,13 +208,15 @@ def plotAnyPos(pos, folderPath, config):
     if config["SPATIALDIMS"] == 3:
         if config["ARRAYSHAPES"] == "circle":
             psc.plotPos3dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
-        elif config["ARRAYSHAPES"] in ("cuboid", "rectangle", "doublerectangle"):
+        elif config["ARRAYSHAPES"] in ("cuboid", "rectangle", "doublerectangle", "smaller_rectangle"):
             if config["REVERB"] == "ism":
                 psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
             else:
                 psc.plotPos3dRect(
                     pos, folderPath, config, printMethod=config["PLOTOUTPUT"]
                 )
+        else:
+            psc.plotPos(pos, folderPath,config, printMethod=config["PLOTOUTPUT"])
     elif config["SPATIALDIMS"] == 2:
         if config["ARRAYSHAPES"] == "circle":
             if config["REFDIRECTLYOBTAINED"]:

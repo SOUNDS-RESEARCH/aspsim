@@ -62,6 +62,7 @@ def saveRawData(filters, timeIdx, folderPath):
     )
 
 
+
 def loadControlFilter(sessionPath):
     filePath = meu.getHighestNumberedFile(sessionPath, "controlFilter_", ".npy")
     controlFilt = np.load(sessionPath.joinpath("controlFilter"))

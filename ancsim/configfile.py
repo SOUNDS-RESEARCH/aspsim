@@ -13,7 +13,7 @@ def getConfig():
     # config["NUMTARGET"] = 32**2
 
     # SIMULATOR OPTIONS
-    config["ENDTIMESTEP"] = 600000
+    config["ENDTIMESTEP"] = 2000000
     config["SIMBUFFER"] = 5000
     config["SIMCHUNKSIZE"] = 10000
     config["SAMPLERATE"] = 2000
@@ -76,13 +76,14 @@ def getConfig():
     config["KERNFILTLEN"] = 155
 
     # PLOTS AND MISC
-    config["SAVERAWDATA"] = True
-    config["SAVERAWDATAFREQUENCY"] = 6
-    config["PLOTFREQUENCY"] = 6
+    config["SAVERAWDATA"] = False
+    config["SAVERAWDATAFREQUENCY"] = 50
+    config["PLOTFREQUENCY"] = 50
     config["GENSOUNDFIELDATCHUNK"] = 100000
-    config["PLOTOUTPUT"] = "tikz"
+    config["PLOTOUTPUT"] = "pdf"
     config["LOADSESSION"] = True
-    config["OUTPUTSMOOTHING"] = 1024
+    config["OUTPUTSMOOTHING"] = 2048
+
 
     # configInstantCheck(config)
     return configInstantProcessing(config)
@@ -92,6 +93,7 @@ def configInstantProcessing(conf):
     if isinstance(conf["SOURCEAMP"], (int, float)):
         conf["SOURCEAMP"] = [conf["SOURCEAMP"] for _ in range(conf["NUMSOURCE"])]
 
+    conf["ENDTIMESTEP"] += conf["SIMBUFFER"]
     configInstantCheck(conf)
     return conf
 

@@ -473,3 +473,8 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
         self.updateIdx += self.blockSize
         self.updated = True
+
+
+
+
+

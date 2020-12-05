@@ -112,6 +112,26 @@ class LinearChirpSource:
 class WhiteNoiseSource:
     def __init__(self, power, numChannels=1):
         self.numChannels = numChannels
+        self.setPower(power)
+        self.rng = np.random.default_rng(1)
+
+    def getSamples(self, numSamples):
+        return self.rng.normal(
+            loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+        ).T
+    
+    def setPower(self, newPower):
+        self.power = newPower
+        self.stdDev = np.sqrt(newPower)
+
+        if isinstance(self.power, np.ndarray):
+            assert self.power.ndim == 1
+            assert self.power.shape[0] == self.numChannels or \
+                    self.power.shape[0] == 1
+
+class WhiteNoiseSource_old:
+    def __init__(self, power, numChannels=1):
+        self.numChannels = numChannels
         self.power = power
         self.stdDev = np.sqrt(power)
         self.rng = np.random.RandomState(1)
@@ -119,10 +139,12 @@ class WhiteNoiseSource:
     def getSamples(self, numSamples):
         return self.rng.normal(
             loc=0, scale=self.stdDev, size=(self.numChannels, numSamples)
-        )
-
+    )
+    
     def setPower(newPower):
-        raise NotImplementedError
+        self.power = newPower
+        self.stdDev = np.sqrt(newPower)
+
 
 
 class BandlimitedNoiseSource:

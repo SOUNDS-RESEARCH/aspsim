@@ -2,7 +2,7 @@ import numpy as np
 
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.adaptivefilter.ki import FastBlockKIFxLMS
-from ancsim.adaptivefilter.spm.auxnoise import FastBlockFxLMSSPMEriksson
+from ancsim.adaptivefilter.spm.auxnoise import FastBlockFxLMSSPMEriksson, FastBlockAuxNoise, FastBlockFxLMSSPMYuxue
 from ancsim.signal.sources import GoldSequenceSource, WhiteNoiseSource
 from ancsim.adaptivefilter.conventional.lms import FastBlockNLMS, FastBlockWeightedNLMS
 from ancsim.soundfield.kernelinterpolation import (
@@ -12,15 +12,328 @@ from ancsim.soundfield.kernelinterpolation import (
 )
 import ancsim.adaptivefilter.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
+import ancsim.soundfield.kernelinterpolation as ki
 from ancsim.signal.filterclasses import (
     FilterSum_Freqdomain,
     FilterMD_Freqdomain,
     FilterMD_IntBuffer,
     FilterSum_IntBuffer,
+    MovingAverage
 )
 
 
-class FastBlockKIFxLMSSPMEriksson(FastBlockFxLMSSPMEriksson):
+
+class FastBlockKIFxLMSSPMYuxue(FastBlockFxLMSSPMYuxue):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower, 
+        errorPos,
+        kiFiltLen,
+        kernelReg,
+        mcPointGen,
+        ipVolume,
+        mcNumPoints):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower)
+        
+        self.name = "Fast Block KIFxLMS SPM Eriksson"
+        assert kiFiltLen % 1 == 0
+        kiFilt = ki.getAKernelTimeDomain3d(
+            errorPos,
+            kiFiltLen,
+            kernelReg,
+            mcPointGen,
+            ipVolume,
+            mcNumPoints,
+            2048,
+            self.samplerate,
+            self.c,
+        )
+        assert kiFilt.shape[-1] <= blockSize
+
+        self.kiDelay = kiFilt.shape[-1] // 2
+        self.buffers["kixf"] = np.zeros(
+            (
+                self.numSpeaker,
+                self.numRef,
+                self.numError,
+                self.simChunkSize + self.simBuffer,
+            )
+        )
+
+        self.kiFilt = FilterSum_Freqdomain(
+            tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize),
+            dataDims=(self.numSpeaker, self.numRef),
+        )
+
+        self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
+        self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
+        self.metadata["mcPointGen"] = mcPointGen.__name__
+        self.metadata["mcNumPoints"] = mcNumPoints
+        self.metadata["ipVolume"] = ipVolume
+
+    def xfNormalization(self):
+        return 1 / (
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
+            + self.beta
+        )
+
+    def updateFilter(self):
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
+        self.diag.saveBlockData("power_error", self.idx-self.blockSize, np.mean(self.e[:,self.idx-self.blockSize:self.idx]**2))
+        self.updateSPM()
+
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+
+        self.buffers["kixf"][
+            :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+        ] = self.kiFilt.process(
+            np.transpose(
+                self.buffers["xf"][:, :, :, self.updateIdx : self.idx], (1, 2, 0, 3)
+            )
+        )
+
+        tdGrad = fdf.correlateSumTT(
+            self.e[
+                None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+            ],
+            self.buffers["kixf"][:,:,:,
+                self.idx
+                - (2 * self.blockSize)
+                - self.kiDelay : self.idx
+                - self.kiDelay,
+            ],
+        )
+
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = self.xfNormalization()
+
+        self.controlFilt.tf -= self.mu * norm * grad
+
+        self.updateIdx += self.blockSize
+        self.updated = True
+
+
+
+class FastBlockKIFxLMSSPMYuxueErrorIP(FastBlockFxLMSSPMYuxue):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower, 
+        errorPos,
+        kiFiltLen,
+        kernelReg,
+        mcPointGen,
+        ipVolume,
+        mcNumPoints):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower)
+        
+        self.name = "Fast Block KIFxLMS SPM Yuxue Error Interpolated"
+        assert kiFiltLen % 1 == 0
+        kiFilt = ki.getAKernelTimeDomain3d(
+            errorPos,
+            kiFiltLen,
+            kernelReg,
+            mcPointGen,
+            ipVolume,
+            mcNumPoints,
+            2048,
+            self.samplerate,
+            self.c,
+        )
+        assert kiFilt.shape[-1] <= blockSize
+
+        self.kiDelay = kiFilt.shape[-1] // 2
+
+        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+        # self.buffers["kixf"] = np.zeros(
+        #     (
+        #         self.numSpeaker,
+        #         self.numRef,
+        #         self.numError,
+        #         self.simChunkSize + self.simBuffer,
+        #     )
+        # )
+
+        self.kiFilt = FilterSum_Freqdomain(
+            tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize)
+        )
+
+        self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
+        self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
+        self.metadata["mcPointGen"] = mcPointGen.__name__
+        self.metadata["mcNumPoints"] = mcNumPoints
+        self.metadata["ipVolume"] = ipVolume
+
+    def xfNormalization(self):
+        return 1 / (
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx-self.kiDelay : self.idx-self.kiDelay] ** 2)
+            + self.beta
+        )
+
+    def updateFilter(self):
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
+        self.diag.saveBlockData("power_error", self.idx-self.blockSize, np.mean(self.e[:,self.idx-self.blockSize:self.idx]**2))
+        self.updateSPM()
+
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+
+        self.buffers["kif"][
+            :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+        ] = self.kiFilt.process(self.buffers["f"][:, self.updateIdx : self.idx])
+
+        tdGrad = fdf.correlateSumTT(
+            self.buffers["kif"][
+                None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+            ],
+            np.moveaxis(self.buffers["xf"][:,:,:,
+                self.idx
+                - (2 * self.blockSize)
+                - self.kiDelay : self.idx
+                - self.kiDelay,
+            ],0,2),
+        )
+
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = self.xfNormalization()
+
+        self.controlFilt.tf -= self.mu * norm * grad
+
+        self.updateIdx += self.blockSize
+        self.updated = True
+
+
+
+class FastBlockKIFxLMSSPMYuxueSameCost(FastBlockFxLMSSPMYuxue):
+    """Uses the same interpoalted cost function for both ANC and SPM"""
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower, 
+        errorPos,
+        kiFiltLen,
+        kernelReg,
+        mcPointGen,
+        ipVolume,
+        mcNumPoints):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower)
+        
+        self.name = "Fast Block KIFxLMS SPM Yuxue Same Cost"
+        assert kiFiltLen % 1 == 0
+        kiFilt = ki.getAKernelTimeDomain3d(
+            errorPos,
+            kiFiltLen,
+            kernelReg,
+            mcPointGen,
+            ipVolume,
+            mcNumPoints,
+            2048,
+            self.samplerate,
+            self.c,
+        )
+        assert kiFilt.shape[-1] <= blockSize
+
+        self.kiDelay = kiFilt.shape[-1] // 2
+
+        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+
+        self.kiFilt = FilterSum_Freqdomain(
+            tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize)
+        )
+
+        self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
+        self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
+        self.metadata["mcPointGen"] = mcPointGen.__name__
+        self.metadata["mcNumPoints"] = mcNumPoints
+        self.metadata["ipVolume"] = ipVolume
+
+    def xfNormalization(self):
+        return 1 / (
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx-self.kiDelay : self.idx-self.kiDelay] ** 2)
+            + self.beta
+        )
+
+    def updateFilter(self):
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
+        self.diag.saveBlockData("power_error", self.idx-self.blockSize, np.mean(self.e[:,self.idx-self.blockSize:self.idx]**2))
+        self.updateSPM()
+
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+
+        tdGrad = fdf.correlateSumTT(
+            self.buffers["kif"][
+                None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+            ],
+            np.moveaxis(self.buffers["xf"][:,:,:,
+                self.idx
+                - (2 * self.blockSize)
+                - self.kiDelay : self.idx
+                - self.kiDelay,
+            ],0,2),
+        )
+
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = self.xfNormalization()
+
+        self.controlFilt.tf -= self.mu * norm * grad
+
+        self.updateIdx += self.blockSize
+        self.updated = True
+
+    
+    def updateSPM(self):
+        self.buffers["vEst"][
+            :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimateSPM.processWithoutSum(
+            self.buffers["v"][:, self.updateIdx : self.idx]
+        )
+
+        self.buffers["f"][:, self.updateIdx : self.idx] = self.e[:, self.updateIdx : self.idx] - np.sum(
+            self.buffers["vEst"][:, :, self.updateIdx : self.idx], axis=0
+        )
+        self.buffers["kif"][
+            :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+        ] = self.kiFilt.process(self.buffers["f"][:, self.updateIdx : self.idx])
+
+        self.calcEpsilon()
+
+        self.Pf.update(np.mean(self.buffers["f"][:, self.updateIdx : self.idx] ** 2, axis=-1))
+        self.Pv.update(
+            np.mean(self.buffers["v"][:, self.updateIdx : self.idx] ** 2, axis=-1)
+        )
+        self.Peps.update(
+            np.mean(self.buffers["eps"][:, :, self.updateIdx : self.idx] ** 2, axis=-1)
+        )
+
+        auxNoisePowerFactor = (np.sum(self.Pf.state) / np.sum(self.Peps.state, axis=-1))**2
+        self.auxNoiseSource.setPower(self.auxNoisePower * auxNoisePowerFactor)
+        self.secPathEstimateSPM.mu = (
+            self.muSec * self.Pv.state[None, None,:] / self.Peps.state.T[None,:, :]
+        )
+
+        self.secPathEstimateSPM.update(self.buffers["v"][:, self.idx-(2*self.blockSize)-self.kiDelay : self.idx-self.kiDelay], 
+                                        self.buffers["kif"][:, self.updateIdx-self.kiDelay : self.idx-self.kiDelay])
+        self.secPathEstimate.tf[...] = self.secPathEstimateSPM.filt.tf[...]
+
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimateSPM.filt.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathEstimateSPM.filt.tf)[...,:self.blockSize]))
+        self.diag.saveBlockData("mu_spm", self.idx, self.secPathEstimateSPM.mu.ravel())
+
+        self.diag.saveBlockData("variable_auxnoise_power", self.idx, auxNoisePowerFactor)
+
+
+
+
+class FastBlockKIFxLMSSPMEriksson_old(FastBlockFxLMSSPMEriksson):
     """"""
 
     def __init__(self, config, mu, muSPM, speakerFilters, blockSize, kiFilt):
@@ -1339,3 +1652,66 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
         self.secPathEstimate.ir += self.muSPM * grad
 
         self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.ir)
+
+
+
+
+
+class FastBlockFxLMSSPMTuninglessArea(FastBlockAuxNoise):
+    """As tuningless, but we interpolate over a small area around the microphone to get better estimates
+        Tested, not better than FastBlockFxLMSSPMTuningless"""
+
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, invForgetFactor, auxNoisePower, errorPos):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, invForgetFactor, auxNoisePower)
+        self.name = "Fast Block SPM Tuningless Area"
+
+        self.secPathEstimateSPM = FilterSum_Freqdomain(
+            numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
+        )
+        self.crossCorr = MovingAverage(
+            1 - invForgetFactor,
+            (2 * blockSize, self.numError, self.numSpeaker),
+            dtype=np.complex128,
+        )
+        self.metadata["crossCorrForgetFactor"] = self.crossCorr.forgetFactor
+
+        kiRegParam = 1e-3
+        self.pointsPerError = 20
+        kiLen = 155
+        self.kiDly = 155//2
+        errorInterpolPos = np.zeros((self.numError, self.pointsPerError, 3))
+        errorInterpolPos = errorPos[:,None,:] + self.rng.uniform(low=-0.05,high=0.05,size=(1, self.pointsPerError,3))
+        self.kiIR = [soundfieldInterpolationFIR(
+            errorInterpolPos[:,i,:], errorPos, kiLen, kiRegParam, 2 * blockSize, 3, self.samplerate, self.c) for i in range(self.pointsPerError)]
+        self.kiFilt = [FilterSum_Freqdomain(ir = np.concatenate((self.kiIR[i],np.zeros((
+                self.kiIR[0].shape[0], self.kiIR[0].shape[1], self.blockSize-self.kiIR[0].shape[2]))),axis=-1)) for i in range(self.pointsPerError)]
+
+    def updateSPM(self):
+        vf = self.secPathEstimateSPM.process(
+           self.buffers["v"][:, self.updateIdx : self.idx]
+        )
+        self.buffers["f"][:, self.updateIdx : self.idx] = (
+           self.e[:, self.updateIdx : self.idx] - vf
+        )
+
+        crossCorr = np.zeros((self.numError, self.numSpeaker, self.blockSize))
+        for i in range(self.pointsPerError):
+            eIP = self.kiFilt[i].process(self.e[:, self.updateIdx : self.idx])
+
+            crossCorr += fdf.correlateEuclidianTT(
+                eIP,
+                self.buffers["v"][:, self.idx - 2 * self.blockSize-self.kiDly : self.idx-self.kiDly],
+            )
+        crossCorr /= self.pointsPerError
+        crossCorr = fdf.fftWithTranspose(
+            np.concatenate((crossCorr, np.zeros_like(crossCorr)), axis=-1)
+        )
+
+        self.crossCorr.update(crossCorr / self.blockSize)
+        self.secPathEstimateSPM.tf = self.crossCorr.state / self.auxNoiseSource.power
+        self.secPathEstimate.tf[...] = self.secPathEstimateSPM.tf
+
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+        #self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        #self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathEstimateSPM.tf)[...,:self.blockSize]))

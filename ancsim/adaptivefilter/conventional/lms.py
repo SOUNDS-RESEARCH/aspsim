@@ -174,7 +174,7 @@ class FastBlockNLMS(AdaptiveFilterFreq):
         tdGrad = fdf.correlateEuclidianTF(error, X)
         gradient = fdf.fftWithTranspose(np.concatenate((tdGrad, np.zeros_like(tdGrad)),axis=-1))
         norm = self.normFunc(ref, X)
-        print("Fast block normalization: ", norm)
+        #print("Fast block normalization: ", norm)
         
         self.filt.tf += self.mu * norm * gradient
 

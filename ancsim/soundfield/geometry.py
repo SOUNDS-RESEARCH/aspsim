@@ -6,7 +6,7 @@ class Region(ABC):
     def __init__(self):
         pass
 
-    @sbstractmethod
+    @abstractmethod
     def is_in_region(self, coordinate):
         pass
 

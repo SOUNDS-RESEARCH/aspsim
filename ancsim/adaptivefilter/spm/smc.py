@@ -1,39 +1,177 @@
 import numpy as np
 
+import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.adaptivefilter.conventional.lms import NLMS, FastBlockNLMS
 from ancsim.adaptivefilter.conventional.rls import RLS
-from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer
+from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer, FilterMD_Freqdomain
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia
 from ancsim.utilities import measure
 
 
 class FastBlockFxLMSSMC(FastBlockFxLMS):
-    def __init__(config, mu, beta, speakerRIR, blockSize, muPrim, muSec, secPathEstLen):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muPrim, muSec):
         super().__init__(config, mu, beta, speakerRIR, blockSize)
         self.name = "Fast Block FxLMS SMC w/ NLMS"
         self.muPrim = muPrim
         self.muSec = muSec
-        self.sLen = secPathEstLen
-        self.pLen = secPathEstLen
         
-        self.spmIdx = self.updateIdx
+        self.controlFilt.setIR (self.rng.standard_normal(size=(self.numRef, self.numSpeaker, blockSize)) * 1e-14)
+        #ir = np.zeros((self.numRef, self.numSpeaker, blockSize))
+        #ir[:,:,0] = 1e-8
 
-        self.secPathNLMS = FastBlockNLMS()
-        self.primPathNLMS = FastBlockNLMS()
+        self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numSpeaker, self.numError, self.muSec, self.beta)
+        self.primPathNLMS = FastBlockNLMS(self.blockSize, self.numRef, self.numError, self.muPrim, self.beta)
+
+        #self.secPathNLMS.filt.setIR(self.rng.standard_normal(size=(self.numSpeaker, self.numError, blockSize)) * 1e-14)
+        #self.primPathNLMS.filt.setIR(self.rng.standard_normal(size=(self.numSpeaker, self.numError, blockSize)) * 1e-14)
+        
+        #self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf),dataDims=self.numRef)
+        # self.diag.addNewDiagnostic(
+        #     "filtered_reference_est",
+        #     dia.SignalEstimateNMSEBlock(
+        #         self.endTimeStep,
+        #         self.simBuffer,
+        #         self.simChunkSize,
+        #         smoothingLen=self.outputSmoothing,
+        #         plotFrequency=self.plotFrequency,
+        #     )
+        # )
+
+        self.diag.addNewDiagnostic(
+            "secpath",
+            dia.ConstantEstimateNMSE(
+                self.secPathEstimate.tf,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_select_freq",
+            dia.ConstantEstimateNMSESelectedFrequencies(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_phase_select_freq",
+            dia.ConstantEstimatePhaseDifferenceSelectedFrequencies(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_phase_weighted_select_freq",
+            dia.ConstantEstimateWeightedPhaseDifference(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "recorded_ir",
+            dia.RecordIR(
+                np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
+                self.endTimeStep, 
+                self.simBuffer, 
+                self.simChunkSize,
+                (2,2),
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        # self.diag.addNewDiagnostic(
+        #     "secpath_combinations",
+        #     dia.ConstantEstimateNMSEAllCombinations(
+        #         self.secPathEstimate.tf,
+        #         self.endTimeStep,
+        #         self.simBuffer,
+        #         self.simChunkSize,
+        #         plotFrequency=self.plotFrequency,
+        #     ),
+        # )
+
+        self.secPathEstimate.tf[...] = np.zeros_like(self.secPathEstimate.tf)
+
+        self.diag.addNewDiagnostic(
+            "modelling_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                     plotFrequency=self.plotFrequency)
+        )
+        self.diag.addNewDiagnostic(
+            "primary_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                    plotFrequency=self.plotFrequency)
+        )
+        self.diag.addNewDiagnostic(
+            "secondary_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                    plotFrequency=self.plotFrequency)
+        )
+
+        self.metadata["muSec"] = self.muSec
+        self.metadata["muPrim"] = self.muPrim
 
     def updateFilter(self):
         super().updateFilter()
         self.updateSPM()
 
+# import matplotlib.pyplot as plt
+# plt.plot(np.abs(np.fft.fft(trueXf[0,1,0,:],n=2048))/np.sum(np.abs(trueXf)**2))
+# plt.plot(np.abs(np.fft.fft(self.buffers["xf"][0,1,0,self.idx-self.blockSize:self.idx],n=2048))/np.sum(np.abs(self.buffers["xf"][...,self.idx-self.blockSize:self.idx])**2))
+# plt.show()
+
     def updateSPM(self):
-        self.secPathNLMS.process()
-        #self.secPathEstimate.update()
+        #trueXf = self.secPathTrueMD.process(self.x[:,self.idx-self.blockSize:self.idx])
+        # self.diag.saveBlockData("filtered_reference_est", self.idx, 
+        #         5*self.buffers["xf"][...,self.idx-self.blockSize:self.idx],
+        #         trueXf)
 
+        primNoiseEst = self.primPathNLMS.process(self.x[:,self.idx-self.blockSize:self.idx])
+        secNoiseEst = self.secPathNLMS.process(self.y[:,self.idx-self.blockSize:self.idx])
+        errorEst = primNoiseEst + secNoiseEst
 
-        self.secPathEstimate.tf = self.secPathNLMS.
+        modellingError = self.e[:,self.idx-self.blockSize:self.idx] - errorEst
+
+        self.primPathNLMS.update(self.x[:,self.idx-(2*self.blockSize):self.idx], modellingError)
+        self.secPathNLMS.update(self.y[:,self.idx-(2*self.blockSize):self.idx], modellingError)
+
+        self.secPathEstimate.tf[...] = self.secPathNLMS.filt.tf
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        #self.diag.saveBlockData("secpath_combinations", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("modelling_error", self.idx, errorEst, self.e[:,self.idx-self.blockSize:self.idx])
+        self.diag.saveBlockData("primary_error", self.idx, primNoiseEst, self.buffers["primary"][:,self.idx-self.blockSize:self.idx])
+        self.diag.saveBlockData("secondary_error", self.idx, secNoiseEst, self.buffers["yf"][:,self.idx-self.blockSize:self.idx])
+        self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize]))
+        #self.spmIdx = self.idx
 
 class FxLMSSMC(AdaptiveFilterFF):
     """Simultaneous Modeling and Control"""

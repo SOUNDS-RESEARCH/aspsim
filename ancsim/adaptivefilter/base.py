@@ -17,6 +17,7 @@ from ancsim.adaptivefilter.diagnostics import (
     NoiseReduction,
     SoundfieldImage,
     ConstantEstimateNMSE,
+    RecordScalar,
 )
 
 
@@ -307,10 +308,9 @@ class AdaptiveFilterFFComplex(ABC):
         self.x = np.zeros((self.numRef, self.simChunkSize + self.simBuffer))
         self.e = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
         self.y = np.zeros((self.numSpeaker, self.simChunkSize + self.simBuffer))
+        self.buffers["primary"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+        self.buffers["yf"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
 
-        # self.G = np.transpose(np.fft.fft(speakerRIR["error"],n=2*blockSize,axis=-1),
-        #                       [speakerRIR["error"].ndim-1,] +
-        #                       [i for i in range(speakerRIR["error"].ndim-1)])
         self.G = np.transpose(
             np.fft.fft(speakerRIR["error"], n=2 * blockSize, axis=-1), (2, 0, 1)
         )
@@ -330,18 +330,25 @@ class AdaptiveFilterFFComplex(ABC):
                 plotFrequency=self.plotFrequency,
             ),
         )
+        if "target" in speakerRIR:
+            self.diag.addNewDiagnostic(
+                "reduction_regional",
+                NoiseReduction(
+                    self.numTarget,
+                    speakerRIR["target"],
+                    self.endTimeStep,
+                    self.simBuffer,
+                    self.simChunkSize,
+                    smoothingLen=self.outputSmoothing,
+                    saveRawData=self.saveRawData,
+                    plotFrequency=self.plotFrequency,
+                ),
+            )
+
+        
         self.diag.addNewDiagnostic(
-            "reduction_regional",
-            NoiseReduction(
-                self.numTarget,
-                speakerRIR["target"],
-                self.endTimeStep,
-                self.simBuffer,
-                self.simChunkSize,
-                smoothingLen=self.outputSmoothing,
-                saveRawData=self.saveRawData,
-                plotFrequency=self.plotFrequency,
-            ),
+            "power_primary_noise",
+                RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
         # self.diag.addNewDiagnostic("soundfield_target",
         #                             SoundfieldImage(self.numEvals, speakerRIR["evals"],
@@ -370,10 +377,10 @@ class AdaptiveFilterFFComplex(ABC):
 
     def resetBuffers(self):
         self.diag.saveBufferData("reduction_microphones", self.idx, self.e)
-        self.diag.saveBufferData("reduction_regional", self.idx, self.y)
+        if self.diag.hasDiagnostic("reduction_regional"):
+            self.diag.saveBufferData("reduction_regional", self.idx, self.y)
         # self.diag.saveBufferData("soundfield_target", self.idx, self.y)
         self.diag.resetBuffers(self.idx)
-        # self.diag.saveDiagnostics(self.idx, e=self.e, y=self.y)
 
         for bufName, buf in self.buffers.items():
             self.buffers[bufName] = np.concatenate(
@@ -416,18 +423,23 @@ class AdaptiveFilterFFComplex(ABC):
         )
 
         self.x[:, self.idx : self.idx + numSamples] = noises["ref"] + refMicNoise
-        # self.diag.saveToBuffers(self.idx, noiseAtError, noiseAtTarget, noiseAtEvals, noiseAtEvals2)
-
         self.forwardPassImplement(numSamples)
 
+        self.buffers["primary"][:,self.idx:self.idx+numSamples] = noises["error"]
         self.diag.saveBlockData("reduction_microphones", self.idx, noises["error"])
-        self.diag.saveBlockData("reduction_regional", self.idx, noises["target"])
-        # self.diag.saveBlockData("soundfield_target", self.idx, noiseAtEvals)
+        if self.diag.hasDiagnostic("reduction_regional"):
+            self.diag.saveBlockData("reduction_regional", self.idx, noises["target"])
+
+    
+        self.diag.saveBlockData("power_primary_noise", self.idx, np.mean(noises["error"]**2))
+
+        self.buffers["yf"][:,self.idx:self.idx+numSamples] = self.secPathFilt.process(self.y[:, self.idx : self.idx + numSamples])
 
         self.e[:, self.idx : self.idx + numSamples] = (
             noises["error"]
             + errorMicNoise
-            + self.secPathFilt.process(self.y[:, self.idx : self.idx + numSamples])
-        )
+            + self.buffers["yf"][:,self.idx:self.idx+numSamples]
+            )
+        
 
         self.idx += numSamples

@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.signal.windows as win
+from abc import abstractmethod
+import itertools as it
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
@@ -23,6 +25,395 @@ from ancsim.adaptivefilter.conventional.lms import (
 import ancsim.signal.freqdomainfiltering as fdf
 import ancsim.adaptivefilter.diagnostics as dia
 import ancsim.utilities as util
+
+
+
+class FastBlockAuxNoise(FastBlockFxLMS):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower):
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        self.name = "Fast Block Online SPM Auxnoise Baseclass"
+        self.muSec = muSec
+
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + self.simBuffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+
+        self.secPathFiltExtraAux = FilterSum_Freqdomain(ir=np.copy(np.concatenate((
+            self.secPathFilt.ir, np.zeros((*self.secPathFilt.ir.shape[:2], blockSize-self.secPathFilt.ir.shape[2]))),axis=-1)))
+        self.secPathFiltExtraSpeak = FilterSum_Freqdomain(ir=np.copy(np.concatenate((
+            self.secPathFilt.ir, np.zeros((*self.secPathFilt.ir.shape[:2], blockSize-self.secPathFilt.ir.shape[2]))),axis=-1)))
+
+        self.auxNoiseSource = WhiteNoiseSource(
+            power=auxNoisePower, numChannels=self.numSpeaker
+        )
+
+
+        self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf), dataDims=self.numRef)
+        # self.diag.addNewDiagnostic(
+        #     "filtered_reference_est",
+        #     dia.SignalEstimateNMSEBlock(
+        #         self.endTimeStep,
+        #         self.simBuffer,
+        #         self.simChunkSize,
+        #         smoothingLen=self.outputSmoothing,
+        #         plotFrequency=self.plotFrequency,
+        #     )
+        # )
+
+        self.diag.addNewDiagnostic(
+            "secpath",
+            dia.ConstantEstimateNMSE(
+                self.secPathEstimate.tf,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_select_freq",
+            dia.ConstantEstimateNMSESelectedFrequencies(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_phase_select_freq",
+            dia.ConstantEstimatePhaseDifferenceSelectedFrequencies(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_phase_weighted_select_freq",
+            dia.ConstantEstimateWeightedPhaseDifference(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "recorded_ir",
+            dia.RecordIR(
+                np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
+                self.endTimeStep, 
+                self.simBuffer, 
+                self.simChunkSize,
+                (2,2),
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.secPathEstimate.tf[...] = np.zeros_like(self.secPathEstimate.tf)
+
+        self.diag.addNewDiagnostic(
+            "power_auxnoise",
+            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        )
+        # self.diag.addNewDiagnostic(
+        #     "power_auxnoise_filtered",
+        #     dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        # )
+        self.diag.addNewDiagnostic(
+            "power_loudspeaker",
+            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        )
+        # self.diag.addNewDiagnostic(
+        #     "power_loudspeaker_filtered",
+        #     dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        # )
+        self.diag.addNewDiagnostic(
+            "power_error",
+            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        )
+        
+
+        self.metadata["muSec"] = muSec
+        self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
+        self.metadata["auxNoisePower"] = self.auxNoiseSource.power
+
+    def forwardPassImplement(self, numSamples):
+        super().forwardPassImplement(numSamples)
+        self.diag.saveBlockData("power_loudspeaker", self.idx, np.mean(self.y[:,self.idx:self.idx+numSamples]**2))
+        #self.diag.saveBlockData("power_loudspeaker_filtered", self.idx, 
+        #        np.mean(self.secPathFiltExtraSpeak.process(
+        #            self.y[:,self.idx:self.idx+numSamples])**2))
+
+        v = self.auxNoiseSource.getSamples(numSamples)
+        self.buffers["v"][:, self.idx : self.idx + numSamples] = v
+        self.y[:, self.idx : self.idx + numSamples] += v
+
+        self.diag.saveBlockData("power_auxnoise", self.idx, np.mean(v**2))
+        #self.diag.saveBlockData("power_auxnoise_filtered", self.idx, np.mean(self.secPathFiltExtraAux.process(v)**2))
+        
+
+    def updateFilter(self):
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
+        self.diag.saveBlockData("power_error", self.idx-self.blockSize, np.mean(self.e[:,self.idx-self.blockSize:self.idx]**2))
+
+        self.updateSPM()
+
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+
+        tdGrad = fdf.correlateSumTT(
+            self.buffers["f"][None, None, :, self.updateIdx : self.idx],
+            np.transpose(
+                self.buffers["xf"][..., self.idx - (2 * self.blockSize) : self.idx],
+                (1, 2, 0, 3),
+            ),
+        )
+
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = 1 / (
+            np.sum(self.buffers["xf"][..., self.updateIdx : self.idx] ** 2)
+            + self.beta
+        )
+
+        trueXf = self.secPathTrueMD.process(self.x[:,self.updateIdx:self.idx])
+        # self.diag.saveBlockData("filtered_reference_est", self.idx, 
+        #         self.buffers["xf"][...,self.updateIdx:self.idx],
+        #         trueXf)
+
+        self.controlFilt.tf -= self.mu * norm * grad
+        self.updateIdx += self.blockSize
+        self.updated = True
+
+
+    @abstractmethod
+    def updateSPM(self):
+        pass
+
+
+
+
+class FastBlockFxLMSSPMTuningless(FastBlockAuxNoise):
+    """As we know the akf of the auxiliary noise, we should be able to get the
+    wiener solution without inverting the estimated akf matrix, which is usually the problem"""
+
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, invForgetFactor, auxNoisePower):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, invForgetFactor, auxNoisePower)
+        self.name = "Fast Block SPM Tuningless"
+
+        self.secPathEstimateSPM = FilterSum_Freqdomain(
+            numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
+        )
+        self.crossCorr = MovingAverage(
+            1 - invForgetFactor,
+            (2 * blockSize, self.numError, self.numSpeaker),
+            dtype=np.complex128,
+        )
+
+        self.metadata["crossCorrForgetFactor"] = self.crossCorr.forgetFactor
+
+    def updateSPM(self):
+        vf = self.secPathEstimateSPM.process(
+           self.buffers["v"][:, self.updateIdx : self.idx]
+        )
+        self.buffers["f"][:, self.updateIdx : self.idx] = (
+           self.e[:, self.updateIdx : self.idx] - vf
+        )
+
+        crossCorr = fdf.correlateEuclidianTT(
+            self.e[:, self.updateIdx : self.idx],
+            self.buffers["v"][:, self.idx - 2 * self.blockSize : self.idx],
+        )
+        crossCorr = fdf.fftWithTranspose(
+            np.concatenate((crossCorr, np.zeros_like(crossCorr)), axis=-1)
+        )
+
+        self.crossCorr.update(crossCorr / self.blockSize)
+        self.secPathEstimateSPM.tf = self.crossCorr.state / self.auxNoiseSource.power
+        self.secPathEstimate.tf[...] = self.secPathEstimateSPM.tf
+
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathEstimateSPM.tf)[...,:self.blockSize]))
+
+
+class FastBlockFxLMSSPMEriksson(FastBlockAuxNoise):
+    """Frequency domain equivalent algorithm to FxLMSSPMEriksson"""
+
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower):
+        super().__init__(config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower)
+        self.name = "Fast Block SPM Eriksson"
+
+        self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numSpeaker, self.numError, self.muSec,self.beta)
+
+    def updateSPM(self):
+        vf = self.secPathNLMS.process(
+            self.buffers["v"][:, self.updateIdx : self.idx]
+        )
+
+        self.buffers["f"][:, self.updateIdx : self.idx] = (
+            self.e[:, self.updateIdx : self.idx] - vf
+        )
+
+        self.secPathNLMS.update(self.buffers["v"][:, self.idx-(2*self.blockSize):self.idx], 
+                                self.buffers["f"][:,self.idx-self.blockSize:self.idx])
+ 
+        self.secPathEstimate.tf[...] = self.secPathNLMS.filt.tf
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize]))
+
+
+class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
+    """Implementation of proposed method from:
+    Online secondary path modeling method
+    with auxiliary noise power scheduling
+    strategy for multi-channel adaptive
+    active noise control system"""
+
+    def __init__(
+        self, config, mu, beta, speakerFilters, blockSize, minSecPathStepSize, auxNoisePower
+    ):
+        super().__init__(config, mu, beta, speakerFilters, blockSize, minSecPathStepSize, auxNoisePower)
+        self.name = "Fast Block FxLMS SPM Yuxue"
+        self.muSec = minSecPathStepSize
+        self.auxNoisePower = auxNoisePower
+        #self.spmLen = secPathEstimateLen
+
+        # self.secPathEstimateSPM = FilterSum_Freqdomain(
+        #     dataDims=self.numRef,
+        #     irLen=secPathEstimateLen,
+        #     irDims=(self.numSpeaker, self.numError),
+        # )
+        self.secPathEstimateSPM = FastBlockNLMS(
+            numIn=self.numSpeaker,
+            numOut=self.numError,
+            blockSize=self.blockSize,
+            stepSize=self.muSec
+        )
+
+        self.buffers["vEst"] = np.zeros(
+            (self.numSpeaker, self.numError, self.simChunkSize + self.simBuffer)
+        )
+
+        self.buffers["eps"] = np.zeros(
+            (self.numSpeaker, self.numError, self.simChunkSize + self.simBuffer)
+        )
+
+        self.Pf = MovingAverage(0.9, (self.numError,))
+        self.Peps = MovingAverage(0.9, (self.numSpeaker, self.numError))
+        self.Pv = MovingAverage(0.9, (self.numSpeaker,))
+
+        self.diag.addNewDiagnostic(
+            "mu_spm",
+            dia.RecordVectorSummary(
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+        self.diag.addNewDiagnostic(
+            "variable_auxnoise_power",
+            dia.RecordVector(
+                self.numSpeaker, self.endTimeStep, self.simBuffer, self.simChunkSize, plotFrequency=self.plotFrequency
+            ),
+        )
+        
+        self.metadata["forgetFactorPf"] = self.Pf.forgetFactor
+        self.metadata["forgetFactorPeps"] = self.Peps.forgetFactor
+        self.metadata["forgetFactorPv"] = self.Pv.forgetFactor
+
+    def calcEpsilon(self):
+        self.buffers["eps"][:, :, self.updateIdx : self.idx] = self.e[
+            None, :, self.updateIdx : self.idx
+        ]
+        for i, j in it.product(range(self.numSpeaker), range(self.numSpeaker)):
+            if j != i:
+                self.buffers["eps"][
+                    j, :, self.updateIdx : self.idx
+                ] -= self.buffers["vEst"][i, :, self.updateIdx : self.idx]
+
+    # vf = self.secPathNLMS.process(
+    #         self.buffers["v"][:, self.updateIdx : self.idx]
+    #     )
+
+    #     self.buffers["f"][:, self.updateIdx : self.idx] = (
+    #         self.e[:, self.updateIdx : self.idx] - vf
+    #     )
+
+    #     self.secPathNLMS.update(self.buffers["v"][:, self.idx-(2*self.blockSize):self.idx], 
+    #                             self.buffers["f"][:,self.idx-self.blockSize:self.idx])
+ 
+    #     self.secPathEstimate.tf[...] = self.secPathNLMS.filt.tf
+    #     self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+
+
+    def updateSPM(self):
+        self.buffers["vEst"][
+            :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimateSPM.processWithoutSum(
+            self.buffers["v"][:, self.updateIdx : self.idx]
+        )
+
+        self.buffers["f"][:, self.updateIdx : self.idx] = self.e[:, self.updateIdx : self.idx] - np.sum(
+            self.buffers["vEst"][:, :, self.updateIdx : self.idx], axis=0
+        )
+        self.calcEpsilon()
+
+        self.Pf.update(np.mean(self.buffers["f"][:, self.updateIdx : self.idx] ** 2, axis=-1))
+        self.Pv.update(
+            np.mean(self.buffers["v"][:, self.updateIdx : self.idx] ** 2, axis=-1)
+        )
+        self.Peps.update(
+            np.mean(self.buffers["eps"][:, :, self.updateIdx : self.idx] ** 2, axis=-1)
+        )
+
+        auxNoisePowerFactor = (np.sum(self.Pf.state) / np.sum(self.Peps.state, axis=-1))**2
+        self.auxNoiseSource.setPower(self.auxNoisePower * auxNoisePowerFactor)
+        self.secPathEstimateSPM.mu = (
+            self.muSec * self.Pv.state[None, None,:] / self.Peps.state.T[None,:, :]
+        )
+
+        self.secPathEstimateSPM.update(self.buffers["v"][:, self.idx-(2*self.blockSize) : self.idx], 
+                                        self.buffers["f"][:, self.updateIdx : self.idx])
+        self.secPathEstimate.tf[...] = self.secPathEstimateSPM.filt.tf[...]
+
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimateSPM.filt.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathEstimateSPM.filt.tf)[...,:self.blockSize]))
+        self.diag.saveBlockData("mu_spm", self.idx, self.secPathEstimateSPM.mu.ravel())
+
+        self.diag.saveBlockData("variable_auxnoise_power", self.idx, auxNoisePowerFactor)
+
+
+
+
+
 
 
 class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
@@ -127,10 +518,10 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
         self.y[:, self.idx : self.idx + numSamples] = v + y
 
 
-class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
+class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
     """Frequency domain equivalent algorithm to FxLMSSPMEriksson"""
 
-    def __init__(self, config, mu, muSPM, speakerRIR, blockSize):
+    def __init__(self, config, mu, muSPM, speakerRIR, blockSize, auxNoisePower):
         self.beta = 1e-3
         super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain"
@@ -144,7 +535,7 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
             ),
         )
         # self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=self.numSpeaker)
 
         self.secPathEstimate = FilterSum_Freqdomain(
             numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
@@ -155,7 +546,6 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
 
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
         self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        # self.buffers["vf"] = np.zeros((self.numError, ))
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["auxNoisePower"] = self.auxNoiseSource.power
@@ -185,7 +575,7 @@ class FastBlockFxLMSSPMEriksson(FastBlockFxLMS):
         grad = fdf.fftWithTranspose(
             np.concatenate((grad, np.zeros_like(grad)), axis=-1)
         )
-        norm = 1 / (np.sum(self.buffers["v"][:, self.updateIdx : self.idx] ** 2) + 1e-3)
+        norm = 1 / (np.sum(self.buffers["v"][:, self.updateIdx : self.idx] ** 2) + self.beta)
 
         self.secPathEstimate.tf += self.muSPM * norm * grad
         self.secPathEstimateMD.tf[...] = self.secPathEstimate.tf
@@ -317,15 +707,18 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
         self.updated = True
 
 
-class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
+
+
+
+
+class FastBlockFxLMSSPMTuningless_old(FastBlockFxLMS):
     """As we know the akf of the auxiliary noise, we should be able to get the
     wiener solution without inverting the estimated akf matrix, which is usually the problem"""
 
-    def __init__(self, config, mu, invForgetFactor, speakerRIR, blockSize):
+    def __init__(self, config, mu, invForgetFactor, speakerRIR, blockSize, auxNoisePower):
         self.beta = 1e-3
         super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain Wiener"
-        self.auxNoisePower = 3
         self.auxNoiseSource = WhiteNoiseSource(
             power=self.auxNoisePower, numChannels=self.numSpeaker
         )
@@ -343,8 +736,8 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
             dtype=np.complex128,
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, s.SIMBUFFER + self.simChunkSize))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simBuffer + self.simChunkSize))
+        self.buffers["f"] = np.zeros((self.numError, self.simBuffer + self.simChunkSize))
 
         self.diag.addNewDiagnostic(
             "secpath",
@@ -372,15 +765,8 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
             np.concatenate((crossCorr, np.zeros_like(crossCorr)), axis=-1)
         )
 
-        # eBlock = np.concatenate((np.zeros_like(self.e[:,self.updateIdx:self.idx]),self.e[:,self.updateIdx:self.idx]),axis=-1)
-        # E = np.fft.fft(eBlock, axis=-1).T[:,:,None]
-        # V = np.fft.fft(self.buffers["v"][:,self.idx-2*self.blockSize:self.idx],axis=-1).T[:,:,None]
-        # crossCorr = E @ np.transpose(V.conj(),(0,2,1))
-        # crossCorr = np.fft.ifft(crossCorr, axis=0)
-        # crossCorr[self.blockSize:,:,:] = 0
-        # crossCorr = np.fft.fft(crossCorr, axis=0)
         self.crossCorr.update(crossCorr / self.blockSize)
-        self.secPathEstimate.tf = self.crossCorr.state / self.auxNoisePower
+        self.secPathEstimate.tf = self.crossCorr.state / self.auxNoiseSource.power
         self.secPathEstimateMD.tf[...] = self.secPathEstimate.tf
 
         self.diag.saveBlockData("secpath", self.idx, self.secPathEstimateMD.tf)
@@ -420,63 +806,6 @@ class FastBlockFxLMSSPMTuningless(FastBlockFxLMS):
         self.updateIdx += self.blockSize
         self.updated = True
 
-    def updateFilter__(self):
-        assert self.idx - self.updateIdx == self.blockSize
-        assert self.updated == False
-        self.updateSPM()
-
-        V = np.fft.fft(
-            self.buffers["v"][:, self.idx - (2 * self.blockSize) : self.idx], axis=-1
-        ).T[:, :, None]
-        Vf = self.secPathEstimate @ V
-        vf = np.squeeze(np.fft.ifft(Vf, axis=0), axis=-1).T
-        f = self.e[:, self.updateIdx : self.idx] - vf[:, self.blockSize :]
-
-        self.F = np.fft.fft(
-            np.concatenate((np.zeros((self.numError, self.blockSize)), f), axis=-1),
-            axis=-1,
-        ).T[:, :, None]
-
-        grad = (
-            np.transpose(self.secPathEstimate.conj(), (0, 2, 1))
-            @ self.F
-            @ np.transpose(self.X.conj(), (0, 2, 1))
-        )
-
-        tdGrad = np.fft.ifft(grad, axis=0)
-        tdGrad[self.blockSize :, :, :] = 0
-        grad = np.fft.fft(tdGrad, axis=0)
-
-        powerPerFreq = np.sum(np.abs(self.secPathEstimate) ** 2, axis=(1, 2)) * np.sum(
-            np.abs(self.X) ** 2, axis=(1, 2)
-        )
-        norm = 1 / (np.mean(powerPerFreq) + self.beta)
-        self.H -= self.mu * norm * grad
-
-        self.updateIdx += self.blockSize
-        self.updated = True
-
-    # def updateFilter_lazy(self):
-    #     assert (self.idx - self.updateIdx == self.blockSize)
-    #     assert(self.updated == False)
-
-    #     self.updateSPM()
-    #     self.E = np.fft.fft(self.e[:,self.updateIdx-self.blockSize:self.idx], axis=-1).T[:,:,None]
-    #     self.V = np.fft.fft(self.buffers["v"][:,self.updateIdx-self.blockSize:self.idx], axis=-1).T[:,:,None]
-    #     self.F = self.E - self.secPathEstimate @ self.V
-    #     grad = np.transpose(self.secPathEstimate.conj(),(0,2,1)) @ self.F @ np.transpose(self.X.conj(),(0,2,1))
-
-    #     # tdGrad = np.fft.ifft(grad, axis=0)
-    #     # tdGrad[self.blockSize:,:] = 0
-    #     # grad = np.fft.fft(tdGrad, axis=0)
-
-    #     powerPerFreq = np.sum(np.abs(self.secPathEstimate)**2,axis=(1,2)) * np.sum(np.abs(self.X)**2,axis=(1,2))
-    #     norm = 1 / (np.mean(powerPerFreq) + self.beta)
-    #     #norm = 1 / (powerPerFreq[:,None,None] + self.beta)
-    #     self.H -= self.mu * norm * grad
-
-    #     self.updateIdx += self.blockSize
-    #     self.updated = True
 
 
 class FxLMSSPMEriksson(AdaptiveFilterFF):

@@ -23,11 +23,30 @@ def cart2pol(x, y):
     angle = np.arctan2(y, x)
     return (r, angle)
 
-
 def pol2cart(r, angle):
     x = r * np.cos(angle)
     y = r * np.sin(angle)
     return (x, y)
+
+def cart2spherical(cartCoord):
+    """cartCoord is shape = (numPoints, 3)
+        returns (r, angle), defined as in spherical2cart"""
+    r = np.linalg.norm(cardCoord, axis=1)
+    raise NotImplementedError
+
+def spherical2cart(r, angle):
+    """r is shape (numPoints, 1) or (numPoints)
+        angle is shape (numPoints, 2)
+        angle[:,0] is theta
+        angle[:,1] is phi
+        theta is normal polar coordinate angle, 0 is x direction, pi/2 is y direction
+        phi is azimuth, 0 is z direction, pi is negative z direction"""
+    numPoints = r.shape[0]
+    cartCoord = np.zeros((numPoints,3))
+    cartCoord[:,0] = np.squeeze(r) * np.cos(angle[:,0]) * np.sin(angle[:,1])
+    cartCoord[:,1] = np.squeeze(r) * np.sin(angle[:,0]) * np.sin(angle[:,1])
+    cartCoord[:,2] = np.squeeze(r) * np.cos(angle[:,1])
+    return cartCoord
 
 
 def db2mag(db):

@@ -19,9 +19,9 @@ def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
         makeSoundfieldPlot(singleSetFolder + singleRunFolder, sessionFolder)
 
 
-def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
+def makeSoundfieldPlot(singleRunFolder, sessionFolder, numPixels, normalize=True):
     config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(
-        singleRunFolder, sessionFolder
+        singleRunFolder, sessionFolder, numPixels
     )
     pointsToSim = pos["target"]
 
@@ -30,28 +30,40 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
         pos["target"],
         source,
         filterCoeffs,
-        sourceRIR[1],
-        sourceRIR[3],
+        sourceRIR["ref"],
+        sourceRIR["target"],
         speakerRIR["target"],
     )
 
     zeroValue = np.mean(util.db2pow(avgSoundfields[0]))
     avgSoundfields = [util.pow2db(util.db2pow(sf) / zeroValue) for sf in avgSoundfields]
-    maxVal = np.max([np.max(sf) for sf in avgSoundfields]) - 10
+    maxVal = np.max([np.max(sf) for sf in avgSoundfields])
     minVal = np.min([np.min(sf) for sf in avgSoundfields])
+    algoNames = ["Without ANC"] + [key for key in filterCoeffs.keys()]
 
     fig, axes = plt.subplots(1, len(filterCoeffs) + 1, figsize=(30, 7))
     fig.tight_layout(pad=2.5)
 
-    imAxisLen = int(np.sqrt(pointsToSim.shape[0]))
+    #imAxisLen = int(np.sqrt(pointsToSim.shape[0]))
+    pointsToSim, avgSoundfields = sortIntoGrid(pointsToSim, avgSoundfields)
     for i, ax in enumerate(axes):
+        # clr = ax.pcolormesh(
+        #     pointsToSim[:, 0].reshape(imAxisLen, imAxisLen),
+        #     pointsToSim[:, 1].reshape(imAxisLen, imAxisLen),
+        #     avgSoundfields[i].reshape(imAxisLen, imAxisLen),
+        #     vmin=minVal,
+        #     vmax=maxVal,
+        #     cmap="pink",
+        #     shading="nearest",
+        # )
         clr = ax.pcolormesh(
-            pointsToSim[:, 0].reshape(imAxisLen, imAxisLen),
-            pointsToSim[:, 1].reshape(imAxisLen, imAxisLen),
-            avgSoundfields[i].reshape(imAxisLen, imAxisLen),
+            pointsToSim[..., 0],
+            pointsToSim[..., 1],
+            avgSoundfields[i],
             vmin=minVal,
             vmax=maxVal,
             cmap="pink",
+            shading="nearest",
         )
         fig.colorbar(clr, ax=ax)
 
@@ -59,6 +71,7 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, normalize=True):
         ax.plot(pos["source"][:, 0], pos["source"][:, 1], "o", color="m")
         ax.plot(pos["error"][:, 0], pos["error"][:, 1], "x", color="y")
         ax.axis("equal")
+        ax.set_title(algoNames[i])
         ax.set_xlim(pointsToSim[:, 0].min(), pointsToSim[:, 0].max())
         ax.set_ylim(pointsToSim[:, 1].min(), pointsToSim[:, 1].max())
     outputPlot("tikz", singleRunFolder, "soundfield")
@@ -73,7 +86,7 @@ def soundSim(
     sourceToPoints,
     speakerToPoints,
 ):
-    minSamplesToAverage = 1000
+    minSamplesToAverage = 10000
     numTotPoints = pointsToSim.shape[0]
     refFiltLen = sourceToRef.ir.shape[-1]
     # blockSize = np.max([np.max(coefs.shape) for coefs in filterCoeffs])
@@ -142,7 +155,7 @@ def genSpeakerSignals(
     blockSize, totNumSamples, refSig, filterCoeffs, sourceToRefFiltLen
 ):
     outputs = []
-    for ir in filterCoeffs:
+    for ir in filterCoeffs.values():
         if ir.dtype == np.float64:
             filt = FilterSum_IntBuffer(ir)
             outputs.append(filt.process(refSig[:, :-blockSize])[:, ir.shape[-1] :])
@@ -165,10 +178,10 @@ def genSpeakerSignals(
     return outputs
 
 
-def loadSession(singleRunFolder, sessionFolder):
+def loadSession(singleRunFolder, sessionFolder, numPixels):
     config = sess.loadConfig(singleRunFolder)
     config["TARGETPOINTSPLACEMENT"] = "image"
-    config["NUMTARGET"] = 128 ** 2
+    config["NUMTARGET"] = numPixels
     # config["NUMEVALS"] = 128**2
 
     if config["LOADSESSION"]:
@@ -184,9 +197,29 @@ def loadSession(singleRunFolder, sessionFolder):
     if controlFilterPath is None:
         raise ValueError
     filterCoeffs = np.load(controlFilterPath)
-    filterNames = [names for names in filterCoeffs.keys()]
-    filterCoeffs = [val for names, val in filterCoeffs.items()]
+    #filterNames = [names for names in filterCoeffs.keys()]
+    filterCoeffs = {key:val for key, val in filterCoeffs.items()}
 
     source = setupSource(config)
 
     return config, pos, source, filterCoeffs, sourceRIR, speakerRIR
+
+
+def sortIntoGrid(pos, signals_to_sort, round_to_digits=4):
+    numPos = pos.shape[0]
+    numEachSide = int(np.sqrt(numPos))
+    assert numEachSide**2 == numPos
+    xVal= np.unique(pos[:,0].round(round_to_digits))
+    yVal = np.unique(pos[:,1].round(round_to_digits))
+
+    sortIndices = np.zeros((numEachSide, numEachSide), dtype=int)
+
+    for i, y in enumerate(yVal):
+        rowIndices = np.where(np.abs(pos[:,1] - y) < 1e-4)[0]
+        rowPermutation = np.argsort(pos[rowIndices,0])
+        sortIndices[i,:] = rowIndices[rowPermutation]
+
+    signals_to_sort = [sig[sortIndices] for sig in signals_to_sort]
+    pos = pos[sortIndices,:]
+    return pos, signals_to_sort
+        

@@ -39,26 +39,49 @@ def functionOfTimePlot(name, outputs, metadata, timeIdx, folder, printMethod="pd
         else:
             raise NotImplementedError
 
+        numChannels = output.shape[0]
+
         filterArray = np.logical_not(np.isnan(output))
         assert np.isclose(filterArray, filterArray[0, :]).all()
         filterArray = filterArray[0, :]
 
-        ax.plot(
-            xValues[:, filterArray].T,
-            output[:, filterArray].T,
-            alpha=0.8,
-            label=algoName,
-        )
+        if "label_suffix_channel" in metadata:
+            labels = ["_".join((algoName, suf)) for suf in metadata["label_suffix_channel"]]
+            assert len(labels) == numChannels
+        else:
+            labels = [algoName for _ in range(numChannels)]
+        ax = plotMultipleChannels(ax, xValues[:,filterArray], output[:,filterArray], labels)
 
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.grid(True)
-    ax.legend(loc="upper right")
+    legendWithoutDuplicates(ax, "upper right")
+    #ax.legend(loc="upper right")
 
     ax.set_xlabel(metadata["xlabel"])
     ax.set_ylabel(metadata["ylabel"])
     ax.set_title(metadata["title"] + " - " + name)
     outputPlot(printMethod, folder, name + "_" + str(timeIdx))
+
+def plotMultipleChannels(ax, timeIdx, signal, labels):
+    for i, label in enumerate(labels):
+        ax.plot(
+                timeIdx.T,
+                signal[i:i+1,:].T,
+                alpha=0.8,
+                label=label,
+            )
+    return ax
+
+def legendWithoutDuplicates(ax, loc):
+    handles, labels = ax.get_legend_handles_labels()
+    newLabels, newHandles = [], []
+    for handle, label in zip(handles, labels):
+      if label not in newLabels:
+        newLabels.append(label)
+        newHandles.append(handle)
+
+    ax.legend(newHandles, newLabels, loc=loc)
 
 
 def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
@@ -77,7 +100,46 @@ def savenpz(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
 	
+
+
+def plotIR(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
+    numSets = 0
+    for algoName, output in outputs.items():
+        for irSet in output:
+            numIRs = irSet.shape[0]
+            numSets += 1
+    numAlgo = len(outputs)
+
+    #fig, axes = plt.subplots(numSets, numIRs, figsize=(numSets*4, numIRs*4))
+    fig, axes = plt.subplots(numAlgo, numIRs, figsize=(numIRs*6, numAlgo*6))
+    if axes.ndim == 1:
+        axes = axes[None,:]
+
+    for row, (algoName, output) in enumerate(outputs.items()):
+        for setIdx, irSet in enumerate(output):
+            for col in range(irSet.shape[0]):
+                axes[row, col].plot(irSet[col,:], label=f"{algoName} {metadata['label'][setIdx]}", alpha=0.6)
+    
+    for ax in axes.flatten():
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.grid(True)
+        legendWithoutDuplicates(ax, "upper right")
+        #ax.legend(loc="upper right")
+        ax.set_xlabel(metadata["xlabel"])
+        ax.set_ylabel(metadata["ylabel"])
+
+    outputPlot(printMethod, folder, name + "_" + str(timeIdx))
+
 	
+#plt.plot(trueir[0,:].T, label="true")
+# plt.plot(6*est[0,:].T, label="est")
+# plt.show()
+
+# plt.plot(np.abs(np.fft.fft(trueir[0,:].T,n=4096)), label="true")
+# plt.plot(np.abs(np.fft.fft(3*est[0,:].T,n=4096)), label="est")
+# plt.show()
+
 
 def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):
     maxValue = np.NINF
