@@ -48,7 +48,7 @@ def getConfig():
 
     # ARRAY PLACEMENT
     possibleShapes = ["circle", "rectangle", "doublerectangle", "cuboid"]
-    config["ARRAYSHAPES"] = possibleShapes[1]
+    config["ARRAYSHAPES"] = possibleShapes[3]
     config["TARGETWIDTH"] = 1
     config["TARGETHEIGHT"] = 0.2
     config["SPEAKERDIM"] = 3
@@ -57,7 +57,7 @@ def getConfig():
     config["TARGETPOINTSPLACEMENT"] = possibleTargetPoints[0]
 
     irOptions = ["freespace", "ism", "recorded"]
-    config["REVERB"] = irOptions[2]
+    config["REVERB"] = irOptions[1]
     config["SPATIALDIMS"] = 3
     config["ROOMSIZE"] = [7, 5, 2.5]
     config["ROOMCENTER"] = [-1, 0, 0]
@@ -78,10 +78,10 @@ def getConfig():
     # PLOTS AND MISC
     config["SAVERAWDATA"] = False
     config["SAVERAWDATAFREQUENCY"] = 50
-    config["PLOTFREQUENCY"] = 50
+    config["PLOTFREQUENCY"] = 10
     config["GENSOUNDFIELDATCHUNK"] = 100000
     config["PLOTOUTPUT"] = "pdf"
-    config["LOADSESSION"] = True
+    config["LOADSESSION"] = False
     config["OUTPUTSMOOTHING"] = 2048
 
 

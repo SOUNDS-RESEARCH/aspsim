@@ -152,6 +152,7 @@ def getPositionsCuboid3d(config):
     # pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], lim=sf_image_lim, zAxis=0)
 
     pos["source"] = np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)
+    #pos["source"] = np.array([[-15, 0, 0]], dtype=np.float64)
     assert config["NUMSOURCE"] == 1
     pos["ref"] = copy.deepcopy(pos["source"])
     assert config["NUMREF"] == 1

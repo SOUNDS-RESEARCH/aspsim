@@ -33,7 +33,7 @@ def integrateMp(
 def integrate(
     func, pointGenerator, totNumSamples, totalVolume, numPerIter=50, verbose=False
 ):
-    """pointGenerator should return np array, [numSpatialDimensions, numPoints]
+    """pointGenerator should return np array, [numPoints, numSpatialDimensions]
     func should return np array [funcDims, numPoints],
     where funcDims can be any number of dimensions (in a multidimensional array sense)"""
     print("Starting MC Integration")

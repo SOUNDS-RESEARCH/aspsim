@@ -10,6 +10,7 @@ from ancsim.signal.filterclasses import (
     FilterMD_IntBuffer,
 )
 import ancsim.signal.freqdomainfiltering as fdf
+import ancsim.signal.filterdesign as fd
 import ancsim.utilities as util
 import ancsim.soundfield.kernelinterpolation as ki
 
@@ -209,25 +210,37 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
         errorPos,
         kiFiltLen,
         kernelReg,
-        mcPointGen,
-        ipVolume,
+        roi,
         mcNumPoints=100,
         delayRemovalTolerance=0,
     ):
         super().__init__(config, mu, beta, speakerRIR, blockSize)
         self.name = "Fast Block KIFxLMS"
         assert kiFiltLen % 1 == 0
-        kiFilt = ki.getAKernelTimeDomain3d(
-            errorPos,
-            kiFiltLen,
+        # kiFilt = ki.getAKernelTimeDomain3d(
+        #     errorPos,
+        #     kiFiltLen,
+        #     kernelReg,
+        #     mcPointGen,
+        #     ipVolume,
+        #     mcNumPoints,
+        #     2048,
+        #     self.samplerate,
+        #     self.c,
+        # )
+
+        kiFilt = ki.getKernelWeightingFilter(
+            ki.kernelHelmholtz3d,
             kernelReg,
-            mcPointGen,
-            ipVolume,
+            errorPos,
+            roi,
             mcNumPoints,
-            2048,
+            4096,
             self.samplerate,
             self.c,
         )
+        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        
 
         assert kiFilt.shape[-1] <= blockSize
 
@@ -269,10 +282,156 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
         self.metadata["samplesRemovedFromSecPath"] = int(numSamplesRemoved)
         self.metadata["delayRemovalTolerance"] = delayRemovalTolerance
         self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
-        self.metadata["mcPointGen"] = mcPointGen.__name__
+        self.metadata["roi"] = roi.__class__.__name__
         self.metadata["mcNumPoints"] = mcNumPoints
-        self.metadata["ipVolume"] = ipVolume
+        self.metadata["roiVolume"] = roi.volume
         self.metadata["normalization"] = self.normFunc.__name__
+
+    def kixfNormalization(self):
+        return 1 / (
+            np.sum(
+                self.buffers["kixf"][
+                    :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+                ]
+                ** 2
+            )
+            + self.beta
+        )
+
+    def xfNormalization(self):
+        return 1 / (
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
+            + self.beta
+        )
+
+    def updateFilter(self):
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
+
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+
+        self.buffers["kixf"][
+            :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+        ] = self.kiFilt.process(
+            np.transpose(
+                self.buffers["xf"][:, :, :, self.updateIdx : self.idx], (1, 2, 0, 3)
+            )
+        )
+
+        tdGrad = fdf.correlateSumTT(
+            self.e[
+                None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+            ],
+            self.buffers["kixf"][
+                :,
+                :,
+                :,
+                self.idx
+                - (2 * self.blockSize)
+                - self.kiDelay : self.idx
+                - self.kiDelay,
+            ],
+        )
+
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = self.xfNormalization()
+        # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
+        # norm = 1 / (np.mean(powerPerFreq) + self.beta)
+
+        self.controlFilt.tf -= self.mu * norm * grad
+
+        self.updateIdx += self.blockSize
+        self.updated = True
+
+
+
+
+class FastBlockDKIFxLMS(FastBlockFxLMS):
+    """ Fast Block KIFxLMS using directional kernel"""
+
+    def __init__(
+        self,
+        config,
+        mu,
+        beta,
+        speakerRIR,
+        blockSize,
+        errorPos,
+        kiFiltLen,
+        kernelReg,
+        angle,
+        directionWeight,
+        roi,
+        mcNumPoints,
+        delayRemovalTolerance=0,
+    ):
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        self.name = "Fast Block Directional KIFxLMS"
+        assert kiFiltLen % 1 == 0
+        assert kiFiltLen <= blockSize
+        kiFilt = ki.getKernelWeightingFilter(
+            ki.kernelDirectional3d,
+            kernelReg,
+            errorPos,
+            roi,
+            mcNumPoints,
+            4096,
+            self.samplerate,
+            self.c,
+            angle,
+            directionWeight
+        )
+        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        
+
+        reducedSecPath, numSamplesRemoved = reduceIRLength(
+            np.transpose(self.secPathFilt.ir, (1, 0, 2)),
+            tolerance=delayRemovalTolerance,
+            maxSamplesToReduce=kiFilt.shape[-1] // 2,
+        )
+        self.secPathEstimate = FilterMD_Freqdomain(
+            dataDims=self.numRef,
+            ir=np.concatenate(
+                (
+                    reducedSecPath,
+                    np.zeros((reducedSecPath.shape[:-1] + (blockSize-reducedSecPath.shape[-1],))),
+                    #np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,))),
+                ),
+                axis=-1,
+            ),
+        )
+
+        self.kiDelay = kiFilt.shape[-1] // 2 - numSamplesRemoved
+        self.buffers["kixf"] = np.zeros(
+            (
+                self.numSpeaker,
+                self.numRef,
+                self.numError,
+                self.simChunkSize + self.simBuffer,
+            )
+        )
+
+        self.kiFilt = FilterSum_Freqdomain(
+            tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize),
+            dataDims=(self.numSpeaker, self.numRef),
+        )
+
+        self.normFunc = self.xfNormalization
+
+        self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
+        self.metadata["samplesRemovedFromSecPath"] = int(numSamplesRemoved)
+        self.metadata["delayRemovalTolerance"] = delayRemovalTolerance
+        self.metadata["kiFiltLength"] = int(kiFilt.shape[-1])
+        self.metadata["roi"] = roi.__class__.__name__
+        self.metadata["mcNumPoints"] = mcNumPoints
+        self.metadata["ipVolume"] = roi.volume
+        self.metadata["normalization"] = self.normFunc.__name__
+        self.metadata["angle"] = angle
+        self.metadata["directionalWeight"] = directionWeight
 
     def kixfNormalization(self):
         return 1 / (

@@ -65,7 +65,7 @@ def insertNegativeFrequencies(freqSignal, even, axis=0):
     set in getFrequencyValues"""
     if even:
         return np.concatenate(
-            (freqSignal, np.flip(freqSignal[1:-1, :, :], axis=axis)), axis=axis
+            (freqSignal, np.flip(freqSignal[1:-1, :, :].conj(), axis=axis)), axis=axis
         )
     else:
         raise NotImplementedError

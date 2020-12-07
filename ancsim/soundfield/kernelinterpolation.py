@@ -49,14 +49,10 @@ def kernelDirectional3d(points1, points2, waveNum, angle, beta):
         
         returns shape (numFreqs, numPoints1, numPoints2)
     """
-    #distMat = distfuncs.cdist(fromPoints, toPoints)[None, :, :]
     rDiff = points1[:,None,:] - points2[None,:,:]
-
     angleFactor = beta * util.spherical2cart(np.ones((1,1)), np.array(angle)[None,:])[None,None,...]
-
     posFactor = 1j * waveNum[:,None,None,None] * rDiff[None,...]
-
-    return special.spherical_jn(0, 1j*np.sum((angleFactor + posFactor)**2, axis=-1))
+    return special.spherical_jn(0, 1j*np.sqrt(np.sum((angleFactor + posFactor)**2, axis=-1)))
     
     # \kappa(r_1, r_2) = j_0( j (
     # (\beta \sin\theta\cos\phi + j k x_12)^2 + 
@@ -65,14 +61,14 @@ def kernelDirectional3d(points1, points2, waveNum, angle, beta):
 
 
 
-def integrableAwFunc(k, posErr, beta=0, ang=0):
-    def intFunc(r):
-        r_diff = (np.tile((r.T)[None,:,:], (posErr.shape[0],1,1)) - np.tile(posErr[:,None,:], (1,r.shape[1],1)))[None,:,:,:]
-        distance = 1j*np.sqrt((beta*np.cos(ang) + 1j*k[:,None,None]*r_diff[:,:,:,0])**2 + (beta*np.sin(ang) + 1j*k[:,None,None]*r_diff[:,:,:,1])**2)
-        kappa = special.jn(0, distance)
-        funcVal = kappa[:, :, None, :].conj() * kappa[:, None, :, :]
-        return funcVal
-    return intFunc
+# def integrableAwFunc(k, posErr, beta=0, ang=0):
+#     def intFunc(r):
+#         r_diff = (np.tile((r.T)[None,:,:], (posErr.shape[0],1,1)) - np.tile(posErr[:,None,:], (1,r.shape[1],1)))[None,:,:,:]
+#         distance = 1j*np.sqrt((beta*np.cos(ang) + 1j*k[:,None,None]*r_diff[:,:,:,0])**2 + (beta*np.sin(ang) + 1j*k[:,None,None]*r_diff[:,:,:,1])**2)
+#         kappa = special.jn(0, distance)
+#         funcVal = kappa[:, :, None, :].conj() * kappa[:, None, :, :]
+#         return funcVal
+#     return intFunc
 
 
 def soundfieldInterpolationFIR(
@@ -86,7 +82,6 @@ def soundfieldInterpolationFIR(
 
     kiFilter = fd.firFromFreqsWindow(freqFilter, irLen)
     return kiFilter
-
 
 def soundfieldInterpolation(
     toPoints, fromPoints, numFreq, regParam, spatialDims, samplerate, c
@@ -111,19 +106,37 @@ def soundfieldInterpolation(
 def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
     """Calculates parameter vector or matrix given a kernel function for Kernel Ridge Regression.
     Both dataArg and outputArg should be formatted as (numPoints, pointDimension)
-    kernelFunc should return args as (numFreq, numDataPoints, numOutPoints)
-    returns params of shape (numFreq, outputPoints, inputPoints)"""
+    kernelFunc should return args as (numfreq, numPoints1, numPoints2)
+    returns params of shape (numFreq, numOutPoints, numDataPoints)"""
     dataDim = dataArg.shape[0]
     K = kernelFunc(dataArg, dataArg, *args)
     Kreg = K + regParam * np.eye(dataDim)
-    kappa = kernelFunc(outputArg, dataArg, *args)
+    kappa = kernelFunc(dataArg, outputArg, *args)
 
     params = np.transpose(np.linalg.solve(Kreg, kappa), (0, 2, 1))
     return params
 
 
 # ==================================================================================
+def getKernelWeightingFilter(kernelFunc, regParam, micPos, integralDomain, 
+                                mcSamples, numFreq, samplerate, c, *args):
+    freqs = fd.getFrequencyValues(numFreq, samplerate)
+    waveNum = 2 * np.pi * freqs / c
 
+    def integrableFunc(r):
+        kappa = kernelFunc(r, micPos, waveNum, *args)
+        kappa = np.transpose(kappa,(0,2,1))
+        return kappa.conj()[:,:,None,:] * kappa[:,None,:,:]
+
+    numMics = micPos.shape[0]
+    K = kernelFunc(micPos, micPos, waveNum, *args)
+    P = np.linalg.pinv(K + regParam * np.eye(numMics))
+
+    integralValue = mc.integrate(integrableFunc, integralDomain.sample_points, mcSamples, integralDomain.volume)
+    weightingFilter = np.transpose(P,(0,2,1)).conj() @ integralValue @ P
+
+    weightingFilter = fd.insertNegativeFrequencies(weightingFilter, even=True)
+    return weightingFilter
 
 # FREQUENCY DOMAIN 2D DISC KERNEL INTERPOLATION WEIGHTING FILTER
 def kernelInterpolationFR(errorMicPos, freq, regParam, truncOrder, radius, c):
@@ -132,8 +145,8 @@ def kernelInterpolationFR(errorMicPos, freq, regParam, truncOrder, radius, c):
     if len(freq.shape) == 1:
         freq = freq[:, np.newaxis, np.newaxis]
     waveNumber = 2 * np.pi * freq / c
-    K = getK(errorMicPos, waveNumber)
-    P = getP(regParam, K)
+    K = special.j0(waveNumber * distfuncs.cdist(errorMicPos, errorMicPos))
+    P = np.linalg.pinv(K + regParam * np.eye(K.shape[-1]))
     S = getS(truncOrder, waveNumber, errorMicPos)
     Gamma = getGamma(truncOrder, waveNumber, radius)
     A = (
@@ -144,16 +157,6 @@ def kernelInterpolationFR(errorMicPos, freq, regParam, truncOrder, radius, c):
         @ P
     )
     return A
-
-
-def getK(pos, k):
-    distanceMat = distfuncs.cdist(pos, pos)
-    K = special.j0(k * distanceMat)
-    return K
-
-
-def getP(regParam, K):
-    return np.linalg.pinv(K + regParam * np.eye(K.shape[-1]))
 
 
 def getGamma(maxOrder, k, R):
@@ -397,7 +400,7 @@ def getIntegrableFreqFunc3d(waveNum, errorPos):
 #     return A
 
 
-def integrableAFunc(waveNum, errorPos):
+def integrableAFunc_old(waveNum, errorPos):
     def intFunc(r):
         distance = np.transpose(
             distfuncs.cdist(np.transpose(r, (1, 0)), errorPos), (1, 0)
@@ -409,13 +412,24 @@ def integrableAFunc(waveNum, errorPos):
     return intFunc
 
 
+def integrableAFunc(waveNum, errorPos):
+    def intFunc(r):
+        distance = np.transpose(
+            distfuncs.cdist(r, errorPos), (1, 0)
+        )[None, :, :]
+        kappa = special.spherical_jn(0, distance * waveNum)
+        funcVal = kappa[:, :, None, :] * kappa[:, None, :, :]
+        return funcVal
+
+    return intFunc
+
 # pointGen, volume = gen.selectPointGen(config, randomState)
 def getAKernelFreqDomain3d(
     errorPos, numFreq, kernelReg, mcPointGen, mcVolume, mcNumPoints, samplerate, c
 ):
     """Filter length will be 2*numFreq. The parameter sets the number of positive frequency bins"""
     numError = errorPos.shape[0]
-    freqs = ((samplerate / (2 * numFreq)) * np.arange(numFreq + 1))[:, None, None]
+    freqs = ((samplerate / (2 * numFreq)) * np.arange(numFreq + 1))[:,None,None]
     waveNum = freqs * 2 * np.pi / c
 
     func = integrableAFunc(waveNum, errorPos)

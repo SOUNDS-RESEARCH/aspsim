@@ -77,8 +77,9 @@ def setupIR(pos, config):
             toKey: FilterSum_IntBuffer(
                 irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])
             )
-            for targetPos in ["error", "ref", "target"]
+            for toKey in ["error", "ref", "target"]
         }
+
         speakerFilters["error"] = irFunc(
             pos["speaker"], pos["error"], config["SAMPLERATE"], config["C"]
         )
