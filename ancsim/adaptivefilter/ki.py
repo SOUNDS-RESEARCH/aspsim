@@ -352,7 +352,6 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
 
 class FastBlockDKIFxLMS(FastBlockFxLMS):
     """ Fast Block KIFxLMS using directional kernel"""
-
     def __init__(
         self,
         config,
