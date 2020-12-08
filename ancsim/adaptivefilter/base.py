@@ -55,7 +55,7 @@ class AudioProcessor(ABC):
         self.buf[name] = np.zeros(dim + (self.simBuffer + self.simChunkSize,))
 
     @abstractmethod
-    def process(self, numSamples, noises):
+    def process(self, numSamples, inputSignals):
         pass
 
     def resetBuffers(self):
@@ -71,7 +71,6 @@ class AudioProcessor(ABC):
             )
 
         self.idx -= self.simChunkSize
-        self.updateIdx -= self.simChunkSize
 
 
 class ActiveNoiseControlProcessor(AudioProcessor):
@@ -90,6 +89,7 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
         self.updateIdx = self.simBuffer
 
+    
     def process(self, numSamples, noises):
         pass
 

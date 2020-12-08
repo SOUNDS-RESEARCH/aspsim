@@ -3,13 +3,6 @@ import scipy.signal as signal
 import ancsim.signal.freqdomainfiltering as fdf
 import itertools as it
 
-# =====================================================================
-
-# def combineIRWithSum(ir1, ir2, axisToSum=-2, axisToConvolve=-1):
-#     newShape = np.broadcast_arrays(ir1[...,0],ir2[...,0])[0].shape
-#     #newShape = np.max(ir1.shape[:-2], ir2.shape[:-2])   #To account for broadcasting
-#     np.zeros((np.concatenate(newShape, ir1.shape[-1]+ir2.shape[-2]-1)))
-
 
 # ======================================================================
 def fracDelayLagrangeFilter(delay, maxOrder, maxFiltLen):
@@ -56,16 +49,18 @@ def getFrequencyValues(numFreq, samplerate):
         raise ValueError
 
 
-def insertNegativeFrequencies(freqSignal, even, axis=0):
+def insertNegativeFrequencies(freqSignal, even):
     """To be used in conjunction with getFrequencyValues
     Inserts all negative frequency values under the
-    assumption of conjugate symmetry: WARNING: ASSUMES ACTUAL SYMMETRY FOR NOW, NOT CONJUGATE SYMMETRY
+    assumption of conjugate symmetry, i.e. a real impulse response.
     Parameter even: boolean indicating if an even or odd number
     of bins is desired. This must correspond to numFreq value
-    set in getFrequencyValues"""
+    set in getFrequencyValues
+    
+    Frequencies must be on axis=0"""
     if even:
         return np.concatenate(
-            (freqSignal, np.flip(freqSignal[1:-1, :, :].conj(), axis=axis)), axis=axis
+            (freqSignal, np.flip(freqSignal[1:-1, :, :].conj(), axis=0)), axis=0
         )
     else:
         raise NotImplementedError
@@ -129,11 +124,17 @@ def minTruncatedLength(ir, twosided=True, maxRelTruncError=1e-3):
     return reqFilterLength
 
 
+
+
+
+
+
+
+
+
 # ==============================================================================
 # GENERATES TIME DOMAIN FILTER FROM FREQUENCY DOMAIN FILTERS
 # SHOULD BE CHECKED OUT/TESTED BEFORE USED. I DONT FULLY TRUST THEM
-
-
 def tdFilterFromFreq(
     freqSamples, irLen, posFreqOnly=True, method="window", window="hamming"
 ):
@@ -188,48 +189,3 @@ def tdFilterMinphase(freqSamples, irLen, window):
             tdFilter[i, j, :] = signal.minimum_phase(ir[i, j, :])
     return tdFilter
 
-
-# =================================================================================
-def testFilterDesignFunc(samplerate):
-    pos = setup.getPositionsCircular()
-
-    numFreqSamples = 2 ** 12 + 1
-    freqs = (samplerate / (2 * numFreqSamples)) * np.arange(numFreqSamples)
-    freqsamples = ki.kernelInterpolationFR(pos["error"], freqs)
-    freqsamples = np.transpose(freqsamples, (1, 2, 0))
-
-    filt1 = tdFilterFromFreq(freqsamples, 214, method="minphase", window="hamming")
-    filt2 = tdFilterFromFreq(freqsamples, 215, method="window", window="hamming")
-
-    nRows = 3
-    nCols = 3
-    fig, axes = plt.subplots(nRows, nCols, figsize=(8, 8))
-    for i in range(nRows):
-        for j in range(nCols):
-            fig.tight_layout(pad=0.5)
-            axes[i, j].plot(filt1[i, j, :])
-            axes[i, j].plot(filt2[i, j, :])
-            axes[i, j].legend(("minphase", "window"))
-            axes[i, j].spines["right"].set_visible(False)
-            axes[i, j].spines["top"].set_visible(False)
-
-    fig, axes = plt.subplots(nRows, nCols, figsize=(8, 8))
-    for i in range(nRows):
-        for j in range(nCols):
-            fig.tight_layout(pad=0.5)
-            axes[i, j].plot(util.mag2db(np.abs(np.fft.fft(filt1[i, j, :], 4096))))
-            axes[i, j].plot(util.mag2db(np.abs(np.fft.fft(filt2[i, j, :], 4096))))
-            axes[i, j].legend(("minphase", "window"))
-            axes[i, j].spines["right"].set_visible(False)
-            axes[i, j].spines["top"].set_visible(False)
-    plt.show()
-
-
-if __name__ == "__main__":
-    import setupfunctions as setup
-    import kernelinterpolation as ki
-    import matplotlib.pyplot as plt
-    import utilityfunctions as util
-    import settings as s
-
-    testFilterDesignFunc()

@@ -270,29 +270,14 @@ class GoldSequenceSource:
         return outSignal * self.amplitude
 
     def setPower(self, newPower):
-        self.power = newPower
-        self.amplitude = np.sqrt(newPower)
-        if len(self.amplitude.shape) == 0:
-            self.amplitude = self.amplitude[None, None]
-        elif len(self.amplitude.shape) == 1:
-            self.amplitude = self.amplitude[:, None]
-        elif len(self.amplitude.shape) == 2:
-            assert self.amplitude.shape[-1] == 1
+        if isinstance(newPower, (int, float)) or len(newPower.ndim) == 0:
+            self.power = np.ones((1,1)) * newPower
+        elif len(newPower.ndim) == 1:
+            self.power = newPower[:, None]
+        elif len(newPower.ndim) == 2:
+            assert newPower.shape[-1] == 1
+            self.power = newPower
         else:
             raise ValueError
-
-
-# ====================================================================================
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    src = GoldSequenceSource(11)
-    for i in range(3):
-        sig = src.getSamples(1000)
-        sig2 = src.getSamples(1000)
-        sigcon = np.concatenate((sig, sig2), axis=-1)
-        # plt.plot(np.linspace(0,4000, 1000), np.abs(np.fft.fft(np.squeeze(sig))))
-        plt.plot(np.squeeze(sigcon))
-        plt.show()
+        self.amplitude = np.sqrt(self.power)
+        
