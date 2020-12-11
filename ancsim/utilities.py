@@ -49,6 +49,12 @@ def spherical2cart(r, angle):
     return cartCoord
 
 
+def getSmallestCoprime(N):
+    assert N > 2 #don't have to deal with 1 and 2 at this point
+    for i in range(2,N):
+        if np.gcd(i,N):
+            return i
+
 def db2mag(db):
     return 10 ** (db / 20)
 

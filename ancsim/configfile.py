@@ -78,10 +78,10 @@ def getConfig():
     # PLOTS AND MISC
     config["SAVERAWDATA"] = False
     config["SAVERAWDATAFREQUENCY"] = 50
-    config["PLOTFREQUENCY"] = 10
+    config["PLOTFREQUENCY"] = 5
     config["GENSOUNDFIELDATCHUNK"] = 100000
     config["PLOTOUTPUT"] = "pdf"
-    config["LOADSESSION"] = False
+    config["LOADSESSION"] = True
     config["OUTPUTSMOOTHING"] = 2048
 
 

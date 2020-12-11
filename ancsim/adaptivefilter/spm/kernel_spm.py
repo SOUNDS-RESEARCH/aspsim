@@ -8,7 +8,6 @@ from ancsim.adaptivefilter.conventional.lms import FastBlockNLMS, FastBlockWeigh
 from ancsim.soundfield.kernelinterpolation import (
     soundfieldInterpolation,
     soundfieldInterpolationFIR,
-    getAKernelTimeDomain3d,
 )
 import ancsim.adaptivefilter.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
@@ -1715,3 +1714,212 @@ class FastBlockFxLMSSPMTuninglessArea(FastBlockAuxNoise):
         #self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
         self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
         #self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathEstimateSPM.tf)[...,:self.blockSize]))
+
+
+
+
+
+
+class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
+    def __init__(self, config, mu, beta, speakerRIR, blockSize, muPrim, muSec, errorPos):
+        """Makes sure that hat{y}^f and hat{d} always follows the 
+            spatial relationship between the microphones"""
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        self.name = "Fast Block FxLMS SMC w/ NLMS KI Restricted"
+        self.muPrim = muPrim
+        self.muSec = muSec
+        
+        self.controlFilt.setIR (self.rng.standard_normal(size=(self.numRef, self.numSpeaker, blockSize)) * 1e-14)
+        #ir = np.zeros((self.numRef, self.numSpeaker, blockSize))
+        #ir[:,:,0] = 1e-8
+
+        self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numSpeaker, self.numError, self.muSec, self.beta)
+        self.primPathNLMS = FastBlockNLMS(self.blockSize, self.numRef, self.numError, self.muPrim, self.beta)
+
+       # self.buffers["yip"] = np.zeros((self.numError, self.numError, self.numSpeaker, self.simChunkSize+self.simBuffer))
+
+        kiLen = 155
+        self.kiFilt = self.constructInterpolation(errorPos, 1e-3, kiLen)
+
+        self.kiDly = kiLen // 2
+        self.eta = 0.1
+        kiIR = np.concatenate((self.kiFilt, np.zeros((
+            self.kiFilt.shape[0], self.kiFilt.shape[1], self.blockSize - self.kiFilt.shape[2]))),axis=-1)
+        self.kiFilt = FilterSum_Freqdomain(ir=np.moveaxis(kiIR,0,1), dataDims=(self.numSpeaker,))
+        #self.kiFiltMDsp = FilterMD_Freqdomain(ir=kiIR, dataDims=(self.numSpeaker,))
+
+        #self.secPathNLMS.filt.setIR(self.rng.standard_normal(size=(self.numSpeaker, self.numError, blockSize)) * 1e-14)
+        #self.primPathNLMS.filt.setIR(self.rng.standard_normal(size=(self.numSpeaker, self.numError, blockSize)) * 1e-14)
+        
+        #self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf),dataDims=self.numRef)
+        # self.diag.addNewDiagnostic(
+        #     "filtered_reference_est",
+        #     dia.SignalEstimateNMSEBlock(
+        #         self.endTimeStep,
+        #         self.simBuffer,
+        #         self.simChunkSize,
+        #         smoothingLen=self.outputSmoothing,
+        #         plotFrequency=self.plotFrequency,
+        #     )
+        # )
+
+
+        self.diag.addNewDiagnostic(
+            "secpath",
+            dia.ConstantEstimateNMSE(
+                self.secPathEstimate.tf,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        self.diag.addNewDiagnostic(
+            "secpath_select_freq",
+            dia.ConstantEstimateNMSESelectedFrequencies(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+
+        self.diag.addNewDiagnostic(
+            "secpath_phase_weighted_select_freq",
+            dia.ConstantEstimateWeightedPhaseDifference(
+                self.secPathEstimate.tf,
+                100,
+                500,
+                self.samplerate,
+                self.endTimeStep,
+                self.simBuffer,
+                self.simChunkSize,
+                plotFrequency=self.plotFrequency,
+            ),
+        )
+
+        # self.diag.addNewDiagnostic(
+        #     "recorded_ir",
+        #     dia.RecordIR(
+        #         np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
+        #         self.endTimeStep, 
+        #         self.simBuffer, 
+        #         self.simChunkSize,
+        #         (2,2),
+        #         plotFrequency=self.plotFrequency,
+        #     ),
+        # )
+
+        # self.diag.addNewDiagnostic(
+        #     "secpath_combinations",
+        #     dia.ConstantEstimateNMSEAllCombinations(
+        #         self.secPathEstimate.tf,
+        #         self.endTimeStep,
+        #         self.simBuffer,
+        #         self.simChunkSize,
+        #         plotFrequency=self.plotFrequency,
+        #     ),
+        # )
+
+        self.secPathEstimate.tf[...] = np.zeros_like(self.secPathEstimate.tf)
+
+        self.diag.addNewDiagnostic(
+            "modelling_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                     plotFrequency=self.plotFrequency)
+        )
+        self.diag.addNewDiagnostic(
+            "primary_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                    plotFrequency=self.plotFrequency)
+        )
+        self.diag.addNewDiagnostic(
+            "secondary_error",
+            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+                                    plotFrequency=self.plotFrequency)
+        )
+
+        self.metadata["muSec"] = self.muSec
+        self.metadata["muPrim"] = self.muPrim
+
+    def constructInterpolation(self, errorPos, kernelRegParam, kiFiltLen):
+        """Output is shape(numFreq, position interpolated to, positions interpolated from),
+        which is (2*blocksize, M, M-1)"""
+        kiFirAll = np.zeros((self.numError, self.numError, kiFiltLen))
+        for m in range(self.numError):
+            kiFIR = soundfieldInterpolationFIR(
+                errorPos[m : m + 1, :],
+                errorPos[np.arange(self.numError) != m, :],
+                kiFiltLen,
+                kernelRegParam,
+                4096,
+                self.spatialDims,
+                self.samplerate,
+                self.c,
+            )
+
+            kiFirAll[m : m + 1, np.arange(self.numError) != m, :] = kiFIR
+        return kiFirAll
+
+
+    def updateFilter(self):
+        super().updateFilter()
+        self.updateSPM()
+
+# import matplotlib.pyplot as plt
+# plt.plot(np.abs(np.fft.fft(trueXf[0,1,0,:],n=2048))/np.sum(np.abs(trueXf)**2))
+# plt.plot(np.abs(np.fft.fft(self.buffers["xf"][0,1,0,self.idx-self.blockSize:self.idx],n=2048))/np.sum(np.abs(self.buffers["xf"][...,self.idx-self.blockSize:self.idx])**2))
+# plt.show()
+
+    def updateSPM(self):
+        #trueXf = self.secPathTrueMD.process(self.x[:,self.idx-self.blockSize:self.idx])
+        # self.diag.saveBlockData("filtered_reference_est", self.idx, 
+        #         5*self.buffers["xf"][...,self.idx-self.blockSize:self.idx],
+        #         trueXf)
+
+        primNoiseEst = self.primPathNLMS.process(self.x[:,self.idx-self.blockSize:self.idx])
+        secNoiseEst = self.secPathNLMS.process(self.y[:,self.idx-self.blockSize:self.idx])
+        errorEst = primNoiseEst + secNoiseEst
+
+        tdSecPath = np.real(np.moveaxis(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf),0,1))
+        self.kiFilt.buffer.fill(0)
+        ipFilt = self.kiFilt.process(tdSecPath[...,:self.blockSize])
+        ipFilt[...,:-self.kiDly] = ipFilt[...,self.kiDly:]
+        ipFilt = np.concatenate((ipFilt, np.zeros_like(ipFilt)), axis=-1)
+
+        ipError = fdf.fftWithTranspose((tdSecPath - ipFilt))
+        self.secPathNLMS.filt.tf -= self.eta*np.moveaxis(ipError,1,2)
+
+        # print("Mean diff, error, kierror")
+        # print(np.mean((np.abs(tdSecPath - ipFilt))))
+        # print(np.mean(np.abs(tdSecPath)))
+        # print(np.mean(np.abs(ipFilt)))
+
+        #self.buffers["yip"][...,self.idx-self.blockSize:self.idx] = self.kiFiltMDsp.process(self.y[:,self.idx-self.blockSize:self.idx])
+
+        modellingError = self.e[:,self.idx-self.blockSize:self.idx] - errorEst
+        # secGradTd = fdf.correlateSumTT(modellingError[None,None,:,:], 
+        #                             np.moveaxis(self.buffers["yip"][...,self.idx-2*self.blockSize:self.idx],2,1))
+        # secGrad = fdf.fftWithTranspose(np.concatenate((secGradTd, np.zeros_like(secGradTd)),axis=-1))
+        # secNorm = 1 / (np.sum(self.buffers["yip"][...,self.idx-self.blockSize:self.idx]**2) + self.beta)
+
+        self.primPathNLMS.update(self.x[:,self.idx-2*self.blockSize:self.idx], modellingError)
+        self.secPathNLMS.update(self.y[:,self.idx-2*self.blockSize:self.idx], modellingError)
+        #self.secPathNLMS.filt.tf += self.secPathNLMS.mu * secNorm * secGrad
+
+        self.secPathEstimate.tf[...] = self.secPathNLMS.filt.tf
+        self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
+        #self.diag.saveBlockData("secpath_combinations", self.idx, self.secPathEstimate.tf)
+        self.diag.saveBlockData("modelling_error", self.idx, errorEst, self.e[:,self.idx-self.blockSize:self.idx])
+        self.diag.saveBlockData("primary_error", self.idx, primNoiseEst, self.buffers["primary"][:,self.idx-self.blockSize:self.idx])
+        self.diag.saveBlockData("secondary_error", self.idx, secNoiseEst, self.buffers["yf"][:,self.idx-self.blockSize:self.idx])
+        #self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize]))
+        #self.spmIdx = self.idx

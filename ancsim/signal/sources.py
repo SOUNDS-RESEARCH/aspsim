@@ -214,7 +214,6 @@ class AudioFileSource:
 
 class MLS:
     """Generates a maximum length sequence"""
-
     def __init__(self, order, polynomial, state=None):
         self.order = order
         self.poly = polynomial
@@ -239,17 +238,27 @@ class GoldSequenceSource:
     }
 
     def __init__(self, order, power=np.ones((1, 1)), numChannels=1):
-        assert 5 <= order <= 11
         assert numChannels <= 2 ** order - 1
         self.numChannels = numChannels
         self.seqLength = 2 ** order - 1
         self.idx = 0
         self.setPower(power)
 
-        mls1 = MLS(order, self.preferredSequences[order][0])
-        mls2 = MLS(order, self.preferredSequences[order][1])
-        seq1 = mls1.getSamples(2 ** order - 1)
-        seq2 = mls2.getSamples(2 ** order - 1)
+        if 5 <= order <= 11:
+            mls1 = MLS(order, self.preferredSequences[order][0])
+            mls2 = MLS(order, self.preferredSequences[order][1])
+            seq1 = mls1.getSamples(2 ** order - 1)
+            seq2 = mls2.getSamples(2 ** order - 1)
+        elif order > 11:
+            assert order % 2 == 1
+            mls1 = MLS(order, None)
+            seq1 = mls1.getSamples(2**order - 1)
+            k = util.getSmallestCoprime(order)
+            decimationFactor = int(2**k + 1)
+            decimatedIndices = (np.arange(self.seqLength) * decimationFactor) % self.seqLength
+            seq2 = np.copy(seq1[decimatedIndices])
+            
+
 
         self.sequences = np.zeros((numChannels, self.seqLength))
         for i in range(numChannels):
@@ -270,11 +279,11 @@ class GoldSequenceSource:
         return outSignal * self.amplitude
 
     def setPower(self, newPower):
-        if isinstance(newPower, (int, float)) or len(newPower.ndim) == 0:
+        if isinstance(newPower, (int, float)) or newPower.ndim == 0:
             self.power = np.ones((1,1)) * newPower
-        elif len(newPower.ndim) == 1:
+        elif newPower.ndim == 1:
             self.power = newPower[:, None]
-        elif len(newPower.ndim) == 2:
+        elif newPower.ndim == 2:
             assert newPower.shape[-1] == 1
             self.power = newPower
         else:
