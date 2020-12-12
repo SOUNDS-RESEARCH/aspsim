@@ -13,8 +13,9 @@ from ancsim.configfile import configPreprocessing
 
 from ancsim.simulatorsetup import setupIR, setupPos, setupSource
 from ancsim.simulatorlogging import getFolderName, addToSimMetadata, writeFilterMetadata
-from ancsim.saveloadsession import saveConfig, loadSession, saveRawData
+#from ancsim.saveloadsession import saveConfig, loadSession, saveRawData
 
+import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
 from ancsim.adaptivefilter.diagnostics import PlotDiagnosticDispatcher
@@ -30,17 +31,20 @@ class Simulator:
     ):
         # PREPREPARATION
         self.filters = []
+        self.sources = []
+        self.mics = []
+
         self.config = config
 
         self.folderPath = getFolderName(config, folderForPlots, generateSubFolder)
 
         printInfo(config, self.folderPath)
-        saveConfig(self.folderPath, config)
+        sess.saveConfig(self.folderPath, config)
 
         # CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
-            self.pos, self.sourceFilters, self.speakerFilters = loadSession(
-                config, sessionFolder, self.folderPath
+            self.pos, self.sourceFilters, self.speakerFilters = sess.loadSession(
+                sessionFolder, self.folderPath, config
             )
         else:
             self.pos = setupPos(config)
@@ -52,6 +56,25 @@ class Simulator:
 
         # LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)
+
+    def addFreeSource(self, name, pos):
+        self.freeSources.append(name)
+        self.pos["source"][name] = pos
+
+    def addControllableSource(self, name, pos):
+        self.ctrlSources.append(name)
+        self.pos["source"][name]
+    
+    def addMics(self, name, pos):
+        self.mics.append(name)
+        self.pos["mic"][name] = pos
+
+    def loadSession(self, sessionPath=None, config=None):
+        if config is not None:
+            return sess.loadSession(sessionPath, self.folderPath, config)
+        else:
+            return sess.loadSession(sessionPath, self.folderPath)
+
 
     def prepare(self, filters):
         assert isinstance(filters, list)
@@ -109,14 +132,20 @@ class Simulator:
                 ):
                     if n_tot % bSize == 0:
                         # filt.forwardPass(bSize, *[noiseAtPoints[:,nIdx:nIdx+bSize] for noiseAtPoints in noises])
-                        filt.forwardPass(
-                            bSize,
+                        filt.process(bSize,
                             {
                                 pointName: noiseAtPoints[:, nIdx : nIdx + bSize]
                                 for pointName, noiseAtPoints in noises.items()
                             },
                         )
-                        filt.updateFilter()
+                        # filt.forwardPass(
+                        #     bSize,
+                        #     {
+                        #         pointName: noiseAtPoints[:, nIdx : nIdx + bSize]
+                        #         for pointName, noiseAtPoints in noises.items()
+                        #     },
+                        # )
+                        # filt.updateFilter()
                         noiseIndices[i] += bSize
 
                 if n_tot % self.config["SIMCHUNKSIZE"] == 0 and n_tot > 0:
@@ -128,7 +157,7 @@ class Simulator:
                         bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0
                         or bufferIdx - 1 == 0
                     ):
-                        saveRawData(self.filters, n_tot, self.folderPath)
+                        sess.saveRawData(self.filters, n_tot, self.folderPath)
 
                 n_tot += 1
 

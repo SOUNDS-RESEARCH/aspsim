@@ -186,7 +186,7 @@ def loadSession(singleRunFolder, sessionFolder, numPixels):
 
     if config["LOADSESSION"]:
         pos, sourceRIR, speakerRIR = sess.loadSession(
-            config, sessionFolder, singleRunFolder
+            sessionFolder, singleRunFolder, config
         )
     else:
         raise NotImplementedError

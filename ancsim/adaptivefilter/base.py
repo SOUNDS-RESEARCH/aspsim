@@ -45,6 +45,13 @@ class AudioProcessor(ABC):
 
         self.metadata = {}
 
+    def reset(self):
+        """Should probably reset diagnostics to be properly reset
+            Also, all user-defined signals and filters must be reset """
+        for bufName, buf in self.buf.items():
+            buf.fill(0)
+        self.idx = self.simBuffer
+
     def createNewBuffer(name, dim):
         """dim is a tuple with the
         buffer is accessed as self.buf[name]
@@ -89,11 +96,19 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
         self.updateIdx = self.simBuffer
 
-    
     def process(self, numSamples, noises):
+        self.forwardPass(numSamples, noises)
+        self.updateFilter()
+
+    @abstractmethod
+    def forwardPass(self):
         pass
 
-class AdaptiveFilterFF(ABC):
+    @abstractmethod
+    def updateFilter(self):
+        pass
+
+class AdaptiveFilterFF(ActiveNoiseControlProcessor):
     def __init__(self, config, mu, beta, speakerRIR):
         self.name = "Adaptive Filter Timedomain Baseclass"
         self.numRef = config["NUMREF"]
@@ -272,7 +287,7 @@ class AdaptiveFilterFF(ABC):
             numComputed += blockSize
 
 
-class AdaptiveFilterFFComplex(ABC):
+class AdaptiveFilterFFComplex(ActiveNoiseControlProcessor):
     def __init__(self, config, mu, beta, speakerRIR, blockSize):
         self.name = "Adaptive Filter Feedforward Complex"
 

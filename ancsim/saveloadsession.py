@@ -27,7 +27,9 @@ def generateSession(sessionFolder, extraprefix=""):
     addToSimMetadata(sessionPath, irMetadata)
 
 
-def loadSession(newConfig, sessionsPath, newFolderPath):
+def loadSession(sessionsPath, newFolderPath, newConfig=None):
+    """If newConfig is supplied, sessionsPath refers to the folder where all sessions reside
+        If newConfig is not supplied, sessionsPath must refer to a specific session. """
     sessionToLoad = searchForMatchingSession(sessionsPath, newConfig)
     print("Loaded Session: ", str(sessionToLoad))
     pos = loadPositions(sessionToLoad)

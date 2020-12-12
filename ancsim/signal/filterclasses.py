@@ -194,16 +194,33 @@ class FilterSum_Freqdomain:
         numFreq=None,
         dataDims=None,
     ):
-        # assert(tf or ir or (numIn and numOut and irLen) is not None)
         if tf is not None:
+            assert all(arg is None for arg in [ir, numIn, numOut, irLen, numFreq])
+            assert tf.ndim == 3
             assert tf.shape[0] % 2 == 0
             self.tf = tf
         elif ir is not None:
+            assert all(arg is None for arg in [tf, numIn, numOut])
+            if irLen is not None:
+                assert numFreq is None
+                totLen = irLen*2
+            elif numFreq is not None:
+                assert irLen is None
+                totLen = numFreq
+            else:
+                totLen = ir.shape[-1]
+
             self.tf = np.transpose(
-                np.fft.fft(np.concatenate((ir, np.zeros_like(ir)), axis=-1), axis=-1),
+                np.fft.fft(np.concatenate((ir, np.zeros(ir.shape[:-1]+(totLen-ir.shape[-1],))), axis=-1), axis=-1),
                 (2, 1, 0),
             )
+
+            # self.tf = np.transpose(
+            #     np.fft.fft(np.concatenate((ir, np.zeros_like(ir)), axis=-1), axis=-1),
+            #     (2, 1, 0),
+            # )
         elif numIn is not None and numOut is not None:
+            assert all(arg is None for arg in [tf, ir])
             if numFreq is not None:
                 self.tf = np.zeros((numFreq, numOut, numIn), dtype=np.complex128)
             elif irLen is not None:
@@ -264,6 +281,12 @@ class FilterSum_Freqdomain:
 
         self.buffer[...] = samplesToProcess
         return np.real(outputSamples[..., self.irLen :])
+
+    def processEuclidian(self, samplesToProcess):
+        """Will filter every channel of the input with every channel of the filter
+            outputs shape (filt0)"""
+        assert dataDims in not None
+        raise NotImplementedError
 
     def setFilter(self, tfNew):
         if tfNew.shape != self.tf.shape:

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def linearAndCircCorrelation(signal):
-    if len(signal.shape) == 1:
+    if signal.ndim == 1:
         signal = signal[None, :]
     numChannels = signal.shape[0]
     numSamples = signal.shape[-1]

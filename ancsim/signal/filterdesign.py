@@ -77,7 +77,6 @@ def firFromFreqsWindow(freqFilter, filtLen):
     assert filtLen % 1 == 0
     halfLen = int(filtLen / 2)
 
-    # tdA = np.real(np.fft.ifft(A, axis=0))
     timeFilter = np.real(fdf.ifftWithTranspose(freqFilter))
     timeFilter = np.concatenate(
         (timeFilter[..., -halfLen:], timeFilter[..., : halfLen + 1]), axis=-1
