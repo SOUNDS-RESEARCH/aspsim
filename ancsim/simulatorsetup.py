@@ -17,82 +17,42 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 def setupIR(pos, config):
     print("Computing Room IR...")
     metadata = {}
+    propagationFilters = {}
 
-    if config["REVERB"] == "ism":
-        if config["SPATIALDIMS"] == 3:
-            irFunc = rir.irRoomImageSource3d
-        else:
-            raise NotImplementedError
-    elif config["REVERB"] == "freespace":
-        if config["SPATIALDIMS"] == 3:
-            irFunc = rir.irPointSource3d
-        elif config["SPATIALDIMS"] == 2:
-            irFunc = rir.irPointSource2d
-        else:
-            raise NotImplementedError
-    else:
-        raise ValueError
-
-    speakerFilters = {}
-    if config["REVERB"] == "ism":
-        # sourceFilters = [FilterSum_IntBuffer(irFunc(pos.source, targetPos, config["ROOMSIZE"], config["ROOMCENTER"],
-        #                                         config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"]))
-        #             for targetPos in [pos.error, pos.ref, pos.target]]
-        sourceFilters = {
-            toKey: FilterSum_IntBuffer(
-                irFunc(
-                    pos["source"],
-                    pos[toKey],
-                    config["ROOMSIZE"],
-                    config["ROOMCENTER"],
-                    config["MAXROOMIRLENGTH"],
-                    config["RT60"],
-                    config["SAMPLERATE"],
+    for micPos, srcPos in it.product(mics, sources):
+        if srcPos not in propagationFilters:
+            propagationFilters[srcPos] = {}
+        
+        if config["REVERB"] == "ism"
+            if config["SPATIALDIMS"] == 3:
+            propagationFilters[srcPos][micPos], metadata[srcPos+"->"+micPos+" ISM"] = rir.irRoomImageSource3d(
+                                                scrPos, micPos, config["ROOMSIZE"], config["ROOMCENTER"], 
+                                                config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"],
+                                                calculateMetadata=True)
+            else:
+                raise ValueError
+        elif config["REVERB"] == "freespace":
+            if config["SPATIALDIMS"] == 3:
+                propagationFilters[srcPos][micPos] = rir.irPointSource3d(
+                srcPos, micPos, config["SAMPLERATE"], config["C"])
+            elif config["SPATIALDIMS"] == 2:
+                propagationFilters[srcPos][micPos] = rir.irPointSource2d(
+                    srcPos, micPos, config["SAMPLERATE"], config["C"]
                 )
-            )
-            for toKey in ["error", "ref", "target"]
-        }
+            else:
+                raise ValueError
 
-        speakerFilters["error"], metadata["Secondary path ISM"] = irFunc(
-            pos["speaker"],
-            pos["error"],
-            config["ROOMSIZE"],
-            config["ROOMCENTER"],
-            config["MAXROOMIRLENGTH"],
-            config["RT60"],
-            config["SAMPLERATE"],
-            calculateMetadata=True,
-        )
-        speakerFilters["target"] = irFunc(
-            pos["speaker"],
-            pos["target"],
-            config["ROOMSIZE"],
-            config["ROOMCENTER"],
-            config["MAXROOMIRLENGTH"],
-            config["RT60"],
-            config["SAMPLERATE"],
-        )
-    elif config["REVERB"] == "freespace":
-        sourceFilters = {
-            toKey: FilterSum_IntBuffer(
-                irFunc(pos["source"], pos[toKey], config["SAMPLERATE"], config["C"])
-            )
-            for toKey in ["error", "ref", "target"]
-        }
+    for srcName, irSet in propagationFilters.items():
+        for micName, ir in irSet.items():
+            propagationFilters[srcName][micName] = FilterSum_IntBuffer(ir=ir)
 
-        speakerFilters["error"] = irFunc(
-            pos["speaker"], pos["error"], config["SAMPLERATE"], config["C"]
-        )
-        speakerFilters["target"] = irFunc(
-            pos["speaker"], pos["target"], config["SAMPLERATE"], config["C"]
-        )
 
     if config["REFDIRECTLYOBTAINED"]:
         assert config["NUMREF"] == config["NUMSOURCE"]
-        sourceFilters["ref"] = FilterSum_IntBuffer(
+        propagationFilters["source"]["ref"] = FilterSum_IntBuffer(
             np.ones((config["NUMREF"], config["NUMSOURCE"], 1))
         )
-    return sourceFilters, speakerFilters, metadata
+    return propagationFilters, metadata
 
 
 def setupPos(config):

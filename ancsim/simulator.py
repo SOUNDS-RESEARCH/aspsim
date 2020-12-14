@@ -25,13 +25,14 @@ class Simulator:
     def __init__(
         self,
         config,
-        folderForPlots=Path(__file__).parent.parent.joinpath("figs"),
+        folderForPlots,
         sessionFolder=None,
         generateSubFolder=True,
     ):
         # PREPREPARATION
         self.filters = []
-        self.sources = []
+        self.freeSources = []
+        self.ctrlSources = []
         self.mics = []
 
         self.config = config
@@ -41,6 +42,26 @@ class Simulator:
         printInfo(config, self.folderPath)
         sess.saveConfig(self.folderPath, config)
 
+    def addFreeSource(self, name, pos):
+        self.freeSources.append(name)
+        self.pos[name] = pos
+
+    def addControllableSource(self, name, pos):
+        self.ctrlSources.append(name)
+        self.pos[name]
+    
+    def addMics(self, name, pos):
+        self.mics.append(name)
+        self.pos[name] = pos
+
+    def loadSession(self, sessionPath=None, config=None):
+        if config is not None:
+            return sess.loadSession(sessionPath, self.folderPath, config)
+        else:
+            return sess.loadSession(sessionPath, self.folderPath)
+
+
+    def prepare(self):
         # CONSTRUCTING SIMULATION
         if config["LOADSESSION"]:
             self.pos, self.sourceFilters, self.speakerFilters = sess.loadSession(
@@ -56,27 +77,9 @@ class Simulator:
 
         # LOGGING AND DIAGNOSTICS
         plotAnyPos(self.pos, self.folderPath, config)
+        
 
-    def addFreeSource(self, name, pos):
-        self.freeSources.append(name)
-        self.pos["source"][name] = pos
-
-    def addControllableSource(self, name, pos):
-        self.ctrlSources.append(name)
-        self.pos["source"][name]
-    
-    def addMics(self, name, pos):
-        self.mics.append(name)
-        self.pos["mic"][name] = pos
-
-    def loadSession(self, sessionPath=None, config=None):
-        if config is not None:
-            return sess.loadSession(sessionPath, self.folderPath, config)
-        else:
-            return sess.loadSession(sessionPath, self.folderPath)
-
-
-    def prepare(self, filters):
+    def runSimulation(self, filters):
         assert isinstance(filters, list)
         self.filters = filters
         self.config = configPreprocessing(self.config, len(self.filters))
@@ -88,7 +91,7 @@ class Simulator:
             self.filters, self.config["PLOTOUTPUT"]
         )
 
-    def runSimulation(self):
+
         print("Filling buffers...")
         noises = self._fillBuffers()
         for filt in self.filters:
