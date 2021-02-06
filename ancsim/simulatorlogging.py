@@ -3,12 +3,12 @@ import json
 import ancsim.utilities as util
 
 
-def getFolderName(config, folderForPlots, generateSubFolder=True, safeNaming=False):
+def createFigFolder(config, folderForPlots, generateSubFolder=True, safeNaming=False):
     packageDir = Path(__file__).parent
     if config["PLOTOUTPUT"] != "none":
         if generateSubFolder:
-            # folderName = createFigFolder(packageDir.parent.joinpath(folderForPlots), safeNaming)
-            folderName = createFigFolder(folderForPlots, safeNaming)
+            folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
+            folderName.mkdir()
         else:
             folderName = folderForPlots
             if not folderName.exists():
@@ -16,15 +16,6 @@ def getFolderName(config, folderForPlots, generateSubFolder=True, safeNaming=Fal
     else:
         folderName = ""
     return folderName
-
-
-def createFigFolder(parentFolder=None, safeNaming=False):
-    if parentFolder is None:
-        parentFolder = ""
-    folderName = util.getUniqueFolderName("figs_", parentFolder, safeNaming)
-    folderName.mkdir()
-    return folderName
-
 
 def addToSimMetadata(folderPath, dictToAdd):
     try:

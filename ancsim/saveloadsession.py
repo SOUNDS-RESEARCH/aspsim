@@ -36,7 +36,10 @@ def loadSession(sessionsPath, newFolderPath, newConfig=None):
     srcFilt = loadSourceFilters(sessionToLoad)
     spkFilt = loadSpeakerFilters(sessionToLoad)
     copySimMetadata(sessionToLoad, newFolderPath)
-    return pos, srcFilt, spkFilt
+    return pos, srcFilt, 
+    
+def loadFromPath(sessionPath):
+    pass
 
 
 def copySimMetadata(fromFolder, toFolder):

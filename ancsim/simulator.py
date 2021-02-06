@@ -1,19 +1,10 @@
 import numpy as np
 
-np.random.seed(2)
-import os
-import sys
-from pathlib import Path
-import shutil
-import json
-import time
-
 import ancsim.utilities as util
-from ancsim.configfile import configPreprocessing
+import ancsim.configutil as configutil
 
-from ancsim.simulatorsetup import setupIR, setupPos, setupSource
-from ancsim.simulatorlogging import getFolderName, addToSimMetadata, writeFilterMetadata
-#from ancsim.saveloadsession import saveConfig, loadSession, saveRawData
+from ancsim.simulatorsetup import setupIR
+from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
 import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
@@ -24,23 +15,23 @@ from ancsim.adaptivefilter.diagnostics import PlotDiagnosticDispatcher
 class Simulator:
     def __init__(
         self,
-        config,
         folderForPlots,
         sessionFolder=None,
-        generateSubFolder=True,
     ):
-        # PREPREPARATION
         self.filters = []
         self.freeSources = []
         self.ctrlSources = []
         self.mics = []
 
+        self.config = configutil.getBaseConfig()
+
+        self.folderPath = createFigFolder(self.config, folderForPlots, False)
+        self.sessionFolder = sessionFolder
+
+        print("Figure folder: ", self.folderPath.name)
+
+    def setConfig(config):
         self.config = config
-
-        self.folderPath = getFolderName(config, folderForPlots, generateSubFolder)
-
-        printInfo(config, self.folderPath)
-        sess.saveConfig(self.folderPath, config)
 
     def addFreeSource(self, name, pos):
         self.freeSources.append(name)
@@ -54,34 +45,32 @@ class Simulator:
         self.mics.append(name)
         self.pos[name] = pos
 
-    def loadSession(self, sessionPath=None, config=None):
-        if config is not None:
-            return sess.loadSession(sessionPath, self.folderPath, config)
-        else:
-            return sess.loadSession(sessionPath, self.folderPath)
-
+    def addProcessor(self, processor):
+        try:
+            self.filters.extend(processor)
+        except TypeError:
+            self.filters.append(processor)
+        
+    def loadSession(self, sessionPath):
+        self.config, self.pos, self.arrays, ,  = sess.loadFromPath(sessionPath, self.folderPath)
 
     def prepare(self):
-        # CONSTRUCTING SIMULATION
-        if config["LOADSESSION"]:
-            self.pos, self.sourceFilters, self.speakerFilters = sess.loadSession(
-                sessionFolder, self.folderPath, config
+        if self.config["AUTOLOADSESSION"]:
+            self.sourceFilters, self.speakerFilters = sess.loadSession(
+                self.sessionFolder, self.folderPath, self.config
             )
         else:
-            self.pos = setupPos(config)
             self.sourceFilters, self.speakerFilters, irMetadata = setupIR(
                 self.pos, config
             )
             addToSimMetadata(self.folderPath, irMetadata)
-        self.noiseSource = setupSource(config)
 
         # LOGGING AND DIAGNOSTICS
-        plotAnyPos(self.pos, self.folderPath, config)
+        sess.saveConfig(self.folderPath, self.config)
+        plotAnyPos(self.pos, self.folderPath, self.config)
         
 
-    def runSimulation(self, filters):
-        assert isinstance(filters, list)
-        self.filters = filters
+    def runSimulation(self):
         self.config = configPreprocessing(self.config, len(self.filters))
 
         setUniqueFilterNames(self.filters)
@@ -215,12 +204,6 @@ class Simulator:
                 )
 
         return noises
-
-
-def printInfo(config, folderPath):
-    print("Figure folder: ", folderPath.name)
-    print("Number of mics: ", config["NUMERROR"])
-    print("Number of speakers: ", config["NUMSPEAKER"])
 
 
 def setUniqueFilterNames(filters):
