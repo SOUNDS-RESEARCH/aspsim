@@ -285,7 +285,7 @@ class FilterSum_Freqdomain:
     def processEuclidian(self, samplesToProcess):
         """Will filter every channel of the input with every channel of the filter
             outputs shape (filt0)"""
-        assert dataDims in not None
+        #assert dataDims is not None
         raise NotImplementedError
 
     def setFilter(self, tfNew):

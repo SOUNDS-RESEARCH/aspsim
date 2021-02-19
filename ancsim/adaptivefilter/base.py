@@ -50,6 +50,7 @@ class AudioProcessor(ABC):
             Also, all user-defined signals and filters must be reset """
         for bufName, buf in self.buf.items():
             buf.fill(0)
+        self.diag.reset()
         self.idx = self.simBuffer
 
     def createNewBuffer(name, dim):

@@ -4,7 +4,9 @@ import numpy as np
 import copy
 
 import ancsim.soundfield.generatepoints as gp
-
+from ancsim.array import ArrayCollection, Array, ArrayType
+import ancsim.soundfield.geometry as geo
+import ancsim.signal.sources as src
 
 def getPositionsLine1d(radius):
     pos = {}
@@ -106,57 +108,119 @@ def getPositionsDisc2d(config):
     return pos
 
 
-def getPositionsCuboid3d(config):
-    pos = {}
-    numErrorInner = config["NUMERROR"] // 2
-    numErrorOuter = config["NUMERROR"] - numErrorInner
-    # pos["error"] = np.concatenate((gp.stackedEquidistantRectangles(numErrorInner, 2,
-    #                                 [config["TARGETWIDTH"], config["TARGETWIDTH"]],config["TARGETHEIGHT"]),
-    #                             gp.stackedEquidistantRectangles(numErrorOuter, 2,
-    #                                 [config["TARGETWIDTH"]+0.05, config["TARGETWIDTH"]+0.05], config["TARGETHEIGHT"])), axis=0)
 
-    pos["error"] = gp.FourEquidistantRectangles(
-        config["NUMERROR"],
-        config["TARGETWIDTH"],
+def getPositionsCuboid3d(numError=28, 
+                        numSpeaker=16, 
+                        numTarget=10**2*4, 
+                        targetWidth=1, 
+                        targetHeight=0.2, 
+                        speakerWidth=2.5,
+                        speakerHeight=0.2):
+    arrays = ArrayCollection()
+
+    arrays.add_array(Array("error", ArrayType.MIC, 
+    gp.FourEquidistantRectangles(
+        numError,
+        targetWidth,
         0.03,
-        -config["TARGETHEIGHT"] / 2,
-        config["TARGETHEIGHT"] / 2,
-    )
-    pos["speaker"] = gp.stackedEquidistantRectangles(
-        config["NUMSPEAKER"],
+        -targetHeight / 2,
+        targetHeight / 2,
+    )))
+
+    arrays.add_array(Array("speaker", ArrayType.CTRLSOURCE,
+    gp.stackedEquidistantRectangles(
+        numSpeaker,
         2,
-        [config["SPEAKERDIM"], config["SPEAKERDIM"]],
-        config["TARGETHEIGHT"],
-    )
+        [speakerWidth, speakerWidth],
+        speakerHeight,
+    )))
 
-    if config["TARGETPOINTSPLACEMENT"] == "target_region":
-        pos["target"] = gp.uniformFilledCuboid_better(
-            config["NUMTARGET"],
-            (config["TARGETWIDTH"], config["TARGETWIDTH"], config["TARGETHEIGHT"]),
-        )
-    elif config["TARGETPOINTSPLACEMENT"] == "image":
-        wallMargin = 0.1
-        roomLims = (
-            config["ROOMCENTER"][0] - config["ROOMSIZE"][0] / 2 + wallMargin,
-            config["ROOMCENTER"][1] - config["ROOMSIZE"][1] / 2 + wallMargin,
-            config["ROOMCENTER"][0] + config["ROOMSIZE"][0] / 2 - wallMargin,
-            config["ROOMCENTER"][1] + config["ROOMSIZE"][1] / 2 - wallMargin,
-        )
-        pos["target"] = gp.uniformFilledRectangle(
-            config["NUMTARGET"], roomLims, zAxis=0
-        )
+    target = geo.Cuboid((targetWidth, targetWidth, targetHeight), 
+        point_spacing=(targetWidth/10, targetWidth/10, targetHeight/4))
 
-    # sf_image_margins = 0.2
-    # sf_image_lim = [np.min(pos["speaker"][:,0:2])-sf_image_margins,
-    #                 np.max(pos["speaker"][:,0:2])+sf_image_margins]
-    # pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], lim=sf_image_lim, zAxis=0)
+    arrays.add_array(Array("target", ArrayType.REGION, target))
+    # if config["TARGETPOINTSPLACEMENT"] == "target_region":
 
-    pos["source"] = np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)
-    #pos["source"] = np.array([[-15, 0, 0]], dtype=np.float64)
-    assert config["NUMSOURCE"] == 1
-    pos["ref"] = copy.deepcopy(pos["source"])
-    assert config["NUMREF"] == 1
-    return pos
+    #     pos["target"] = gp.uniformFilledCuboid_better(
+    #         numTarget,
+    #         (targetWidth, targetWidth, targetHeight),
+    #     )
+    # elif config["TARGETPOINTSPLACEMENT"] == "image":
+    #     wallMargin = 0.1
+    #     roomLims = (
+    #         config["ROOMCENTER"][0] - config["ROOMSIZE"][0] / 2 + wallMargin,
+    #         config["ROOMCENTER"][1] - config["ROOMSIZE"][1] / 2 + wallMargin,
+    #         config["ROOMCENTER"][0] + config["ROOMSIZE"][0] / 2 - wallMargin,
+    #         config["ROOMCENTER"][1] + config["ROOMSIZE"][1] / 2 - wallMargin,
+    #     )
+    #     pos["target"] = gp.uniformFilledRectangle(
+    #         numTarget, roomLims, zAxis=0
+    #     )
+
+    source = src.BandlimitedNoiseSource(10, (10,100), sr)
+
+    arrays.add_array(Array("source", ArrayType.FREESOURCE
+        np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))
+    arrays.add_array(Array("ref", ArrayType.MIC
+        np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)))
+
+
+    return arrays
+
+
+
+
+# def getPositionsCuboid3d(config):
+#     pos = {}
+#     numErrorInner = config["NUMERROR"] // 2
+#     numErrorOuter = config["NUMERROR"] - numErrorInner
+#     # pos["error"] = np.concatenate((gp.stackedEquidistantRectangles(numErrorInner, 2,
+#     #                                 [config["TARGETWIDTH"], config["TARGETWIDTH"]],config["TARGETHEIGHT"]),
+#     #                             gp.stackedEquidistantRectangles(numErrorOuter, 2,
+#     #                                 [config["TARGETWIDTH"]+0.05, config["TARGETWIDTH"]+0.05], config["TARGETHEIGHT"])), axis=0)
+
+#     pos["error"] = gp.FourEquidistantRectangles(
+#         config["NUMERROR"],
+#         config["TARGETWIDTH"],
+#         0.03,
+#         -config["TARGETHEIGHT"] / 2,
+#         config["TARGETHEIGHT"] / 2,
+#     )
+#     pos["speaker"] = gp.stackedEquidistantRectangles(
+#         config["NUMSPEAKER"],
+#         2,
+#         [config["SPEAKERDIM"], config["SPEAKERDIM"]],
+#         config["TARGETHEIGHT"],
+#     )
+
+#     if config["TARGETPOINTSPLACEMENT"] == "target_region":
+#         pos["target"] = gp.uniformFilledCuboid_better(
+#             config["NUMTARGET"],
+#             (config["TARGETWIDTH"], config["TARGETWIDTH"], config["TARGETHEIGHT"]),
+#         )
+#     elif config["TARGETPOINTSPLACEMENT"] == "image":
+#         wallMargin = 0.1
+#         roomLims = (
+#             config["ROOMCENTER"][0] - config["ROOMSIZE"][0] / 2 + wallMargin,
+#             config["ROOMCENTER"][1] - config["ROOMSIZE"][1] / 2 + wallMargin,
+#             config["ROOMCENTER"][0] + config["ROOMSIZE"][0] / 2 - wallMargin,
+#             config["ROOMCENTER"][1] + config["ROOMSIZE"][1] / 2 - wallMargin,
+#         )
+#         pos["target"] = gp.uniformFilledRectangle(
+#             config["NUMTARGET"], roomLims, zAxis=0
+#         )
+
+#     # sf_image_margins = 0.2
+#     # sf_image_lim = [np.min(pos["speaker"][:,0:2])-sf_image_margins,
+#     #                 np.max(pos["speaker"][:,0:2])+sf_image_margins]
+#     # pos.evals = gp.uniformFilledRectangle(config["NUMEVALS"], lim=sf_image_lim, zAxis=0)
+
+#     pos["source"] = np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)
+#     #pos["source"] = np.array([[-15, 0, 0]], dtype=np.float64)
+#     assert config["NUMSOURCE"] == 1
+#     pos["ref"] = copy.deepcopy(pos["source"])
+#     assert config["NUMREF"] == 1
+#     return pos
 
 
 def getPositionsRectangle3d(config):

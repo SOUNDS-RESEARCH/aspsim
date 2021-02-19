@@ -6,7 +6,6 @@ import json
 
 from ancsim.configfile import getConfig
 import ancsim.utilities as util
-from ancsim.simulatorsetup import setupPos, setupIR
 from ancsim.simulatorlogging import addToSimMetadata
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 import ancsim.experiment.multiexperimentutils as meu

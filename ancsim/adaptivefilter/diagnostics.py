@@ -128,6 +128,13 @@ class DiagnosticHandler:
         self.bufferIdx = 0
         self.diagnosticSamplesLeft = 0
 
+    def reset(self):
+        for diag in it.chain(self.perBlockDiagnostics, 
+                            self.perSampleDiagnostics, 
+                            self.perSimBufferDiagnostics):
+            diag.reset()
+            
+
     def getFuncInfo(self, name):
         return self.diagnostics[name].info
 

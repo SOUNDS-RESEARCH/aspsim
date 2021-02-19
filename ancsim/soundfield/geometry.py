@@ -20,13 +20,14 @@ class Region(ABC):
 
 
 class Cuboid(Region):
-    def __init__(self, side_lengths, center=(0, 0, 0)):
+    def __init__(self, side_lengths, center=(0, 0, 0), point_spacing=(1,1,1)):
         self.side_lengths = np.array(side_lengths)
         self.center = np.array(center)
         self.low_lim = self.center - self.side_lengths / 2
         self.high_lim = self.center + self.side_lengths / 2
         self.volume = np.prod(side_lengths)
-        self.rng = np.random.RandomState(1)
+        self.rng = np.random.default_rng(1)
+        self.point_spacing = point_spacing
 
     def is_in_region(self, coordinate):
         return all(
@@ -38,7 +39,9 @@ class Cuboid(Region):
             ]
         )
 
-    def equally_spaced_points(self, point_dist):
+    def equally_spaced_points(self, point_dist=None):
+        if point_dist is None:
+            point_dist = self.point_spacing
         if isinstance(point_dist, (int, float)):
             point_dist = np.ones(3) * point_dist
         else:
