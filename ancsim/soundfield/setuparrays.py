@@ -109,9 +109,10 @@ def getPositionsDisc2d(config):
 
 
 
-def getPositionsCuboid3d(numError=28, 
+def getPositionsCuboid3d(config, 
+                        numError=28, 
                         numSpeaker=16, 
-                        numTarget=10**2*4, 
+                        targetReso=(10,10,4), 
                         targetWidth=1, 
                         targetHeight=0.2, 
                         speakerWidth=2.5,
@@ -136,7 +137,7 @@ def getPositionsCuboid3d(numError=28,
     )))
 
     target = geo.Cuboid((targetWidth, targetWidth, targetHeight), 
-        point_spacing=(targetWidth/10, targetWidth/10, targetHeight/4))
+        point_spacing=(targetWidth/targetReso[0], targetWidth/targetReso[1], targetHeight/targetReso[2]))
 
     arrays.add_array(Array("target", ArrayType.REGION, target))
     # if config["TARGETPOINTSPLACEMENT"] == "target_region":
@@ -157,15 +158,16 @@ def getPositionsCuboid3d(numError=28,
     #         numTarget, roomLims, zAxis=0
     #     )
 
-    source = src.BandlimitedNoiseSource(10, (10,100), sr)
+    source = src.BandlimitedNoiseSource(10, (10,100), config["SAMPLERATE"])
 
-    arrays.add_array(Array("source", ArrayType.FREESOURCE
+    arrays.add_array(Array("source", ArrayType.FREESOURCE,
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))
-    arrays.add_array(Array("ref", ArrayType.MIC
+    arrays.add_array(Array("ref", ArrayType.MIC,
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)))
 
+    propPaths = {"speaker":{"ref":"none"}}
 
-    return arrays
+    return arrays, propPaths
 
 
 

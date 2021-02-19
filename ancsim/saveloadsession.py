@@ -4,7 +4,6 @@ import numpy as np
 import os
 import json
 
-from ancsim.configfile import getConfig
 import ancsim.utilities as util
 from ancsim.simulatorlogging import addToSimMetadata
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
@@ -35,7 +34,7 @@ def loadSession(sessionsPath, newFolderPath, newConfig=None):
     srcFilt = loadSourceFilters(sessionToLoad)
     spkFilt = loadSpeakerFilters(sessionToLoad)
     copySimMetadata(sessionToLoad, newFolderPath)
-    return pos, srcFilt, 
+    return pos, srcFilt
     
 def loadFromPath(sessionPath):
     pass

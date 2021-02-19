@@ -14,6 +14,9 @@ class ArrayCollection():
         for ar in self.arrays.values():
             yield ar
     
+    def empty(self):
+        return len(self.arrays) == 0
+
     def sources(self):
         """Iterate over all source arrays"""
         for name in self.names_src:
@@ -23,6 +26,11 @@ class ArrayCollection():
         """Iterator over all mic arrays"""
         for name in self.names_mic:
             yield self.arrays[name]
+
+    def paths(self):
+        for src_name in self.names_src:
+            for mic_name in self.names_mic:
+                yield self.arrays[src_name], self.arrays[mic_name]
 
     def of_type(self, typ):
         """typ is an ArrayType Enum object, 
@@ -37,7 +45,7 @@ class ArrayCollection():
         
         if array.is_mic:
             self.names_mic.append(array.name)
-        elif array.is_src:
+        elif array.is_source:
             self.names_src.append(array.name)
         else:
             raise ValueError
@@ -51,11 +59,11 @@ class ArrayType(Enum):
 
     @property
     def is_mic(self):
-        return self in (ARRAYTYPE.MIC, ARRAYTYPE.REGION)
+        return self in (ArrayType.MIC, ArrayType.REGION)
     
     @property
     def is_source(self):
-        return self in (ARRAYTYPE.CTRLSOURCE, ARRAYTYPE.FREESOURCE)
+        return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
 
 class Array():
     def __init__(self, name, typ, pos, source=None):

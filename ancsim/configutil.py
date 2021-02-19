@@ -1,22 +1,22 @@
 import ancsim.utilities as util
+from pathlib import Path
 import yaml
 
 def getBaseConfig():
-    with open("config.yaml") as f:
+    with open(Path(__file__).parent.joinpath("config.yaml")) as f:
         config = yaml.safe_load(f)
     return config
 
-def processConfig(conf, numFilt):
-    if isinstance(conf["BLOCKSIZE"], int):
-        conf["BLOCKSIZE"] = [conf["BLOCKSIZE"] for _ in range(numFilt)]
+def processConfig(conf):
+    #if isinstance(conf["BLOCKSIZE"], int):
+    #    conf["BLOCKSIZE"] = [conf["BLOCKSIZE"] for _ in range(numFilt)]
 
-    checkConfig(conf, numFilt)
+    checkConfig(conf)
     return conf
 
-def checkConfig(conf, numFilt):
+def checkConfig(conf):
     if isinstance(conf["BLOCKSIZE"], list):
         for bs in conf["BLOCKSIZE"]:
             assert util.isPowerOf2(bs)
 
-    assert len(conf["SOURCEAMP"]) == conf["NUMSOURCE"]
-    assert numFilt == len(conf["BLOCKSIZE"])
+   # assert numFilt == len(conf["BLOCKSIZE"])

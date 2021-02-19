@@ -3,20 +3,6 @@ import json
 import ancsim.utilities as util
 
 
-def createFigFolder(config, folderForPlots, generateSubFolder=True, safeNaming=False):
-    packageDir = Path(__file__).parent
-    if config["PLOTOUTPUT"] != "none":
-        if generateSubFolder:
-            folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
-            folderName.mkdir()
-        else:
-            folderName = folderForPlots
-            if not folderName.exists():
-                folderName.mkdir()
-    else:
-        folderName = ""
-    return folderName
-
 def addToSimMetadata(folderPath, dictToAdd):
     try:
         with open(folderPath.joinpath("simmetadata.json"), "r") as f:

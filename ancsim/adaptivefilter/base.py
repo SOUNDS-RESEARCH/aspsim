@@ -80,6 +80,13 @@ class AudioProcessor(ABC):
 
         self.idx -= self.simChunkSize
 
+class VolumeControl(AudioProcessor):
+    def __init__(self):
+        pass
+
+    def process(self, numSamples, inputSignals):
+        pass
+
 
 class ActiveNoiseControlProcessor(AudioProcessor):
     def __init__(self, config):
