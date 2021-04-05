@@ -158,14 +158,14 @@ def getPositionsCuboid3d(config,
     #         numTarget, roomLims, zAxis=0
     #     )
 
-    source = src.BandlimitedNoiseSource(10, (10,100), config["SAMPLERATE"])
+    source = src.BandlimitedNoiseSource(10, (100,300), config["SAMPLERATE"])
 
     arrays.add_array(Array("source", ArrayType.FREESOURCE,
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))
     arrays.add_array(Array("ref", ArrayType.MIC,
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)))
 
-    propPaths = {"speaker":{"ref":"none"}}
+    propPaths = {"speaker":{"ref":"none"}, "source" : {"ref":"identity"}}
 
     return arrays, propPaths
 

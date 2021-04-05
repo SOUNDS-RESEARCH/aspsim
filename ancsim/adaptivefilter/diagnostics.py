@@ -61,16 +61,16 @@ class PlotDiagnosticDispatcher:
                 self.dispatchSummary(funcInfo, diagName, diagSet, timeIdx, folder)
 
     def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
-
         if not isinstance(funcInfo.outputType, (list, tuple)):
             funcInfo.outputType = [funcInfo.outputType]
+
         for i, outType in enumerate(funcInfo.outputType):
             if len(funcInfo.outputType) == 1:
                 outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
             elif len(funcInfo.outputType) > 1:
                 outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
-            metadata = diagSet[list(diagSet.keys())[0]].metadata
-            outType(diagName, outputs, metadata, timeIdx, folder, self.outputFormat)
+            plotData = diagSet[list(diagSet.keys())[0]].plotData
+            outType(diagName, outputs, plotData, timeIdx, folder, self.outputFormat)
 
         # if funcInfo.outputType == OUTPUTFUNCTION.functionoftime:
         #     dplot.functionOfTimePlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
@@ -89,21 +89,24 @@ class PlotDiagnosticDispatcher:
             elif len(funcInfo.summaryType) > 1:
                 outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
 
-            if sumType == SUMMARYFUNCTION.none:
-                return
-            elif sumType == SUMMARYFUNCTION.lastValue:
-                summaryValues = dsum.lastValue(outputs, timeIdx)
-            elif sumType == SUMMARYFUNCTION.meanNearTimeIdx:
-                summaryValues = dsum.meanNearTimeIdx(outputs, timeIdx)
-            else:
-                raise NotImplementedError
-            dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
+            if sumType is not None:
+                summaryValues = sumType(outputs, timeIdx)
+                dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
+            # if sumType == SUMMARYFUNCTION.none:
+            #     return
+            # elif sumType == SUMMARYFUNCTION.lastValue:
+            #     summaryValues = dsum.lastValue(outputs, timeIdx)
+            # elif sumType == SUMMARYFUNCTION.meanNearTimeIdx:
+            #     summaryValues = dsum.meanNearTimeIdx(outputs, timeIdx)
+            # else:
+            #     raise NotImplementedError
+            # dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
 
-    def getDiagnosticSet(self, diagnosticName, filters):
+    def getDiagnosticSet(self, diagnosticName, processors):
         diagnostic = {}
-        for filt in filters:
-            if filt.diag.hasDiagnostic(diagnosticName):
-                diagnostic[filt.name] = filt.diag.diagnostics[diagnosticName]
+        for proc in processors:
+            if proc.diag.hasDiagnostic(diagnosticName):
+                diagnostic[proc.name] = proc.diag.diagnostics[diagnosticName]
         return diagnostic
 
     def getUniqueFuncInfo(self, filters):
@@ -125,7 +128,9 @@ class DiagnosticHandler:
         self.perBlockDiagnostics = []
         self.perSampleDiagnostics = []
 
-        self.bufferIdx = 0
+        #self.bufferIdx = 0
+        self.lastIdx = self.simBuffer
+        self.lastGlobalIdx = 0
         self.diagnosticSamplesLeft = 0
 
     def reset(self):
@@ -152,32 +157,349 @@ class DiagnosticHandler:
             raise ValueError
         self.diagnostics[name] = diagnostic
 
-    def saveBlockData(self, name, idx, *args):
-        self.diagnostics[name].saveBlockData(idx, *args)
+    def saveData(self, sig, idx, globalIdx):
+        if idx-self.lastIdx < globalIdx-self.lastGlobalIdx:
+            self.lastIdx -= self.simChunkSize
 
-    def saveBufferData(self, name, idx, *args):
-        if name in self.perBlockDiagnostics or name in self.perSampleDiagnostics:
-            startIdx = self.simBuffer - self.diagnosticSamplesLeft
-            numLeftOver = self.simBuffer + self.simChunkSize - idx
-            saveStartIdx = (
-                self.bufferIdx * self.simChunkSize - self.diagnosticSamplesLeft
-            )
-            saveEndIdx = (self.bufferIdx + 1) * self.simChunkSize - numLeftOver
+        for diagName, diag in self.diagnostics.items():
+            diag.saveData(sig, self.lastIdx, idx, self.lastGlobalIdx, globalIdx)
 
-            self.diagnostics[name].saveDiagnostics(
-                startIdx, idx, saveStartIdx, saveEndIdx, *args
-            )
-        elif name in self.perSimBufferDiagnostics:
-            self.diagnostics[name].saveDiagnostics(self.bufferIdx, *args)
+        self.lastGlobalIdx = globalIdx
+        self.lastIdx = idx
 
-    def resetBuffers(self, idx):
-        """Must be called after simulation buffer resets.
-        Calls resetBuffer() for all owned diagnostic objects, and increments counters"""
-        for key, val in self.diagnostics.items():
-            val.resetBuffers()
-        numLeftOver = self.simBuffer + self.simChunkSize - idx
-        self.diagnosticSamplesLeft = numLeftOver
-        self.bufferIdx += 1
+    # def saveBlockData(self, name, idx, *args):
+    #     self.diagnostics[name].saveBlockData(idx, *args)
+
+    # def saveBufferData(self, name, idx, *args):
+    #     if name in self.perBlockDiagnostics or name in self.perSampleDiagnostics:
+    #         startIdx = self.simBuffer - self.diagnosticSamplesLeft
+    #         numLeftOver = self.simBuffer + self.simChunkSize - idx
+    #         saveStartIdx = (
+    #             self.bufferIdx * self.simChunkSize - self.diagnosticSamplesLeft
+    #         )
+    #         saveEndIdx = (self.bufferIdx + 1) * self.simChunkSize - numLeftOver
+
+    #         self.diagnostics[name].saveDiagnostics(
+    #             startIdx, idx, saveStartIdx, saveEndIdx, *args
+    #         )
+    #     elif name in self.perSimBufferDiagnostics:
+    #         self.diagnostics[name].saveDiagnostics(self.bufferIdx, *args)
+
+    # def resetBuffers(self, idx):
+    #     """Must be called after simulation buffer resets.
+    #     Calls resetBuffer() for all owned diagnostic objects, and increments counters"""
+    #     for key, val in self.diagnostics.items():
+    #         val.resetBuffers()
+    #     numLeftOver = self.simBuffer + self.simChunkSize - idx
+    #     self.diagnosticSamplesLeft = numLeftOver
+    #     self.bufferIdx += 1
+
+
+
+class FunctionOfTimeDiagnostic:
+    def __init__(self):
+        pass
+
+    def plot(self):
+        pass
+
+    def saveRawData(self):
+        pass
+
+    def summary(self):
+        pass
+
+
+class NoiseReduction(FunctionOfTimeDiagnostic):
+    def __init__(
+        self,
+        totalNoiseName,
+        beforeReductionName,
+        endTimeStep,
+        smoothingLen=1,
+        saveRawData=True,
+        beginAtBuffer=0,
+        plotFrequency=1
+    ):
+        self.totalNoiseName = totalNoiseName
+        self.beforeReductionName = beforeReductionName
+        self.saveRawData = saveRawData
+
+        if saveRawData:
+            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
+            #summaryFunc = dsum.meanNearTimeIdx
+        else:
+            outputFunc = dplot.functionOfTimePlot
+        summaryFunc = dsum.meanNearTimeIdx
+
+        self.info = DiagnosticFunctionalityInfo(
+            DIAGNOSTICTYPE.perSample,
+            outputFunc,
+            summaryFunc,
+            beginAtBuffer,
+            plotFrequency,
+        )
+        self.totalNoisePower = np.zeros(endTimeStep)
+        self.primaryNoisePower = np.zeros(endTimeStep)
+        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen))/smoothingLen, numIn=1)
+        self.primaryNoiseSmoother = Filter_IntBuffer(
+            ir=np.ones((smoothingLen))/smoothingLen, numIn=1
+        )
+        self.noiseReduction = np.full((endTimeStep), np.nan)
+
+        self.plotData = {
+            "title": "Noise Reduction",
+            "xlabel": "Samples",
+            "ylabel": "Reduction (dB)",
+        }
+
+    def saveData(self, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
+        totalNoisePower = np.mean(sig[self.totalNoiseName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True)
+        primaryNoisePower = np.mean(
+            sig[self.beforeReductionName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True
+        )
+
+        totalNoisePowerSmooth = self.totalNoiseSmoother.process(totalNoisePower)
+        primaryNoisePowerSmooth = self.primaryNoiseSmoother.process(primaryNoisePower)
+
+        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
+            totalNoisePowerSmooth / primaryNoisePowerSmooth
+        )
+        self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
+        self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+
+    def getOutput(self):
+        if self.saveRawData:
+            return [
+                self.noiseReduction,
+                {
+                    "Total Noise Power": self.totalNoisePower,
+                    "Primary Noise Power": self.primaryNoisePower,
+                },
+            ]
+        else:
+            return self.noiseReduction
+
+
+
+
+
+
+
+
+# class NoiseReduction:
+#     def __init__(
+#         self,
+#         numPoints,
+#         acousticPath,
+#         endTimeStep,
+#         simBuffer,
+#         simChunkSize,
+#         smoothingLen=1,
+#         saveRawData=True,
+#         beginAtBuffer=0,
+#         plotFrequency=1,
+#         **kwargs
+#     ):
+#         self.simBuffer = simBuffer
+#         self.simChunkSize = simChunkSize
+#         self.saveRawData = saveRawData
+#         if saveRawData:
+#             outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
+#             summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
+#         else:
+#             outputFunc = dplot.functionOfTimePlot
+#             summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
+
+#         self.info = DiagnosticFunctionalityInfo(
+#             DIAGNOSTICTYPE.perSample,
+#             outputFunc,
+#             summaryFunc,
+#             beginAtBuffer=beginAtBuffer,
+#             plotFrequency=plotFrequency,
+#         )
+#         self.pathFilter = FilterSum_IntBuffer(acousticPath)
+
+#         self.totalNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
+#         self.primaryNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
+
+#         self.totalNoisePower = np.zeros(endTimeStep)
+#         self.primaryNoisePower = np.zeros(endTimeStep)
+
+#         self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)), numIn=1)
+#         self.primaryNoiseSmoother = Filter_IntBuffer(
+#             ir=np.ones((smoothingLen)), numIn=1
+#         )
+
+#         self.noiseReduction = np.full((endTimeStep), np.nan)
+#         self.metadata = {
+#             "title": "Noise Reduction",
+#             "xlabel": "Samples",
+#             "ylabel": "Reduction (dB)",
+#         }
+#         for key, value in kwargs.items():
+#             self.metadata[key] = value
+
+#     def getOutput(self):
+#         if self.saveRawData:
+#             return [
+#                 self.noiseReduction,
+#                 {
+#                     "Total Noise Power": self.totalNoisePower,
+#                     "Primary Noise Power": self.primaryNoisePower,
+#                 },
+#             ]
+#         else:
+#             return self.noiseReduction
+
+#     def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, y):
+#         secondaryNoise = self.pathFilter.process(y[:, startIdx:endIdx])
+#         self.totalNoise[:, startIdx:endIdx] = (
+#             self.primaryNoise[:, startIdx:endIdx] + secondaryNoise
+#         )
+
+#         totalNoisePower = np.mean(
+#             self.totalNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
+#         )
+#         primaryNoisePower = np.mean(
+#             self.primaryNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
+#         )
+
+#         self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
+#         self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+
+#         smoothTotalNoisePower = self.totalNoiseSmoother.process(totalNoisePower)
+#         smoothPrimaryNoisePower = self.primaryNoiseSmoother.process(primaryNoisePower)
+
+#         self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
+#             smoothTotalNoisePower / smoothPrimaryNoisePower
+#         )
+
+#     def resetBuffers(self):
+#         self.totalNoise = np.concatenate(
+#             (
+#                 self.totalNoise[:, -self.simBuffer :],
+#                 np.zeros((self.totalNoise.shape[0], self.simChunkSize)),
+#             ),
+#             axis=-1,
+#         )
+#         self.primaryNoise = np.concatenate(
+#             (
+#                 self.primaryNoise[:, -self.simBuffer :],
+#                 np.zeros((self.primaryNoise.shape[0], self.simChunkSize)),
+#             ),
+#             axis=-1,
+#         )
+
+#     # def saveToBuffers(self, newPrimaryNoise, idx, numSamples):
+#     #     self.primaryNoise[:,idx:idx+numSamples] = newPrimaryNoise
+#     def saveBlockData(self, idx, newPrimaryNoise):
+#         numSamples = newPrimaryNoise.shape[-1]
+#         self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
+
+# class NoiseReductionExternalSignals:
+#     def __init__(
+#         self,
+#         numPoints,
+#         endTimeStep,
+#         simBuffer,
+#         simChunkSize,
+#         smoothingLen=1,
+#         saveRawData=True,
+#         beginAtBuffer=0,
+#         plotFrequency=1,
+#         **kwargs
+#     ):
+#         self.simBuffer = simBuffer
+#         self.simChunkSize = simChunkSize
+#         self.saveRawData = saveRawData
+#         if saveRawData:
+#             outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
+#             summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
+#         else:
+#             outputFunc = dplot.functionOfTimePlot
+#             summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
+
+#         self.info = DiagnosticFunctionalityInfo(
+#             DIAGNOSTICTYPE.perSample,
+#             outputFunc,
+#             summaryFunc,
+#             beginAtBuffer=beginAtBuffer,
+#             plotFrequency=plotFrequency,
+#         )
+#         self.primaryNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
+#         self.totalNoisePower = np.zeros(endTimeStep)
+#         self.primaryNoisePower = np.zeros(endTimeStep)
+#         self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)), numIn=1)
+#         self.primaryNoiseSmoother = Filter_IntBuffer(
+#             ir=np.ones((smoothingLen)), numIn=1
+#         )
+#         self.noiseReduction = np.full((endTimeStep), np.nan)
+
+#         self.metadata = {
+#             "title": "Noise Reduction",
+#             "xlabel": "Samples",
+#             "ylabel": "Reduction (dB)",
+#         }
+#         for key, value in kwargs.items():
+#             self.metadata[key] = value
+
+#     # def getOutput(self):
+#     #     return self.noiseReduction
+#     def getOutput(self):
+#         if self.saveRawData:
+#             return [
+#                 self.noiseReduction,
+#                 {
+#                     "Total Noise Power": self.totalNoisePower,
+#                     "Primary Noise Power": self.primaryNoisePower,
+#                 },
+#             ]
+#         else:
+#             return self.noiseReduction
+
+#     def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, e):
+#         totalNoisePower = np.mean(e[:, startIdx:endIdx] ** 2, axis=0, keepdims=True)
+#         primaryNoisePower = np.mean(
+#             self.primaryNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
+#         )
+
+#         totalNoisePowerSmooth = self.totalNoiseSmoother.process(totalNoisePower)
+#         primaryNoisePowerSmooth = self.primaryNoiseSmoother.process(primaryNoisePower)
+
+#         self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
+#             totalNoisePowerSmooth / primaryNoisePowerSmooth
+#         )
+#         self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
+#         self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+
+#     def resetBuffers(self):
+#         self.primaryNoise = np.concatenate(
+#             (
+#                 self.primaryNoise[:, -self.simBuffer :],
+#                 np.zeros((self.primaryNoise.shape[0], self.simChunkSize)),
+#             ),
+#             axis=-1,
+#         )
+
+#     def saveBlockData(self, idx, newPrimaryNoise):
+#         numSamples = newPrimaryNoise.shape[-1]
+#         self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class DiagnosticFunctionalityInfo:
@@ -185,13 +507,13 @@ class DiagnosticFunctionalityInfo:
         self,
         diagnosticType,
         outputType,
-        summaryType=SUMMARYFUNCTION.none,
+        summaryType=None,
         beginAtBuffer=0,
         plotFrequency=1,
     ):
         self.type = diagnosticType  # Use the appropriate Enum
-        self.outputType = outputType  # Use the appropriate Enum
-        self.summaryType = summaryType  # Use the appropriate Enum
+        self.outputType = outputType 
+        self.summaryType = summaryType 
         self.beginAtBuffer = beginAtBuffer
         self.plotFrequency = plotFrequency  # Unit is number of simulator-buffers
 
@@ -220,7 +542,7 @@ class SoundfieldImage:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perSimBuffer,
             dplot.soundfieldPlot,
-            SUMMARYFUNCTION.none,
+            None,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -272,7 +594,7 @@ class RecordSpectrum:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perSimBuffer,
             dplot.soundfieldPlot,
-            SUMMARYFUNCTION.none,
+            None,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -335,7 +657,7 @@ class RecordIR():
         self.info = DiagnosticFunctionalityInfo(
                 DIAGNOSTICTYPE.perSimBuffer,
                 dplot.plotIR,
-                SUMMARYFUNCTION.none,
+                None,
                 beginAtBuffer=beginAtBuffer,
                 plotFrequency=plotFrequency,
             )
@@ -372,7 +694,7 @@ class PerBlockDiagnostic(ABC):
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
-            SUMMARYFUNCTION.meanNearTimeIdx,
+            dsum.meanNearTimeIdx,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -692,7 +1014,7 @@ class SignalEstimateNMSE:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perSample,
             dplot.functionOfTimePlot,
-            SUMMARYFUNCTION.meanNearTimeIdx,
+            dsum.meanNearTimeIdx,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -748,7 +1070,7 @@ class SignalEstimateNMSEBlock:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perSample,
             dplot.functionOfTimePlot,
-            SUMMARYFUNCTION.meanNearTimeIdx,
+            dsum.meanNearTimeIdx,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -798,7 +1120,7 @@ class RecordScalar:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
-            SUMMARYFUNCTION.meanNearTimeIdx,
+            dsum.meanNearTimeIdx,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )
@@ -892,205 +1214,7 @@ class RecordVectorSummary:
         self.recordedValues[2, totIdx] = np.min(value)
 
 
-class NoiseReduction:
-    def __init__(
-        self,
-        numPoints,
-        acousticPath,
-        endTimeStep,
-        simBuffer,
-        simChunkSize,
-        smoothingLen=1,
-        saveRawData=True,
-        beginAtBuffer=0,
-        plotFrequency=1,
-        **kwargs
-    ):
-        self.simBuffer = simBuffer
-        self.simChunkSize = simChunkSize
-        self.saveRawData = saveRawData
-        if saveRawData:
-            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
-            summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
-        else:
-            outputFunc = dplot.functionOfTimePlot
-            summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
 
-        self.info = DiagnosticFunctionalityInfo(
-            DIAGNOSTICTYPE.perSample,
-            outputFunc,
-            summaryFunc,
-            beginAtBuffer=beginAtBuffer,
-            plotFrequency=plotFrequency,
-        )
-        self.pathFilter = FilterSum_IntBuffer(acousticPath)
-
-        self.totalNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
-        self.primaryNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
-
-        self.totalNoisePower = np.zeros(endTimeStep)
-        self.primaryNoisePower = np.zeros(endTimeStep)
-
-        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)), numIn=1)
-        self.primaryNoiseSmoother = Filter_IntBuffer(
-            ir=np.ones((smoothingLen)), numIn=1
-        )
-
-        self.noiseReduction = np.full((endTimeStep), np.nan)
-        self.metadata = {
-            "title": "Noise Reduction",
-            "xlabel": "Samples",
-            "ylabel": "Reduction (dB)",
-        }
-        for key, value in kwargs.items():
-            self.metadata[key] = value
-
-    def getOutput(self):
-        if self.saveRawData:
-            return [
-                self.noiseReduction,
-                {
-                    "Total Noise Power": self.totalNoisePower,
-                    "Primary Noise Power": self.primaryNoisePower,
-                },
-            ]
-        else:
-            return self.noiseReduction
-
-    def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, y):
-        secondaryNoise = self.pathFilter.process(y[:, startIdx:endIdx])
-        self.totalNoise[:, startIdx:endIdx] = (
-            self.primaryNoise[:, startIdx:endIdx] + secondaryNoise
-        )
-
-        totalNoisePower = np.mean(
-            self.totalNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
-        )
-        primaryNoisePower = np.mean(
-            self.primaryNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
-        )
-
-        self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
-        self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
-
-        smoothTotalNoisePower = self.totalNoiseSmoother.process(totalNoisePower)
-        smoothPrimaryNoisePower = self.primaryNoiseSmoother.process(primaryNoisePower)
-
-        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
-            smoothTotalNoisePower / smoothPrimaryNoisePower
-        )
-
-    def resetBuffers(self):
-        self.totalNoise = np.concatenate(
-            (
-                self.totalNoise[:, -self.simBuffer :],
-                np.zeros((self.totalNoise.shape[0], self.simChunkSize)),
-            ),
-            axis=-1,
-        )
-        self.primaryNoise = np.concatenate(
-            (
-                self.primaryNoise[:, -self.simBuffer :],
-                np.zeros((self.primaryNoise.shape[0], self.simChunkSize)),
-            ),
-            axis=-1,
-        )
-
-    # def saveToBuffers(self, newPrimaryNoise, idx, numSamples):
-    #     self.primaryNoise[:,idx:idx+numSamples] = newPrimaryNoise
-    def saveBlockData(self, idx, newPrimaryNoise):
-        numSamples = newPrimaryNoise.shape[-1]
-        self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
-
-
-class NoiseReductionExternalSignals:
-    def __init__(
-        self,
-        numPoints,
-        endTimeStep,
-        simBuffer,
-        simChunkSize,
-        smoothingLen=1,
-        saveRawData=True,
-        beginAtBuffer=0,
-        plotFrequency=1,
-        **kwargs
-    ):
-        self.simBuffer = simBuffer
-        self.simChunkSize = simChunkSize
-        self.saveRawData = saveRawData
-        if saveRawData:
-            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
-            summaryFunc = [SUMMARYFUNCTION.meanNearTimeIdx, SUMMARYFUNCTION.none]
-        else:
-            outputFunc = dplot.functionOfTimePlot
-            summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
-
-        self.info = DiagnosticFunctionalityInfo(
-            DIAGNOSTICTYPE.perSample,
-            outputFunc,
-            summaryFunc,
-            beginAtBuffer=beginAtBuffer,
-            plotFrequency=plotFrequency,
-        )
-        self.primaryNoise = np.zeros((numPoints, self.simChunkSize + self.simBuffer))
-        self.totalNoisePower = np.zeros(endTimeStep)
-        self.primaryNoisePower = np.zeros(endTimeStep)
-        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen)), numIn=1)
-        self.primaryNoiseSmoother = Filter_IntBuffer(
-            ir=np.ones((smoothingLen)), numIn=1
-        )
-        self.noiseReduction = np.full((endTimeStep), np.nan)
-
-        self.metadata = {
-            "title": "Noise Reduction",
-            "xlabel": "Samples",
-            "ylabel": "Reduction (dB)",
-        }
-        for key, value in kwargs.items():
-            self.metadata[key] = value
-
-    # def getOutput(self):
-    #     return self.noiseReduction
-    def getOutput(self):
-        if self.saveRawData:
-            return [
-                self.noiseReduction,
-                {
-                    "Total Noise Power": self.totalNoisePower,
-                    "Primary Noise Power": self.primaryNoisePower,
-                },
-            ]
-        else:
-            return self.noiseReduction
-
-    def saveDiagnostics(self, startIdx, endIdx, saveStartIdx, saveEndIdx, e):
-        totalNoisePower = np.mean(e[:, startIdx:endIdx] ** 2, axis=0, keepdims=True)
-        primaryNoisePower = np.mean(
-            self.primaryNoise[:, startIdx:endIdx] ** 2, axis=0, keepdims=True
-        )
-
-        totalNoisePowerSmooth = self.totalNoiseSmoother.process(totalNoisePower)
-        primaryNoisePowerSmooth = self.primaryNoiseSmoother.process(primaryNoisePower)
-
-        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
-            totalNoisePowerSmooth / primaryNoisePowerSmooth
-        )
-        self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
-        self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
-
-    def resetBuffers(self):
-        self.primaryNoise = np.concatenate(
-            (
-                self.primaryNoise[:, -self.simBuffer :],
-                np.zeros((self.primaryNoise.shape[0], self.simChunkSize)),
-            ),
-            axis=-1,
-        )
-
-    def saveBlockData(self, idx, newPrimaryNoise):
-        numSamples = newPrimaryNoise.shape[-1]
-        self.primaryNoise[:, idx : idx + numSamples] = newPrimaryNoise
 
 
 class saveTotalPower:
@@ -1098,7 +1222,7 @@ class saveTotalPower:
         self.info = DiagnosticFunctionalityInfo(
             DIAGNOSTICTYPE.perSample,
             OUTPUTFUNCTION.savenpz,
-            SUMMARYFUNCTION.none,
+            None,
             beginAtBuffer=beginAtBuffer,
             plotFrequency=plotFrequency,
         )

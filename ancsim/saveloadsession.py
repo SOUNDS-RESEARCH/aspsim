@@ -1,44 +1,56 @@
 from pathlib import Path
 import shutil
 import numpy as np
-import os
 import json
+import yaml
+import dill
 
 import ancsim.utilities as util
+import ancsim.configutil as configutil
 from ancsim.simulatorlogging import addToSimMetadata
 from ancsim.signal.filterclasses import FilterSum_IntBuffer
 import ancsim.experiment.multiexperimentutils as meu
+import ancsim.array as ar
 
 
-def generateSession(sessionFolder, extraprefix=""):
+
+def saveSession(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
     sessionPath = util.getUniqueFolderName("session_" + extraprefix, sessionFolder)
 
-    config = getConfig()
-    pos = setupPos(config)
-    sourceFilters, speakerFilters, irMetadata = setupIR(pos, config)
+    # config = getConfig()
+    # pos = setupPos(config)
+    # sourceFilters, speakerFilters, irMetadata = setupIR(pos, config)
 
     sessionPath.mkdir()
-    savePositions(sessionPath, pos)
-    saveSourceFilters(sessionPath, sourceFilters)
-    saveSpeakerFilters(sessionPath, speakerFilters)
+    saveArrays(sessionPath, arrays)
+    # savePositions(sessionPath, pos)
+    # saveSourceFilters(sessionPath, sourceFilters)
+    # saveSpeakerFilters(sessionPath, speakerFilters)
     saveConfig(sessionPath, config)
-    addToSimMetadata(sessionPath, irMetadata)
+    if simMetadata is not None:
+        addToSimMetadata(sessionPath, simMetadata)
 
-
-def loadSession(sessionsPath, newFolderPath, newConfig=None):
-    """If newConfig is supplied, sessionsPath refers to the folder where all sessions reside
-        If newConfig is not supplied, sessionsPath must refer to a specific session. """
-    sessionToLoad = searchForMatchingSession(sessionsPath, newConfig)
+def loadSession(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
+    """sessionsPath refers to the folder where all sessions reside 
+        This function will load a session matching the chosenConfig 
+        and chosenArrays if it exists"""
+    sessionToLoad = searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays)
     print("Loaded Session: ", str(sessionToLoad))
-    pos = loadPositions(sessionToLoad)
-    srcFilt = loadSourceFilters(sessionToLoad)
-    spkFilt = loadSpeakerFilters(sessionToLoad)
-    copySimMetadata(sessionToLoad, newFolderPath)
-    return pos, srcFilt
+    loadedArrays = loadArrays(sessionToLoad)
     
-def loadFromPath(sessionPath):
-    pass
+    # pos = loadPositions(sessionToLoad)
+    # srcFilt = loadSourceFilters(sessionToLoad)
+    # spkFilt = loadSpeakerFilters(sessionToLoad)
+    copySimMetadata(sessionToLoad, newFolderPath)
+    return loadedArrays
+    
+def loadFromPath(sessionPathToLoad, newFolderPath):
+    loadedArrays = loadArrays(sessionPathToLoad)
+    loadedConfig = loadConfig(sessionPathToLoad)
 
+    copySimMetadata(sessionPathToLoad, newFolderPath)
+    saveConfig(newFolderPath, loadedConfig)
+    return loadedConfig, loadedArrays
 
 def copySimMetadata(fromFolder, toFolder):
     shutil.copy(
@@ -46,13 +58,20 @@ def copySimMetadata(fromFolder, toFolder):
     )
 
 
-def searchForMatchingSession(sessionsPath, newConfig):
-    for dirname in os.listdir(sessionsPath):
-        currentSess = sessionsPath.joinpath(dirname)
-        loadedConfig = loadConfig(currentSess)
-        if configMatch(newConfig, loadedConfig):
-            return currentSess
-    raise ValueError("No matching saved sessions")
+class MatchingSessionNotFoundError(ValueError): pass
+
+def searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays):
+    for dirPath in sessionsPath.iterdir():
+        if dirPath.is_dir():
+            #currentSess = sessionsPath.joinpath(dirPath)
+            loadedConfig = loadConfig(dirPath)
+            loadedArrays = loadArrays(dirPath)
+            #print("configs", configutil.configMatch(chosenConfig, loadedConfig))
+            #print("arrays", chosenArrays == loadedArrays)
+            if configutil.configMatch(chosenConfig, loadedConfig, chosenArrays.path_type) and \
+                ar.ArrayCollection.prototype_equals(chosenArrays, loadedArrays):
+                return dirPath
+    raise MatchingSessionNotFoundError("No matching saved sessions")
 
 
 def saveRawData(filters, timeIdx, folderPath):
@@ -72,15 +91,33 @@ def loadControlFilter(sessionPath):
     return controlFilt
 
 
+# def saveConfig(pathToSave, config):
+#     with open(pathToSave.joinpath("configfile.json"), "w") as f:
+#         json.dump(config, f, indent=4)
+
+# def loadConfig(sessionPath):
+#     with open(sessionPath.joinpath("configfile.json"), "r") as f:
+#         conf = json.load(f)
+#     return conf
 def saveConfig(pathToSave, config):
-    packageDir = Path(__file__).parent
-    with open(pathToSave.joinpath("configfile.json"), "w") as f:
-        json.dump(config, f, indent=4)
+    with open(pathToSave.joinpath("config.yaml"), "w") as f:
+        yaml.dump(config, f, sort_keys=False)
 
 def loadConfig(sessionPath):
-    with open(sessionPath.joinpath("configfile.json"), "r") as f:
-        conf = json.load(f)
-    return conf
+    with open(sessionPath.joinpath("config.yaml")) as f:
+        config = yaml.safe_load(f)
+    return config
+
+
+def loadArrays(sessionPath):
+    with open(sessionPath.joinpath("arrays.pickle"), "rb") as f:
+        arrays = dill.load(f)
+    return arrays
+
+
+def saveArrays(pathToSave, arrays):
+    with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
+        dill.dump(arrays, f)
 
 def saveSpeakerFilters(folderPath, speakerFilters):
     np.savez(folderPath.joinpath("speakerfilters.npz"), **speakerFilters)
@@ -119,38 +156,3 @@ def loadPositions(folder):
         for key in loadedPos.files:
             pos[key] = loadedPos[key]
     return pos
-
-
-def configMatch(config1, config2):
-    allowedDifferent = [
-        "ENDTIMESTEP",
-        "SIMBUFFER",
-        "SIMCHUNKSIZE",
-        "AUDIOFILENAME",
-        "SOURCETYPE",
-        "NOISEFREQ",
-        "NOISEBANDWIDTH",
-        "SOURCEAMP",
-        "MICSNR",
-        "BLOCKSIZE",
-        "FILTLENGTH",
-        "SPMFILTLEN",
-        "MCPOINTS",
-        "KERNFILTLEN",
-        "SAVERAWDATA",
-        "SAVERAWDATAFREQUENCY",
-        "PLOTOUTPUT",
-        "LOADSESSION",
-        "OUTPUTSMOOTHING",
-        "GENSOUNDFIELDATCHUNK",
-        "PLOTFREQUENCY",
-    ]
-
-    confView1 = {
-        key: value for key, value in config1.items() if not key in allowedDifferent
-    }
-    confView2 = {
-        key: value for key, value in config2.items() if not key in allowedDifferent
-    }
-    # print("Config ", confView1 == confView2)
-    return confView1 == confView2

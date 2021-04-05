@@ -228,8 +228,9 @@ def equidistantRectangle(numPoints, dims, offset=0.5):
     points = np.zeros((numPoints, 2))
     if numPoints < 4:
         points = equidistantRectangle(4, dims)
-        pointChoices = np.random.choice(4, numPoints, replace=False)
-        points = points[pointChoices, :]
+        #pointChoices = np.random.choice(4, numPoints, replace=False)
+        #points = points[pointChoices, :]
+        points = points[:numPoints,:]
     else:
         lengths = [dims[0], dims[1], dims[0], dims[1]]
         xVal = [-dims[0] / 2, dims[0] / 2, dims[0] / 2, -dims[0] / 2]
