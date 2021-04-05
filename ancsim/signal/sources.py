@@ -152,7 +152,8 @@ class BandlimitedNoiseSource:
         assert len(freqLim) == 2
         assert freqLim[0] < freqLim[1]
         self.amplitude = amplitude
-        self.rng = np.random.RandomState(1)
+        self.numChannels = 1
+        self.rng = np.random.default_rng(1)
 
         wp = [freq for freq in freqLim]
 

@@ -1,5 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
+import matplotlib.patches as patches
 
 
 class Region(ABC):
@@ -18,6 +19,9 @@ class Region(ABC):
     def sample_points(self, num_points):
         pass
 
+    @abstractmethod
+    def plot(self, ax, label=None):
+        pass
 
 class Cuboid(Region):
     def __init__(self, side_lengths, center=(0, 0, 0), point_spacing=(1,1,1)):
@@ -50,9 +54,7 @@ class Cuboid(Region):
         num_points = np.floor(self.side_lengths / point_dist)
         assert min(num_points) >= 1
 
-        single_axes = [
-            np.arange(num_p) * p_dist for num_p, p_dist in zip(num_points, point_dist)
-        ]
+        single_axes = [np.arange(num_p) * p_dist for num_p, p_dist in zip(num_points, point_dist)]
         remainders = [
             s_len - single_ax[-1]
             for single_ax, s_len in zip(single_axes, self.side_lengths)
@@ -76,6 +78,10 @@ class Cuboid(Region):
 
         samples = np.concatenate(samples, axis=-1)
         return samples
+
+    def plot(self, ax, label=None):
+        rect = patches.Rectangle(self.low_lim, self.side_lengths[0], self.side_lengths[1], fill=True, alpha=0.3, label=label)
+        ax.add_patch(rect)
 
 
 class Cylinder(Region):

@@ -3,7 +3,7 @@ import numpy as np
 import ancsim.utilities as util
 import ancsim.configutil as configutil
 
-from ancsim.array import ArrayCollection, ArrayType, Array
+from ancsim.array import ArrayCollection, Array
 from ancsim.adaptivefilter.base import ProcessorWrapper
 from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
@@ -131,6 +131,7 @@ class Simulator:
 
         # LOGGING AND DIAGNOSTICS
         sess.saveConfig(self.folderPath, self.config)
+        self.arrays.plot(self.folderPath, self.config["PLOTOUTPUT"])
         #psc.plotArrays(self.arrays)
         #plotAnyPos(self.pos, self.folderPath, self.config)
         

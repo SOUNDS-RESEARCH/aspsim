@@ -4,7 +4,7 @@ import numpy as np
 import copy
 
 import ancsim.soundfield.generatepoints as gp
-from ancsim.array import ArrayCollection, Array, ArrayType
+import ancsim.array as ar
 import ancsim.soundfield.geometry as geo
 import ancsim.signal.sources as src
 
@@ -117,29 +117,29 @@ def getPositionsCuboid3d(config,
                         targetHeight=0.2, 
                         speakerWidth=2.5,
                         speakerHeight=0.2):
-    arrays = ArrayCollection()
+    arrays = ar.ArrayCollection()
 
-    arrays.add_array(Array("error", ArrayType.MIC, 
-    gp.FourEquidistantRectangles(
-        numError,
-        targetWidth,
-        0.03,
-        -targetHeight / 2,
-        targetHeight / 2,
+    arrays.add_array(ar.MicArray("error",
+        gp.FourEquidistantRectangles(
+            numError,
+            targetWidth,
+            0.03,
+            -targetHeight / 2,
+            targetHeight / 2,
     )))
 
-    arrays.add_array(Array("speaker", ArrayType.CTRLSOURCE,
-    gp.stackedEquidistantRectangles(
-        numSpeaker,
-        2,
-        [speakerWidth, speakerWidth],
-        speakerHeight,
+    arrays.add_array(ar.ControllableSourceArray("speaker",
+        gp.stackedEquidistantRectangles(
+            numSpeaker,
+            2,
+            [speakerWidth, speakerWidth],
+            speakerHeight,
     )))
 
     target = geo.Cuboid((targetWidth, targetWidth, targetHeight), 
         point_spacing=(targetWidth/targetReso[0], targetWidth/targetReso[1], targetHeight/targetReso[2]))
 
-    arrays.add_array(Array("target", ArrayType.REGION, target))
+    arrays.add_array(ar.RegionArray("target", target))
     # if config["TARGETPOINTSPLACEMENT"] == "target_region":
 
     #     pos["target"] = gp.uniformFilledCuboid_better(
@@ -160,9 +160,9 @@ def getPositionsCuboid3d(config,
 
     source = src.BandlimitedNoiseSource(10, (100,300), config["SAMPLERATE"])
 
-    arrays.add_array(Array("source", ArrayType.FREESOURCE,
+    arrays.add_array(ar.FreeSourceArray("source",
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))
-    arrays.add_array(Array("ref", ArrayType.MIC,
+    arrays.add_array(ar.MicArray("ref",
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64)))
 
     propPaths = {"speaker":{"ref":"none"}, "source" : {"ref":"identity"}}

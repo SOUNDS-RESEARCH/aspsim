@@ -1,12 +1,16 @@
-from enum import Enum
 import numpy as np
 import dill
+from abc import ABC
+import matplotlib.pyplot as plt
+
+from ancsim.experiment.plotscripts import outputPlot
 
 class ArrayCollection():
     def __init__(self):
         self.arrays = {}
         self.names_mic = []
         self.names_src = []
+        self.names_free_src = []
         self.paths = {}
         self.path_type = {}
 
@@ -29,9 +33,9 @@ class ArrayCollection():
 
         #Check that the arrays are the same
         for ar_name, ar in prototype.arrays.items():
-            if ar.num != initialized[ar_name].num:
+            if type(ar) is not type(initialized[ar_name]):
                 return False
-            if ar.typ != initialized[ar_name].typ:
+            if ar.num != initialized[ar_name].num:
                 return False
             if not np.allclose(ar.pos,initialized[ar_name].pos):
                 return False
@@ -66,7 +70,12 @@ class ArrayCollection():
         for name in self.names_mic:
             yield self.arrays[name]
 
+    def free_sources(self):
+        for name in self.names_free_src:
+            yield self.arrays[name]
+
     def mic_src_combos(self):
+        """Iterator over the euclidian product of the mics and sources"""
         for src_name in self.names_src:
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name]
@@ -76,32 +85,11 @@ class ArrayCollection():
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name], self.paths[src_name][mic_name]
 
-    def iter_paths_from(self, selectedSrc):
-        assert isinstance(selectedSrc, ArrayType)
-        for src, mic, path in self.iter_paths():
-            if src.typ == selectedSrc:
-                yield src, mic, path
-    
-    # def get_paths_src_subset(self, selectedSrc):
-    #     ir = {}
-
-    #     if isinstance(src, ArrayType):
-    #         return {src, mic, path for self.iter_paths() if src.typ == selectedSrc}
-    #     elif isinstance(src, str):
-    #         return {src, mic, path for self.iter_paths() if src.name == selectedSrc}
-        
-
-    # def all_combos(self):
-    #     for src_name in self.names_src:
-    #         for mic_name in self.names_mic:
-    #             yield self.arrays[src_name], self.arrays[mic_name], self.paths[src_name][mic_name]
-
-    def of_type(self, typ):
-        """typ is an ArrayType Enum object, 
-            specifying which type of array to iterate over"""
-        for ar in self.arrays.values():
-            if ar.typ == typ:
-                yield ar
+    # def iter_paths_from(self, selectedSrc):
+    #     assert isinstance(selectedSrc, ArrayType)
+    #     for src, mic, path in self.iter_paths():
+    #         if src.typ == selectedSrc:
+    #             yield src, mic, path
     
     def add_array(self, array):
         assert array.name not in self.arrays
@@ -109,14 +97,14 @@ class ArrayCollection():
         
         if array.is_mic:
             self.names_mic.append(array.name)
-            #for src_name in self.sources():
-            #    self.paths[src_name][array.name] = {}
         elif array.is_source:
             self.names_src.append(array.name)
             self.paths[array.name] = {}
             self.path_type[array.name] = {}
+            if isinstance(array, FreeSourceArray):
+                self.names_free_src.append(array.name)
         else:
-            raise ValueError
+            raise ValueError("Array is neither source nor microphone")
 
     def set_prop_paths(self, paths):
         for src_name, src_paths in paths.items():
@@ -130,10 +118,6 @@ class ArrayCollection():
         assert path.shape[0] == self.arrays[src_name].num
         assert path.shape[1] == self.arrays[mic_name].num
         assert path.ndim == 3
-        #elif isinstance(path, str):
-        #    pass
-        #else:
-        #    raise ValueError
         self.paths[src_name][mic_name] = path
     
     def set_path_types(self, path_types):
@@ -145,60 +129,97 @@ class ArrayCollection():
                 self.path_type[src_name][mic_name] = pt
 
 
-class ArrayType(Enum):
-    MIC = 0
-    REGION = 1
-    CTRLSOURCE = 2
-    FREESOURCE = 3
+    def plot(self, fig_folder, print_method):
+        fig, ax = plt.subplots()
+        for ar in self.arrays.values():
+            ar.plot(ax)
+        ax.legend()
+        outputPlot(print_method, fig_folder, "array_pos")
 
-    @property
-    def is_mic(self):
-        return self in (ArrayType.MIC, ArrayType.REGION)
+
+    # def get_paths_src_subset(self, selectedSrc):
+    #     ir = {}
+
+    #     if isinstance(src, ArrayType):
+    #         return {src, mic, path for self.iter_paths() if src.typ == selectedSrc}
+    #     elif isinstance(src, str):
+    #         return {src, mic, path for self.iter_paths() if src.name == selectedSrc}
+        
+    # def of_type(self, typ):
+    #     """typ is an ArrayType Enum object, 
+    #         specifying which type of array to iterate over"""
+    #     for ar in self.arrays.values():
+    #         if ar.typ == typ:
+    #             yield ar
     
-    @property
-    def is_source(self):
-        return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
+
+
+# class ArrayType(Enum):
+#     MIC = 0
+#     REGION = 1
+#     CTRLSOURCE = 2
+#     FREESOURCE = 3
+
+#     @property
+#     def is_mic(self):
+#         return self in (ArrayType.MIC, ArrayType.REGION)
+    
+#     @property
+#     def is_source(self):
+#         return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
 
 
 
 
-class Array():
-    def __init__(self, name, typ, pos, source=None):
+class Array(ABC):
+    is_mic = False
+    is_source = False
+    plot_symbol = "."
+
+    def __init__(self, name, pos):
         self.name = name
-        self.typ = typ
-        if typ == ArrayType.REGION:
-            self.region = pos
-            pos = self.region.equally_spaced_points()
-        elif typ == ArrayType.FREESOURCE:
-            self.source = source
-
         self.pos = pos
         self.num = pos.shape[0]
-        
-        self.is_mic = typ.is_mic
-        self.is_source = typ.is_source
 
-    # @property
-    # def plot_symbol(self):
-    #     if self.is_source:
-    #         return "o"
-    #     elif self.is_mic:
-    #         return "x"
+        assert pos.ndim == 2
+        assert pos.shape[1] == 3
+
+    def plot(self, ax):
+        ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
+
+class MicArray(Array):
+    is_mic = True
+    plot_symbol = "x"
+    def __init__(self, name, pos):
+        super().__init__(name, pos)
+
+class RegionArray(MicArray):
+    def __init__(self, name, region, pos=None):
+        if pos is None:
+            pos = region.equally_spaced_points()
+        super().__init__(name, pos)
+        self.region = region
+
+    def plot(self, ax):
+        self.region.plot(ax, self.name)
+        
+
+class ControllableSourceArray(Array):
+    plot_symbol="o"
+    is_source = True
+        
+class FreeSourceArray(Array):
+    plot_symbol = "s"
+    is_source = True
+    def __init__(self, name, pos, source):
+        super().__init__(name, pos)
+        self.setSource(source)
 
     def getSamples(self, numSamples):
         return self.source.getSamples(numSamples)
-        
+
     def setSource(self, source):
         assert source.numChannels == self.num
-        #source.numChannels
         self.source = source
 
-    def plot(self, ax):
-        pass
 
-    # def saveArray(self, pathToSave):
-    #     pass
-
-    # @staticmethod
-    # def loadArray(self, pathToArray):
-    #     pass
