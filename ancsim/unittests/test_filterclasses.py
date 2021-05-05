@@ -8,7 +8,7 @@ from ancsim.signal.filterclasses import (
     FilterMD_IntBuffer,
     FilterMD_Freqdomain,
 )
-import ancsim.soundfield.setuparrays as setup
+import ancsim.soundfield.presets as preset
 import pytest
 import ancsim.signal.filterclasses_new as fcn
 
@@ -18,7 +18,7 @@ import time
 
 @pytest.fixture
 def setupconstants():
-    pos = setup.getPositionsCylinder3d()
+    pos = preset.getPositionsCylinder3d()
     sr = int(1000 + np.random.rand() * 8000)
     noiseFreq = int(100 + np.random.rand() * 800)
     return pos, sr, noiseFreq

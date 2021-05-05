@@ -16,6 +16,32 @@ def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):
     return blockSizes
 
 
+def findFirstIndexForBlock(earliestStartIndex, indexToEndAt, blockSize):
+    """If processing in fixed size blocks, this function will give the index
+        to start at if the processing should end at a specific index.
+        Useful for preparation processing, where the exact startpoint isn't important
+        but it is important to end at the correct place. """
+    numSamples = indexToEndAt - earliestStartIndex
+    numBlocks = numSamples // blockSize
+    indexToStartAt = indexToEndAt - blockSize*numBlocks
+    return indexToStartAt
+
+def blockProcessUntilIndex(earliestStartIndex, indexToEndAt, blockSize):
+    """Use as 
+        for startIdx, endIdx in blockProcessUntilIndex(earliestStart, indexToEnd, blockSize):
+            process(signal[...,startIdx:endIdx])
+    
+        If processing in fixed size blocks, this function will give the index
+        to process for, if the processing should end at a specific index.
+        Useful for preparation processing, where the exact startpoint isn't important
+        but it is important to end at the correct place. """
+    numSamples = indexToEndAt - earliestStartIndex
+    numBlocks = numSamples // blockSize
+    indexToStartAt = indexToEndAt - blockSize*numBlocks
+
+    for i in range(numBlocks):
+        yield indexToStartAt+i*blockSize, indexToStartAt+(i+1)*blockSize
+
 def getWhiteNoiseAtSNR(rng, signal, dim, snr, identicalChannelPower=False):
     """generates Additive White Gaussian Noise
     signal to calculate signal level. time dimension is last dimension

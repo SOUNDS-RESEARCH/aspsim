@@ -20,6 +20,9 @@ class ArrayCollection():
     def __iter__(self):
         for ar in self.arrays.values():
             yield ar
+    
+    def __contains__(self, arrayName):
+        return arrayName in self.arrays
 
     @staticmethod
     def prototype_equals(prototype, initialized):
@@ -178,6 +181,9 @@ class Array(ABC):
 
     def __init__(self, name, pos):
         self.name = name
+
+        if not isinstance(pos, np.ndarray):
+            pos = np.array(pos)
         self.pos = pos
         self.num = pos.shape[0]
 

@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 
-import ancsim.soundfield.setuparrays as setup
+import ancsim.soundfield.presets as setup
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.soundfield.roomimpulseresponse as rir
 from ancsim.signal.sources import (
@@ -93,46 +93,46 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #     return pos
 
 
-def setupSource(config):
-    print("Setup Source")
-    if config["SOURCETYPE"] == "sine":
-        noiseSource = SourceArray(
-            SineSource,
-            config["NUMSOURCE"],
-            config["SOURCEAMP"],
-            config["NOISEFREQ"],
-            config["SAMPLERATE"],
-        )
-    elif config["SOURCETYPE"] == "noise":
-        noiseSource = SourceArray(
-            BandlimitedNoiseSource,
-            config["NUMSOURCE"],
-            config["SOURCEAMP"],
-            [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
-            config["SAMPLERATE"],
-        )
-    elif config["SOURCETYPE"] == "chirp":
-        noiseSource = SourceArray(
-            LinearChirpSource,
-            config["NUMSOURCE"],
-            config["SOURCEAMP"],
-            [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
-            8000,
-            config["SAMPLERATE"],
-        )
-    elif config["SOURCETYPE"] == "recorded":
-        assert config["NUMSOURCE"] == 1
-        packageDir = Path(__file__).parent
-        noiseSource = AudioFileSource(
-            config["SOURCEAMP"][0],
-            config["SAMPLERATE"],
-            packageDir.joinpath("audiofiles/" + config["AUDIOFILENAME"]),
-            config["ENDTIMESTEP"],
-            verbose=True,
-        )
-    else:
-        raise ValueError
-    return noiseSource
+# def setupSource(config):
+#     print("Setup Source")
+#     if config["SOURCETYPE"] == "sine":
+#         noiseSource = SourceArray(
+#             SineSource,
+#             config["NUMSOURCE"],
+#             config["SOURCEAMP"],
+#             config["NOISEFREQ"],
+#             config["SAMPLERATE"],
+#         )
+#     elif config["SOURCETYPE"] == "noise":
+#         noiseSource = SourceArray(
+#             BandlimitedNoiseSource,
+#             config["NUMSOURCE"],
+#             config["SOURCEAMP"],
+#             [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
+#             config["SAMPLERATE"],
+#         )
+#     elif config["SOURCETYPE"] == "chirp":
+#         noiseSource = SourceArray(
+#             LinearChirpSource,
+#             config["NUMSOURCE"],
+#             config["SOURCEAMP"],
+#             [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
+#             8000,
+#             config["SAMPLERATE"],
+#         )
+#     elif config["SOURCETYPE"] == "recorded":
+#         assert config["NUMSOURCE"] == 1
+#         packageDir = Path(__file__).parent
+#         noiseSource = AudioFileSource(
+#             config["SOURCEAMP"][0],
+#             config["SAMPLERATE"],
+#             packageDir.joinpath("audiofiles/" + config["AUDIOFILENAME"]),
+#             config["ENDTIMESTEP"],
+#             verbose=True,
+#         )
+#     else:
+#         raise ValueError
+#     return noiseSource
 
 
 # def setupKernelFilters(pos, config):

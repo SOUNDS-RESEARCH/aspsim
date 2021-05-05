@@ -16,23 +16,20 @@ import ancsim.adaptivefilter.diagnosticplots as dplot
 import ancsim.adaptivefilter.diagnosticsummary as dsum
 
 
-class DIAGNOSTICTYPE(Enum):
-    perSimBuffer = 1
-    perSample = 2
-    perBlock = 3
+# class DIAGNOSTICTYPE(Enum):
+#     perSimBuffer = 1
+#     perSample = 2
+#     perBlock = 3
 
-
-class OUTPUTFUNCTION(Enum):
-    functionoftime = 1
-    soundfield = 2
-    savenpz = 3
-
+# class OUTPUTFUNCTION(Enum):
+#     functionoftime = 1
+#     soundfield = 2
+#     savenpz = 3
 
 class SUMMARYFUNCTION(Enum):
     none = 0
     lastValue = 1
     meanNearTimeIdx = 2
-
 
 class PlotDiagnosticDispatcher:
     def __init__(self, filters, outputFormat):
@@ -45,7 +42,7 @@ class PlotDiagnosticDispatcher:
         has the same functionality defined"""
         for diagName, info in self.funcInfo.items():
             for filt in filters:
-                if filt.diag.hasDiagnostic(diagName):
+                if diagName in filt.diag:
                     assert info == filt.diag.diagnostics[diagName].info
 
     def plotThisBuffer(self, bufferIdx, funcInfo):
@@ -61,32 +58,32 @@ class PlotDiagnosticDispatcher:
                 self.dispatchSummary(funcInfo, diagName, diagSet, timeIdx, folder)
 
     def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if not isinstance(funcInfo.outputType, (list, tuple)):
-            funcInfo.outputType = [funcInfo.outputType]
+        if not isinstance(funcInfo.outputFunction, (list, tuple)):
+            funcInfo.outputFunction = [funcInfo.outputFunction]
 
-        for i, outType in enumerate(funcInfo.outputType):
-            if len(funcInfo.outputType) == 1:
+        for i, outType in enumerate(funcInfo.outputFunction):
+            if len(funcInfo.outputFunction) == 1:
                 outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
-            elif len(funcInfo.outputType) > 1:
+            elif len(funcInfo.outputFunction) > 1:
                 outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
             plotData = diagSet[list(diagSet.keys())[0]].plotData
             outType(diagName, outputs, plotData, timeIdx, folder, self.outputFormat)
 
-        # if funcInfo.outputType == OUTPUTFUNCTION.functionoftime:
+        # if funcInfo.outputFunction == OUTPUTFUNCTION.functionoftime:
         #     dplot.functionOfTimePlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
-        # elif funcInfo.outputType == OUTPUTFUNCTION.soundfield:
+        # elif funcInfo.outputFunction == OUTPUTFUNCTION.soundfield:
         #     dplot.soundfieldPlot(diagName, diagSet, timeIdx, folder, self.outputFormat)
         # else:
         #     raise NotImplementedError
 
     def dispatchSummary(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if not isinstance(funcInfo.summaryType, (list, tuple)):
-            funcInfo.summaryType = [funcInfo.summaryType]
+        if not isinstance(funcInfo.summaryFunction, (list, tuple)):
+            funcInfo.summaryFunction = [funcInfo.summaryFunction]
 
-        for i, sumType in enumerate(funcInfo.summaryType):
-            if len(funcInfo.summaryType) == 1:
+        for i, sumType in enumerate(funcInfo.summaryFunction):
+            if len(funcInfo.summaryFunction) == 1:
                 outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
-            elif len(funcInfo.summaryType) > 1:
+            elif len(funcInfo.summaryFunction) > 1:
                 outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
 
             if sumType is not None:
@@ -105,7 +102,7 @@ class PlotDiagnosticDispatcher:
     def getDiagnosticSet(self, diagnosticName, processors):
         diagnostic = {}
         for proc in processors:
-            if proc.diag.hasDiagnostic(diagnosticName):
+            if diagnosticName in proc.diag:
                 diagnostic[proc.name] = proc.diag.diagnostics[diagnosticName]
         return diagnostic
 
@@ -124,37 +121,34 @@ class DiagnosticHandler:
         self.simChunkSize = simChunkSize
 
         self.diagnostics = {}
-        self.perSimBufferDiagnostics = []
-        self.perBlockDiagnostics = []
-        self.perSampleDiagnostics = []
+        # self.perSimBufferDiagnostics = []
+        # self.perBlockDiagnostics = []
+        # self.perSampleDiagnostics = []
 
         #self.bufferIdx = 0
         self.lastIdx = self.simBuffer
         self.lastGlobalIdx = 0
         self.diagnosticSamplesLeft = 0
 
+    def __contains__(self, diagName):
+        return diagName in self.diagnostics
+
     def reset(self):
-        for diag in it.chain(self.perBlockDiagnostics, 
-                            self.perSampleDiagnostics, 
-                            self.perSimBufferDiagnostics):
+        for diag in self.diagnostics.values():
             diag.reset()
-            
 
     def getFuncInfo(self, name):
         return self.diagnostics[name].info
 
-    def hasDiagnostic(self, name):
-        return name in self.diagnostics
-
     def addNewDiagnostic(self, name, diagnostic):
-        if diagnostic.info.type == DIAGNOSTICTYPE.perSimBuffer:
-            self.perSimBufferDiagnostics.append(name)
-        elif diagnostic.info.type == DIAGNOSTICTYPE.perBlock:
-            self.perBlockDiagnostics.append(name)
-        elif diagnostic.info.type == DIAGNOSTICTYPE.perSample:
-            self.perSampleDiagnostics.append(name)
-        else:
-            raise ValueError
+        # if diagnostic.info.type == DIAGNOSTICTYPE.perSimBuffer:
+        #     self.perSimBufferDiagnostics.append(name)
+        # elif diagnostic.info.type == DIAGNOSTICTYPE.perBlock:
+        #     self.perBlockDiagnostics.append(name)
+        # elif diagnostic.info.type == DIAGNOSTICTYPE.perSample:
+        #     self.perSampleDiagnostics.append(name)
+        # else:
+        #     raise ValueError
         self.diagnostics[name] = diagnostic
 
     def saveData(self, sig, idx, globalIdx):
@@ -194,21 +188,57 @@ class DiagnosticHandler:
     #     self.diagnosticSamplesLeft = numLeftOver
     #     self.bufferIdx += 1
 
+class DiagnosticInfo:
+    def __init__(
+        self,
+        outputFunction,
+        summaryFunction=None,
+        beginAtBuffer=0,
+        plotFrequency=1,
+    ):
+        self.outputFunction = outputFunction 
+        self.summaryFunction = summaryFunction 
+        self.beginAtBuffer = beginAtBuffer
+        self.plotFrequency = plotFrequency  # Unit is number of simulator-buffers
 
+    def __eq__(self, other):
+        return (
+            and self.outputFunction == other.outputFunction
+            and self.summaryFunction == other.summaryFunction
+            and self.beginAtBuffer == other.beginAtBuffer
+            and self.plotFrequency == other.plotFrequency
+        )
+        
 
-class FunctionOfTimeDiagnostic:
-    def __init__(self):
+class FunctionOfTimeDiagnostic():
+    def __init__(self, smoothingLen, saveRawData, beginAtBuffer, plotFrequency):
+        self.smoothingLen = smoothingLen
+        self.saveRawData = saveRawData
+
+        outputFunc = [dplot.functionOfTimePlot]
+        if saveRawData:
+            outputFunc.append(dplot.savenpz)
+
+        self.info = DiagnosticInfo(
+            outputFunc,
+            dsum.meanNearTimeIdx,
+            beginAtBuffer,
+            plotFrequency,
+        )
+
+        self.plotData = {
+            "title" : "",
+            "xlabel" : "Samples",
+            "ylabel" : "",
+        }
+
+    @abstractmethod
+    def saveData(self, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
         pass
 
-    def plot(self):
+    @abstractmethod
+    def getOutput(self):
         pass
-
-    def saveRawData(self):
-        pass
-
-    def summary(self):
-        pass
-
 
 class NoiseReduction(FunctionOfTimeDiagnostic):
     def __init__(
@@ -221,24 +251,10 @@ class NoiseReduction(FunctionOfTimeDiagnostic):
         beginAtBuffer=0,
         plotFrequency=1
     ):
+        super().__init__(smoothingLen, saveRawData, beginAtBuffer, plotFrequency)
         self.totalNoiseName = totalNoiseName
         self.beforeReductionName = beforeReductionName
-        self.saveRawData = saveRawData
-
-        if saveRawData:
-            outputFunc = [dplot.functionOfTimePlot, dplot.savenpz]
-            #summaryFunc = dsum.meanNearTimeIdx
-        else:
-            outputFunc = dplot.functionOfTimePlot
-        summaryFunc = dsum.meanNearTimeIdx
-
-        self.info = DiagnosticFunctionalityInfo(
-            DIAGNOSTICTYPE.perSample,
-            outputFunc,
-            summaryFunc,
-            beginAtBuffer,
-            plotFrequency,
-        )
+        
         self.totalNoisePower = np.zeros(endTimeStep)
         self.primaryNoisePower = np.zeros(endTimeStep)
         self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen))/smoothingLen, numIn=1)
@@ -282,9 +298,49 @@ class NoiseReduction(FunctionOfTimeDiagnostic):
 
 
 
+class SignalPower(FunctionOfTimeDiagnostic):
+    def __init__(self, 
+                signalName, 
+                endTimeStep,
+                smoothingLen=1,
+                beginAtBuffer=0,
+                plotFrequency=1):
+        super.__init__(smoothingLen, False, beginAtBuffer, plotFrequency)
+        self.signalName = signalName
+        self.signalPower = np.full(endTimeStep, np.nan)
+        self.signalSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen))/smoothingLen, numIn=1)
 
+        self.plotData["title"] = "Power"
+        self.plotData["ylabel"] = "Power (dB)"
+    
+    def saveData(self, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
+        signalPower = np.mean(sig[self.signalName][:, startIdx:endIdx] ** 2, axis=0, keepdims=True)
+        self.signalPower[saveStartIdx:saveEndIdx] = util.pow2db(self.signalSmoother.process(signalPower))
 
+    def getOutput(self):
+        return self.signalPower
 
+class NMSE(FunctionOfTimeDiagnostic):
+    def __init__(self, 
+                signalName, 
+                endTimeStep,
+                smoothingLen=1,
+                beginAtBuffer=0,
+                plotFrequency=1):
+        super.__init__(smoothingLen, False, beginAtBuffer, plotFrequency)
+        self.signalName = signalName
+        self.signalPower = np.full(endTimeStep, np.nan)
+        self.signalSmoother = Filter_IntBuffer(ir=np.ones((smoothingLen))/smoothingLen, numIn=1)
+
+        self.plotData["title"] = "Power"
+        self.plotData["ylabel"] = "Power (dB)"
+    
+    def saveData(self, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
+        signalPower = np.mean(sig[self.signalName][:, startIdx:endIdx] ** 2, axis=0, keepdims=True)
+        self.signalPower[saveStartIdx:saveEndIdx] = util.pow2db(self.signalSmoother.process(signalPower))
+
+    def getOutput(self):
+        return self.signalPower
 
 
 # class NoiseReduction:
@@ -311,7 +367,7 @@ class NoiseReduction(FunctionOfTimeDiagnostic):
 #             outputFunc = dplot.functionOfTimePlot
 #             summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
 
-#         self.info = DiagnosticFunctionalityInfo(
+#         self.info = DiagnosticInfo(
 #             DIAGNOSTICTYPE.perSample,
 #             outputFunc,
 #             summaryFunc,
@@ -420,7 +476,7 @@ class NoiseReduction(FunctionOfTimeDiagnostic):
 #             outputFunc = dplot.functionOfTimePlot
 #             summaryFunc = SUMMARYFUNCTION.meanNearTimeIdx
 
-#         self.info = DiagnosticFunctionalityInfo(
+#         self.info = DiagnosticInfo(
 #             DIAGNOSTICTYPE.perSample,
 #             outputFunc,
 #             summaryFunc,
@@ -502,29 +558,7 @@ class NoiseReduction(FunctionOfTimeDiagnostic):
 
 
 
-class DiagnosticFunctionalityInfo:
-    def __init__(
-        self,
-        diagnosticType,
-        outputType,
-        summaryType=None,
-        beginAtBuffer=0,
-        plotFrequency=1,
-    ):
-        self.type = diagnosticType  # Use the appropriate Enum
-        self.outputType = outputType 
-        self.summaryType = summaryType 
-        self.beginAtBuffer = beginAtBuffer
-        self.plotFrequency = plotFrequency  # Unit is number of simulator-buffers
 
-    def __eq__(self, other):
-        return (
-            self.type == other.type
-            and self.outputType == other.outputType
-            and self.summaryType == other.summaryType
-            and self.beginAtBuffer == other.beginAtBuffer
-            and self.plotFrequency == other.plotFrequency
-        )
 
 
 class SoundfieldImage:
@@ -539,7 +573,7 @@ class SoundfieldImage:
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perSimBuffer,
             dplot.soundfieldPlot,
             None,
@@ -591,7 +625,7 @@ class RecordSpectrum:
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perSimBuffer,
             dplot.soundfieldPlot,
             None,
@@ -654,7 +688,7 @@ class RecordIR():
 
         self.metadata = {"xlabel" : "Samples", "ylabel" : "Amplitude", "label" : ["True Value", "Estimate"]}
 
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
                 DIAGNOSTICTYPE.perSimBuffer,
                 dplot.plotIR,
                 None,
@@ -691,7 +725,7 @@ class PerBlockDiagnostic(ABC):
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
             dsum.meanNearTimeIdx,
@@ -1011,7 +1045,7 @@ class SignalEstimateNMSE:
         """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perSample,
             dplot.functionOfTimePlot,
             dsum.meanNearTimeIdx,
@@ -1067,7 +1101,7 @@ class SignalEstimateNMSEBlock:
         """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perSample,
             dplot.functionOfTimePlot,
             dsum.meanNearTimeIdx,
@@ -1117,7 +1151,7 @@ class RecordScalar:
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
             dsum.meanNearTimeIdx,
@@ -1153,7 +1187,7 @@ class RecordVector:
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
             beginAtBuffer=beginAtBuffer,
@@ -1187,7 +1221,7 @@ class RecordVectorSummary:
     ):
         self.simBuffer = simBuffer
         self.simChunkSize = simChunkSize
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perBlock,
             dplot.functionOfTimePlot,
             beginAtBuffer=beginAtBuffer,
@@ -1219,7 +1253,7 @@ class RecordVectorSummary:
 
 class saveTotalPower:
     def __init__(self, endTimeStep, acousticPath=None):
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             DIAGNOSTICTYPE.perSample,
             OUTPUTFUNCTION.savenpz,
             None,
@@ -1261,7 +1295,7 @@ class RecordAudio:
 
         self.primaryNoise = np.zeros((self.pathFilter.numOut, self.simBuffer+self.simChunkSize))
 
-        self.info = DiagnosticFunctionalityInfo(
+        self.info = DiagnosticInfo(
             dplot.createAudioFiles,
             beginAtBuffer,
             plotFrequency

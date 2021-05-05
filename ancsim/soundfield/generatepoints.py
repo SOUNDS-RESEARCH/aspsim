@@ -74,6 +74,7 @@ def uniformCylinder(numPoints, radius, height):
 
 
 # translated from user3717023's MATLAB code from stackoverflow
+# Could be updated using the method in this paper "A better way to construct the sunflower head"
 def sunflowerPattern(N, radius, offsetAngle=0):
     phisq = np.square((np.sqrt(5) + 1) / 2)
     # golden ratio

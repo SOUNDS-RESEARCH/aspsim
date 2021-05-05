@@ -1,6 +1,7 @@
 import numpy as np
 
-from ancsim.adaptivefilter.mpc import FastBlockFxLMS, TDANCProcessor
+from ancsim.adaptivefilter.base import AdaptiveFilterFF
+from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import (
     FilterSum_IntBuffer,
     FilterSum_Freqdomain,
@@ -28,38 +29,45 @@ def reduceIRLength(ir, tolerance, maxSamplesToReduce=np.inf):
     return reducedIR, samplesToReduce
 
 
-class KIFxLMS(TDANCProcessor):
+class KIFxLMS(AdaptiveFilterFF):
     """KIFxLMS for IWAENC/ICASSP paper.
     Coming from kernel derivation 10, or equivalently 12
 
     normalization options is 'xf', 'xfApprox', and 'kixf'"""
-    def __init__(self, config, arrays, blockSize, updateBlockSize, controlFiltLen, 
-                    mu, beta, secPath, errorPos, kiFiltLen, kernelReg, targetRegion, 
-                    mcNumPoints, normalization="xf", delayRemovalTolerance=0):
 
-        super().__init__(config, arrays, blockSize, updateBlockSize, controlFiltLen)
-        self.name = "KI-FxLMS"
-        self.mu = mu
-        self.beta = beta
+    def __init__(
+        self,
+        config,
+        mu,
+        beta,
+        speakerRIR,
+        errorPos,
+        kiFiltLen,
+        kernelReg,
+        mcPointGen,
+        ipVolume,
+        mcNumPoints=100,
+        normalization="xf",
+        delayRemovalTolerance=0,
+    ):
+        super().__init__(config, mu, beta, speakerRIR)
+        self.name = "KIFxLMS"
 
-        secPathIr = np.concatenate((np.zeros((secPath.shape[0], secPath.shape[1], self.blockSize)), secPath),axis=-1)
-        self.secPathFilt = FilterMD_IntBuffer((self.numRef,), secPathIr)
-
-        freqKernelFilter = ki.getKernelWeightingFilter(
-            ki.kernelHelmholtz3d,
+        # GENERATE KERNEL INTERPOLATION FILTER
+        kiFilt = ki.getAKernelTimeDomain3d(
+            errorPos,
+            kiFiltLen,
             kernelReg,
-            errorPos, 
-            targetRegion,
+            mcPointGen,
+            ipVolume,
             mcNumPoints,
-            np.max((4*controlFiltLen, 2048)),
+            2048,
             self.samplerate,
-            self.c
+            self.c,
         )
 
-        kiFilt = fd.firFromFreqsWindow(freqKernelFilter, kiFiltLen)
-
         reducedSecPath, numSamplesRemoved = reduceIRLength(
-            secPathIr,
+            self.secPathFilt.ir,
             tolerance=delayRemovalTolerance,
             maxSamplesToReduce=kiFilt.shape[-1] // 2,
         )
@@ -80,42 +88,55 @@ class KIFxLMS(TDANCProcessor):
                     )
 
         self.kixfFilt = FilterMD_IntBuffer(dataDims=self.numRef, ir=combinedFilt)
-        self.createNewBuffer("kixf", (self.numRef, self.numSpeaker, self.numError))
-
+        self.buffers["kixf"] = np.zeros(
+            (
+                self.numRef,
+                self.numSpeaker,
+                self.numError,
+                self.simChunkSize + self.simBuffer,
+            )
+        )
 
         # CREATE NORMALIZATION FILTERS:
         if normalization == "xf":
             self.secPathEstimate = FilterMD_IntBuffer(
-                dataDims=self.numRef, ir=secPathIr
+                dataDims=self.numRef, ir=speakerRIR["error"]
             )
-            self.createNewBuffer("xf", (self.numRef, self.numSpeaker, self.numError))
+            self.buffers["xf"] = np.zeros(
+                (
+                    self.numSpeaker,
+                    self.numError,
+                    self.numRef,
+                    self.simChunkSize + self.simBuffer,
+                )
+            )
             self.normFunc = self.xfNormalization
 
-        # elif normalization == "xfApprox":
-        #     self.normFunc = self.xfApproxNormalization
-        #     self.sig["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
-        #     self.secPathNormFilt = Filter_IntBuffer(
-        #         np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
-        #     )
+        elif normalization == "xfApprox":
+            self.normFunc = self.xfApproxNormalization
+            self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+            self.secPathNormFilt = Filter_IntBuffer(
+                np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
+            )
         elif normalization == "kixf":
             self.normFunc = self.kixfNormalization
         else:
             raise ValueError("Invalid normalization option")
 
-        self.metadata["stepsize"] = self.mu
-        self.metadata["beta"] = self.beta
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["samplesRemovedFromSecPath"] = int(numSamplesRemoved)
         self.metadata["delayRemovalTolerance"] = delayRemovalTolerance
         self.metadata["kiFiltLength"] = kiFiltLen
-        #self.metadata["mcPointGen"] = mcPointGen.__name__
-        #self.metadata["volume of interpolated region"] = ipVolume
+        self.metadata["mcPointGen"] = mcPointGen.__name__
+        self.metadata["volume of interpolated region"] = ipVolume
         self.metadata["mcNumPoints"] = mcNumPoints
+
+        self.bs = 1
 
     def kixfNormalization(self):
         return 1 / (
             np.sum(
-                self.sig["kixf"][
+                self.buffers["kixf"][
                     :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
                 ]
                 ** 2
@@ -124,49 +145,55 @@ class KIFxLMS(TDANCProcessor):
         )
 
     def xfApproxNormalization(self):
-        self.sig["xfnorm"][
+        self.buffers["xfnorm"][
             :, self.updateIdx : self.idx
         ] = self.secPathNormFilt.process(
-            np.sum(self.sig["ref"][:, self.updateIdx : self.idx] ** 2, axis=0, keepdims=True)
+            np.sum(self.x[:, self.updateIdx : self.idx] ** 2, axis=0, keepdims=True)
         )
 
         return 1 / (
-            np.sum(self.sig["xfnorm"][:, self.updateIdx : self.idx]) + self.beta
+            np.sum(self.buffers["xfnorm"][:, self.updateIdx : self.idx]) + self.beta
         )
 
     def xfNormalization(self):
-        self.sig["xf"][
+        self.buffers["xf"][
             ..., self.updateIdx : self.idx
-        ] = np.moveaxis(self.secPathEstimate.process(self.sig["ref"][:, self.updateIdx : self.idx]), 2, 0)
-        xfPower = np.sum(self.sig["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
+        xfPower = np.sum(self.buffers["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
         # print("Algo with blocksize ", self.bs, "xf power: ", xfPower)
         return 1 / (xfPower + self.beta)
 
     def prepare(self):
-        self.sig["kixf"][:, :, :, : self.idx] = np.transpose(
-            self.kixfFilt.process(self.sig["ref"][:, : self.idx]), (2, 0, 1, 3)
+        self.buffers["kixf"][:, :, :, 0 : self.idx] = np.transpose(
+            self.kixfFilt.process(self.x[:, 0 : self.idx]), (2, 0, 1, 3)
         )
-        self.sig["xf"][..., : self.idx] = np.moveaxis(self.secPathEstimate.process(
-            self.sig["ref"][:, : self.idx]), 2, 0)
+        self.buffers["xf"][..., 0 : self.idx] = self.secPathEstimate.process(
+            self.x[:, 0 : self.idx]
+        )
 
     def updateFilter(self):
-        self.sig["kixf"][:, :, :, self.updateIdx : self.idx] = np.transpose(
-            self.kixfFilt.process(self.sig["ref"][:, self.updateIdx : self.idx]), (2, 0, 1, 3)
+        self.bs = self.idx - self.updateIdx
+        self.buffers["kixf"][:, :, :, self.updateIdx : self.idx] = np.transpose(
+            self.kixfFilt.process(self.x[:, self.updateIdx : self.idx]), (2, 0, 1, 3)
         )
 
-        grad = np.zeros_like(self.controlFilter.ir)
+        grad = np.zeros_like(self.controlFilt.ir)
         for n in range(self.updateIdx, self.idx):
             Xf = np.flip(
-                self.sig["kixf"][:, :, :, n - self.filtLen + 1 : n + 1], axis=-1
+                self.buffers["kixf"][:, :, :, n - self.filtLen + 1 : n + 1], axis=-1
             )
-            grad += np.sum(Xf * self.sig["error"][None, None, :, n - self.kiDelay, None], axis=2)
+            grad += np.sum(Xf * self.e[None, None, :, n - self.kiDelay, None], axis=2)
 
         norm = self.normFunc()
-        self.controlFilter.ir -= grad * self.mu * norm
-        #self.updateIdx = self.idx
+        # norm = 1 / (np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2) + self.beta)
+        # powerPerSample = np.sum(self.buffers["xf"][:,:,:,self.updateIdx:self.idx]**2, axis=(0,1,2))
+        # norm = 1 / (np.mean(powerPerSample) + self.beta)
+
+        self.controlFilt.ir -= grad * self.mu * norm
+        self.updateIdx = self.idx
 
 
-class FastBlockKIFxLMS(TDANCProcessor):
+class FastBlockKIFxLMS(FastBlockFxLMS):
     """kernelFilt is the impulse resposnse of kernel interpolation filter A in the time domain
     The filter is attained by monte carlo integration of the frequency domain filter from Ito-sans paper
     and then IFFT-> truncate -> window
@@ -175,10 +202,11 @@ class FastBlockKIFxLMS(TDANCProcessor):
 
     def __init__(
         self,
-        config, arrays, blockSize, controlFiltLen, 
+        config,
         mu,
         beta,
-        secPath,
+        speakerRIR,
+        blockSize,
         errorPos,
         kiFiltLen,
         kernelReg,
@@ -186,15 +214,21 @@ class FastBlockKIFxLMS(TDANCProcessor):
         mcNumPoints=100,
         delayRemovalTolerance=0,
     ):
-        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen)
-        self.mu = mu
-        self.beta = beta
-        self.name = "Fast Block KI-FxLMS"
-
-        self.createNewBuffer("xf", (self.numRef, self.numSpeaker, self.numError))
-        self.createNewBuffer("kixf", (self.numRef, self.numSpeaker, self.numError))
-
+        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        self.name = "Fast Block KIFxLMS"
         assert kiFiltLen % 1 == 0
+        # kiFilt = ki.getAKernelTimeDomain3d(
+        #     errorPos,
+        #     kiFiltLen,
+        #     kernelReg,
+        #     mcPointGen,
+        #     ipVolume,
+        #     mcNumPoints,
+        #     2048,
+        #     self.samplerate,
+        #     self.c,
+        # )
+
         kiFilt = ki.getKernelWeightingFilter(
             ki.kernelHelmholtz3d,
             kernelReg,
@@ -206,45 +240,44 @@ class FastBlockKIFxLMS(TDANCProcessor):
             self.c,
         )
         kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
-        assert kiFilt.shape[-1] <= self.updateBlockSize
+        
 
-        secPath = np.concatenate((np.zeros((secPath.shape[0], secPath.shape[1], self.blockSize)), 
-                                secPath), axis=-1)
-        secPath, numSamplesRemoved = reduceIRLength(
-            secPath,
+        assert kiFilt.shape[-1] <= blockSize
+
+        reducedSecPath, numSamplesRemoved = reduceIRLength(
+            np.transpose(self.secPathFilt.ir, (1, 0, 2)),
             tolerance=delayRemovalTolerance,
             maxSamplesToReduce=kiFilt.shape[-1] // 2,
         )
-        secPath = np.concatenate((secPath,
-                                    np.zeros((secPath.shape[0], secPath.shape[1], 2*self.filtLen-secPath.shape[-1]))),
-                                    axis=-1)
-        secPath[...,self.filtLen:] = 0
-        secPathTf = fdf.fftWithTranspose(secPath)
-        self.secPathFilt = FilterMD_Freqdomain(dataDims=self.numRef, tf=secPathTf)
-
-        # self.secPathEstimate = FilterMD_Freqdomain(
-        #     dataDims=self.numRef,
-        #     ir=np.concatenate(
-        #         (
-        #             reducedSecPath,
-        #             np.zeros((reducedSecPath.shape[:-1] + (blockSize-reducedSecPath.shape[-1],))),
-        #             #np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,))),
-        #         ),
-        #         axis=-1,
-        #     ),
-        # )
+        self.secPathEstimate = FilterMD_Freqdomain(
+            dataDims=self.numRef,
+            ir=np.concatenate(
+                (
+                    reducedSecPath,
+                    np.zeros((reducedSecPath.shape[:-1] + (blockSize-reducedSecPath.shape[-1],))),
+                    #np.zeros((reducedSecPath.shape[:-1] + (numSamplesRemoved,))),
+                ),
+                axis=-1,
+            ),
+        )
 
         self.kiDelay = kiFilt.shape[-1] // 2 - numSamplesRemoved
-        
+        self.buffers["kixf"] = np.zeros(
+            (
+                self.numSpeaker,
+                self.numRef,
+                self.numError,
+                self.simChunkSize + self.simBuffer,
+            )
+        )
+
         self.kiFilt = FilterSum_Freqdomain(
-            tf=fdf.fftWithTranspose(kiFilt, n=2*self.filtLen),
+            tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize),
             dataDims=(self.numSpeaker, self.numRef),
         )
 
         self.normFunc = self.xfNormalization
 
-        self.metadata["step size"] = self.mu
-        self.metadata["beta"] = self.beta
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["samplesRemovedFromSecPath"] = int(numSamplesRemoved)
         self.metadata["delayRemovalTolerance"] = delayRemovalTolerance
@@ -257,7 +290,7 @@ class FastBlockKIFxLMS(TDANCProcessor):
     def kixfNormalization(self):
         return 1 / (
             np.sum(
-                self.sig["kixf"][
+                self.buffers["kixf"][
                     :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
                 ]
                 ** 2
@@ -267,37 +300,52 @@ class FastBlockKIFxLMS(TDANCProcessor):
 
     def xfNormalization(self):
         return 1 / (
-            np.sum(self.sig["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
             + self.beta
         )
 
     def updateFilter(self):
-        startIdx = self.updateIdx
-        endIdx = self.updateIdx + self.updateBlockSize
+        assert self.idx - self.updateIdx == self.blockSize
+        assert self.updated == False
 
-        self.sig["xf"][:,:,:,startIdx:endIdx] = np.moveaxis(self.secPathFilt.process(self.sig["ref"][:,  startIdx:endIdx]), 2, 0)
+        self.buffers["xf"][
+            :, :, :, self.updateIdx : self.idx
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
 
-        self.sig["kixf"][
-            :, :, :, startIdx - self.kiDelay : endIdx - self.kiDelay
-        ] = np.moveaxis(self.kiFilt.process(
+        self.buffers["kixf"][
+            :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
+        ] = self.kiFilt.process(
             np.transpose(
-                self.sig["xf"][:, :, :,  startIdx:endIdx], (1, 0, 2, 3)
-            )), 1, 0)
+                self.buffers["xf"][:, :, :, self.updateIdx : self.idx], (1, 2, 0, 3)
+            )
+        )
 
         tdGrad = fdf.correlateSumTT(
-            self.sig["error"][
-                None, None, :, startIdx - self.kiDelay : endIdx - self.kiDelay
+            self.e[
+                None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
             ],
-            self.sig["kixf"][:,:,:,
-                endIdx
-                - (2 * self.updateBlockSize)
-                - self.kiDelay : endIdx
+            self.buffers["kixf"][
+                :,
+                :,
+                :,
+                self.idx
+                - (2 * self.blockSize)
+                - self.kiDelay : self.idx
                 - self.kiDelay,
             ],
         )
-        norm = self.xfNormalization()
-        self.controlFilter.ir -= self.mu * norm * tdGrad
 
+        grad = fdf.fftWithTranspose(
+            np.concatenate((tdGrad, np.zeros_like(tdGrad)), axis=-1)
+        )
+        norm = self.xfNormalization()
+        # powerPerFreq = np.sum(np.abs(xfFreq)**2,axis=(1,2,3))
+        # norm = 1 / (np.mean(powerPerFreq) + self.beta)
+
+        self.controlFilt.tf -= self.mu * norm * grad
+
+        self.updateIdx += self.blockSize
+        self.updated = True
 
 
 
@@ -357,7 +405,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
         )
 
         self.kiDelay = kiFilt.shape[-1] // 2 - numSamplesRemoved
-        self.sig["kixf"] = np.zeros(
+        self.buffers["kixf"] = np.zeros(
             (
                 self.numSpeaker,
                 self.numRef,
@@ -387,7 +435,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
     def kixfNormalization(self):
         return 1 / (
             np.sum(
-                self.sig["kixf"][
+                self.buffers["kixf"][
                     :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
                 ]
                 ** 2
@@ -397,7 +445,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
 
     def xfNormalization(self):
         return 1 / (
-            np.sum(self.sig["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
+            np.sum(self.buffers["xf"][:, :, :, self.updateIdx : self.idx] ** 2)
             + self.beta
         )
 
@@ -405,15 +453,15 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
         assert self.idx - self.updateIdx == self.blockSize
         assert self.updated == False
 
-        self.sig["xf"][
+        self.buffers["xf"][
             :, :, :, self.updateIdx : self.idx
-        ] = self.secPathEstimate.process(self.sig["ref"][:, self.updateIdx : self.idx])
+        ] = self.secPathEstimate.process(self.x[:, self.updateIdx : self.idx])
 
-        self.sig["kixf"][
+        self.buffers["kixf"][
             :, :, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
         ] = self.kiFilt.process(
             np.transpose(
-                self.sig["xf"][:, :, :, self.updateIdx : self.idx], (1, 2, 0, 3)
+                self.buffers["xf"][:, :, :, self.updateIdx : self.idx], (1, 2, 0, 3)
             )
         )
 
@@ -421,7 +469,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
             self.e[
                 None, None, :, self.updateIdx - self.kiDelay : self.idx - self.kiDelay
             ],
-            self.sig["kixf"][
+            self.buffers["kixf"][
                 :,
                 :,
                 :,

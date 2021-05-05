@@ -30,10 +30,8 @@ class FilterSum_IntBuffer:
 
         filtered = np.zeros((self.numOut, numSamples))
         for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            # filtered[outIdx,:] += np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
-            filtered[outIdx, :] += sig.convolve(
-                self.ir[inIdx, outIdx, :], bufferedInput[inIdx, :], "valid"
-            )
+            filtered[outIdx,:] += np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            # filtered[outIdx, :] += sig.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
             # filtered[outIdx,:] += sig.fftconvolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
 
         self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]

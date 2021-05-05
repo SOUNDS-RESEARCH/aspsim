@@ -2,6 +2,7 @@ import numpy as np
 import pathlib
 import scipy.signal as spsig
 import soundfile as sf
+from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
 
@@ -20,22 +21,145 @@ class SourceArray:
         return output
 
 
-class SineSource:
-    def __init__(self, amplitude, freq, samplerate):
-        self.amp = amplitude
+class Source(ABC):
+    def __init__(self, numChannels, power):
+        self.numChannels = numChannels
+        self.power = power
+
+        self.rng = np.random.default_rng(1)
+    
+    @abstractmethod
+    def getSamples(self, numSamples):
+        return np.zeros((self.numChannels, numSamples))
+
+class SineSource(Source):
+    def __init__(self, numChannels, power, freq, samplerate):
+        super().__init__(numChannels, power)
+        self.amplitude = np.sqrt(2 * self.power)
+        # p = a^2 / 2
+        # 2p = a^2
+        # sqrt(2p) = a
         self.freq = freq
         self.samplerate = samplerate
-        rng = np.random.RandomState(1)
-        self.phase = rng.uniform(low=0, high=2 * np.pi)
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.numChannels,1))
+
+        self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
 
     def getSamples(self, numSamples):
-        phasePerSample = 2 * np.pi * self.freq / self.samplerate
+        
         noise = (
-            self.amp
-            * np.cos(np.arange(numSamples) * phasePerSample + self.phase)[None, :]
+            self.amplitude
+            * np.cos(self.phasePerSample * np.arange(numSamples)[None,:] + self.phase)
         )
-        self.phase = (self.phase + numSamples * phasePerSample) % (2 * np.pi)
+        self.phase = (self.phase + numSamples * self.phasePerSample) % (2 * np.pi)
         return noise
+
+
+
+class WhiteNoiseSource(Source):
+    def __init__(self, numChannels, power):
+        super().__init__(numChannels, power)
+        self.setPower(power)
+
+    def getSamples(self, numSamples):
+        return self.rng.normal(
+            loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+        ).T
+    
+    def setPower(self, newPower):
+        self.power = newPower
+        self.stdDev = np.sqrt(newPower)
+
+        if isinstance(self.power, np.ndarray):
+            assert self.power.ndim == 1
+            assert self.power.shape[0] == self.numChannels or \
+                    self.power.shape[0] == 1
+
+
+class BandlimitedNoiseSource(Source):
+    def __init__(self, numChannels, power, freqLim, samplerate):
+        super().__init__(numChannels, power)
+        assert len(freqLim) == 2
+        assert freqLim[0] < freqLim[1]
+        #if numChannels > 1:
+        #    raise NotImplementedError
+        self.numChannels = numChannels
+
+        wp = [freq for freq in freqLim]
+        self.filtCoef = spsig.butter(16, wp, btype="bandpass", output="sos", fs=samplerate)
+        testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=(self.numChannels,10000)))
+        self.testSigPow = np.mean(testSig ** 2)
+        self.zi = spsig.sosfilt_zi(self.filtCoef)
+        self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.numChannels,1))
+
+        self.setPower(power)
+
+    def getSamples(self, numSamples):
+        noise = self.amplitude * self.rng.normal(size=(self.numChannels, numSamples))
+        filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
+        return filtNoise
+
+    def setPower(self, newPower):
+        self.power = newPower
+        self.amplitude = np.sqrt(newPower / self.testSigPow)
+
+        # if isinstance(self.power, np.ndarray):
+        #     assert self.power.ndim == 1
+        #     assert self.power.shape[0] == self.numChannels or \
+        #             self.power.shape[0] == 1
+
+
+
+
+
+
+
+
+
+# class BandlimitedNoiseSource:
+#     def __init__(self, amplitude, freqLim, samplerate):
+#         assert len(freqLim) == 2
+#         assert freqLim[0] < freqLim[1]
+#         self.amplitude = amplitude
+#         self.numChannels = 1
+#         self.rng = np.random.default_rng(1)
+
+#         wp = [freq for freq in freqLim]
+
+#         self.filtCoef = spsig.butter(
+#             16, wp, btype="bandpass", output="sos", fs=samplerate
+#         )
+
+#         testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=10000))
+#         testSigPow = np.mean(testSig ** 2)
+#         self.normFactor = np.sqrt(0.5) / np.sqrt(testSigPow)
+
+#         self.zi = spsig.sosfilt_zi(self.filtCoef)
+
+#     def getSamples(self, numSamples):
+#         noise = self.rng.normal(size=numSamples) * self.amplitude
+#         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi)
+#         filtNoise *= self.normFactor
+#         return filtNoise[None, :]
+
+
+# class SineSource(Source):
+#     def __init__(self, amplitude, freq, samplerate):
+#         #super().__init__(numChannels, power)
+#         self.amp = amplitude
+#         self.freq = freq
+#         self.samplerate = samplerate
+#         rng = np.random.RandomState(1)
+#         self.phase = rng.uniform(low=0, high=2 * np.pi)
+
+#     def getSamples(self, numSamples):
+#         phasePerSample = 2 * np.pi * self.freq / self.samplerate
+#         noise = (
+#             self.amp
+#             * np.cos(np.arange(numSamples) * phasePerSample + self.phase)[None, :]
+#         )
+#         self.phase = (self.phase + numSamples * phasePerSample) % (2 * np.pi)
+#         return noise
 
 
 class MultiSineSource:
@@ -74,7 +198,7 @@ class LinearChirpSource:
         self.deltaFreq = (freqRange[1] - freqRange[0]) / samplesToSweep
         self.freq = freqRange[0]
         self.freqCounter = 0
-        rng = np.random.RandomState(1)
+        rng = np.random.default_rng(1)
         self.phase = rng.uniform(low=0, high=2 * np.pi)
 
     def nextPhase(self):
@@ -109,25 +233,25 @@ class LinearChirpSource:
         return noise
 
 
-class WhiteNoiseSource:
-    def __init__(self, power, numChannels=1):
-        self.numChannels = numChannels
-        self.setPower(power)
-        self.rng = np.random.default_rng(1)
+# class WhiteNoiseSource:
+#     def __init__(self, power, numChannels=1):
+#         self.numChannels = numChannels
+#         self.setPower(power)
+#         self.rng = np.random.default_rng(1)
 
-    def getSamples(self, numSamples):
-        return self.rng.normal(
-            loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
-        ).T
+#     def getSamples(self, numSamples):
+#         return self.rng.normal(
+#             loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+#         ).T
     
-    def setPower(self, newPower):
-        self.power = newPower
-        self.stdDev = np.sqrt(newPower)
+#     def setPower(self, newPower):
+#         self.power = newPower
+#         self.stdDev = np.sqrt(newPower)
 
-        if isinstance(self.power, np.ndarray):
-            assert self.power.ndim == 1
-            assert self.power.shape[0] == self.numChannels or \
-                    self.power.shape[0] == 1
+#         if isinstance(self.power, np.ndarray):
+#             assert self.power.ndim == 1
+#             assert self.power.shape[0] == self.numChannels or \
+#                     self.power.shape[0] == 1
 
 class WhiteNoiseSource_old:
     def __init__(self, power, numChannels=1):
@@ -144,34 +268,6 @@ class WhiteNoiseSource_old:
     def setPower(newPower):
         self.power = newPower
         self.stdDev = np.sqrt(newPower)
-
-
-
-class BandlimitedNoiseSource:
-    def __init__(self, amplitude, freqLim, samplerate):
-        assert len(freqLim) == 2
-        assert freqLim[0] < freqLim[1]
-        self.amplitude = amplitude
-        self.numChannels = 1
-        self.rng = np.random.default_rng(1)
-
-        wp = [freq for freq in freqLim]
-
-        self.filtCoef = spsig.butter(
-            16, wp, btype="bandpass", output="sos", fs=samplerate
-        )
-
-        testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=10000))
-        testSigPow = np.mean(testSig ** 2)
-        self.normFactor = np.sqrt(0.5) / np.sqrt(testSigPow)
-
-        self.zi = spsig.sosfilt_zi(self.filtCoef)
-
-    def getSamples(self, numSamples):
-        noise = self.rng.normal(size=numSamples) * self.amplitude
-        filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi)
-        filtNoise *= self.normFactor
-        return filtNoise[None, :]
 
 
 class AudioFileSource:

@@ -3,10 +3,9 @@ from pathlib import Path
 import yaml
 
 #SIMULATION PARAMETERS
-PARAM_CATEGORIES = {"simulation" : ["ENDTIMESTEP", "SIMBUFFER", "SIMCHUNKSIZE"],
+PARAM_CATEGORIES = {"simulation" : ["ENDTIMESTEP", "SIMBUFFER", "SIMCHUNKSIZE", "MICSNR"],
                     "audio" : ["SAMPLERATE", "C", "SPATIALDIMS", "REVERB"],
                     "ism" : ["ROOMSIZE", "ROOMCENTER", "RT60", "MAXROOMIRLENGTH"],
-                    "processor" : ["MICSNR", "BLOCKSIZE"],
                     "misc" : ["SAVERAWDATA", "SAVERAWDATAFREQUENCY", "PLOTFREQUENCY", 
                                 "GENSOUNDFIELDATCHUNK", "PLOTOUTPUT", "OUTPUTSMOOTHING", 
                                 "AUTOSAVELOAD"]}
@@ -41,9 +40,9 @@ def checkConfig(conf):
 
 
 
-    if isinstance(conf["BLOCKSIZE"], list):
-        for bs in conf["BLOCKSIZE"]:
-            assert util.isPowerOf2(bs)
+    # if isinstance(conf["BLOCKSIZE"], list):
+    #     for bs in conf["BLOCKSIZE"]:
+    #         assert util.isPowerOf2(bs)
 
    # assert numFilt == len(conf["BLOCKSIZE"])
 
