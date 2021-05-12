@@ -2,13 +2,64 @@ import numpy as np
 import itertools as it
 import ancsim.signal.freqdomainfiltering as fdf
 import scipy.signal as sig
+import numba as nb
 
 # The ir is a 3D array, where each entry in the first two dimensions is an impulse response
 # Ex. a (3,2,5) filter has 6 (3x2) IRs each of length 5
 # First dimension sets the number of inputs
 # Second dimension sets the number of outputs
 # (3,None) in, (2,None) out
+spec = [
+    ("ir", nb.float64[:,:,:]),
+    ("numIn", nb.int32),
+    ("numOut", nb.int32),
+    ("irLen", nb.int32),
+    ("buffer", nb.float64[:,:]),
+]
+@nb.experimental.jitclass(spec)
 class FilterSum_IntBuffer:
+    def __init__(self, ir):
+        if ir is not None:
+            self.ir = ir
+            self.numIn = ir.shape[0]
+            self.numOut = ir.shape[1]
+            self.irLen = ir.shape[2]
+        # elif (irLen is not None) and (numIn is not None) and (numOut is not None):
+        #     self.ir = np.zeros((numIn, numOut, irLen))
+        #     self.irLen = irLen
+        #     self.numIn = numIn
+        #     self.numOut = numOut
+        # else:
+        #     raise Exception("Not enough constructor arguments")
+        self.buffer = np.zeros((self.numIn, self.irLen - 1))
+
+    def process(self, dataToFilter):
+        numSamples = dataToFilter.shape[-1]
+        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+
+        filtered = np.zeros((self.numOut, numSamples))
+        for outIdx in range(self.numOut):
+            for i in range(numSamples):
+                filtered[outIdx,i] += np.sum(self.ir[:,outIdx,:] * np.fliplr(bufferedInput[:,i:self.irLen+i]))
+
+        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        return filtered
+
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.numIn = irNew.shape[0]
+            self.numOut = irNew.shape[1]
+            self.irLen = irNew.shape[2]
+            self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.ir = irNew
+
+
+# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
+# Ex. a (3,2,5) filter has 6 (3x2) IRs each of length 5
+# First dimension sets the number of inputs
+# Second dimension sets the number of outputs
+# (3,None) in, (2,None) out
+class FilterSum_IntBuffer_npy:
     def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
         if ir is not None:
             self.ir = ir
@@ -36,6 +87,7 @@ class FilterSum_IntBuffer:
 
         self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
         return filtered
+
 
     def setIR(self, irNew):
         if irNew.shape != self.ir.shape:

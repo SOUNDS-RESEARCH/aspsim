@@ -132,12 +132,10 @@ class DiagnosticHandler:
         self.diagnosticSamplesLeft = 0
 
     def prepare(self):
-        print("prepare")
         for diagName, diag in self.diagnostics.items():
             self.lastGlobalSaveIdx[diagName] = 0
             self.lastSaveIdx[diagName] = self.sim_info.sim_buffer
             diag.prepare()
-            print("prepared")
         #for diagName, diag in self.diagnostics.items():
         #    diag.save_frequency
 

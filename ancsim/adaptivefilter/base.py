@@ -38,19 +38,15 @@ class ProcessorWrapper():
         #self.ctrlSources = list(arrays.of_type(ar.ArrayType.CTRLSOURCE))
 
     def prepare(self):
-        print("hej1")
         for src in self.arrays.free_sources():
             self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer] = src.getSamples(self.processor.sim_info.sim_buffer)
-        print("hej2")
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
                     self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer])
             self.processor.sig[src.name+"~"+mic.name][:,:self.processor.sim_info.sim_buffer] = propagated_signal
             self.processor.sig[mic.name][:,:self.processor.sim_info.sim_buffer] += propagated_signal
         self.processor.idx = self.processor.sim_info.sim_buffer
-        print("hej3")
         self.processor.prepare()
-        print("hej4")
 
     def reset(self):
         self.processor.reset()

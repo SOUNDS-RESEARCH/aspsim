@@ -1,5 +1,5 @@
 #SIMULATION PARAMETERS
-tot_samples : 81000
+tot_samples : 11000
 sim_buffer : 2000
 sim_chunk_size : 5000
 

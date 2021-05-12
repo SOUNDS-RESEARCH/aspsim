@@ -18,7 +18,8 @@ class TDANCProcessor(ActiveNoiseControlProcessor):
     def __init__(self, sim_info, arrays, blockSize, updateBlockSize, controlFiltLen):
         super().__init__(sim_info, arrays, blockSize, updateBlockSize)
         self.filtLen = controlFiltLen
-        self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
+        #self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
+        self.controlFilter = FilterSum_IntBuffer(np.zeros((self.numRef, self.numSpeaker, self.filtLen)))
 
         self.metadata["control filter length"] = controlFiltLen
 
