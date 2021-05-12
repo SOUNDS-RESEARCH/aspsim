@@ -2,26 +2,46 @@ import ancsim.utilities as util
 from pathlib import Path
 import yaml
 
-#SIMULATION PARAMETERS
-PARAM_CATEGORIES = {"simulation" : ["ENDTIMESTEP", "SIMBUFFER", "SIMCHUNKSIZE", "MICSNR"],
-                    "audio" : ["SAMPLERATE", "C", "SPATIALDIMS", "REVERB"],
-                    "ism" : ["ROOMSIZE", "ROOMCENTER", "RT60", "MAXROOMIRLENGTH"],
-                    "misc" : ["SAVERAWDATA", "SAVERAWDATAFREQUENCY", "PLOTFREQUENCY", 
-                                "GENSOUNDFIELDATCHUNK", "PLOTOUTPUT", "OUTPUTSMOOTHING", 
-                                "AUTOSAVELOAD"]}
 
-def getBaseConfig():
+
+class SimulatorInfo:
+    def __init__(self, config):
+        checkConfig(config)
+        self.tot_samples = config["tot_samples"]
+        self.sim_buffer = config["sim_buffer"]
+        self.sim_chunk_size = config["sim_chunk_size"]
+        self.mic_snr = config["mic_snr"]
+        
+        self.samplerate = config["samplerate"]
+        self.c = config["c"]
+        self.spatial_dims = config["spatial_dims"]
+        self.reverb = config["reverb"]
+
+        self.room_size = config["room_size"]
+        self.room_center = config["room_center"]
+        self.rt60 = config["rt60"]
+        self.max_room_ir_length = config["max_room_ir_length"]
+
+        self.save_raw_data = config["save_raw_data"]
+        self.save_raw_data_freq = config["save_raw_data_freq"]
+        self.plot_begin = config["plot_begin"]
+        self.plot_frequency = config["plot_frequency"]
+        self.plot_output = config["plot_output"]
+        self.output_smoothing = config["output_smoothing"]
+        self.auto_save_load = config["auto_save_load"]
+
+#SIMULATION PARAMETERS
+PARAM_CATEGORIES = {"simulation" : ["tot_samples", "sim_buffer", "sim_chunk_size", "mic_snr"],
+                    "audio" : ["samplerate", "c", "spatial_dims", "reverb"],
+                    "ism" : ["room_size", "room_center", "rt60", "max_room_ir_length"],
+                    "misc" : ["save_raw_data", "save_raw_data_freq", "plot_begin", "plot_frequency", 
+                                "plot_output", "output_smoothing", 
+                                "auto_save_load"]}
+
+def getDefaultConfig():
     with open(Path(__file__).parent.joinpath("config.yaml")) as f:
         config = yaml.safe_load(f)
     return config
-
-def processConfig(conf):
-    #if isinstance(conf["BLOCKSIZE"], int):
-    #    conf["BLOCKSIZE"] = [conf["BLOCKSIZE"] for _ in range(numFilt)]
-
-    checkConfig(conf)
-    return conf
-
 
 def checkConfig(conf):
     #check that all config params are categorized
@@ -37,17 +57,11 @@ def checkConfig(conf):
         for param in paramList:
             assert param in conf
 
-
-
-
     # if isinstance(conf["BLOCKSIZE"], list):
     #     for bs in conf["BLOCKSIZE"]:
     #         assert util.isPowerOf2(bs)
 
    # assert numFilt == len(conf["BLOCKSIZE"])
-
-
-
 
 def getAudioAffectingParams(config, path_types):
     categories_to_check = ["audio"]
@@ -63,10 +77,12 @@ def getAudioAffectingParams(config, path_types):
 
     # return {key:val for key,val in config.items() if 
     #         key in [PARAM_CATEGORIES[category_name]] or 
-    #         (config["REVERB"]=="ism" and key in PARAM_CATEGORIES["ism"]))}
+    #         (config["reverb"]=="ism" and key in PARAM_CATEGORIES["ism"]))}
 
 
 
 def configMatch(config1, config2, path_types):
     return getAudioAffectingParams(config1, path_types) == \
             getAudioAffectingParams(config2, path_types)
+
+

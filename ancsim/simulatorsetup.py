@@ -23,21 +23,21 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #         if srcPos not in propagationFilters:
 #             propagationFilters[srcPos] = {}
         
-#         if config["REVERB"] == "ism"
-#             if config["SPATIALDIMS"] == 3:
+#         if config["reverb"] == "ism"
+#             if config["spatial_dims"] == 3:
 #             propagationFilters[srcPos][micPos], metadata[srcPos+"->"+micPos+" ISM"] = rir.irRoomImageSource3d(
-#                                                 scrPos, micPos, config["ROOMSIZE"], config["ROOMCENTER"], 
-#                                                 config["MAXROOMIRLENGTH"], config["RT60"], config["SAMPLERATE"],
+#                                                 scrPos, micPos, config["room_size"], config["room_center"], 
+#                                                 config["max_room_ir_length"], config["rt60"], config["samplerate"],
 #                                                 calculateMetadata=True)
 #             else:
 #                 raise ValueError
-#         elif config["REVERB"] == "freespace":
-#             if config["SPATIALDIMS"] == 3:
+#         elif config["reverb"] == "freespace":
+#             if config["spatial_dims"] == 3:
 #                 propagationFilters[srcPos][micPos] = rir.irPointSource3d(
-#                 srcPos, micPos, config["SAMPLERATE"], config["C"])
-#             elif config["SPATIALDIMS"] == 2:
+#                 srcPos, micPos, config["samplerate"], config["c"])
+#             elif config["spatial_dims"] == 2:
 #                 propagationFilters[srcPos][micPos] = rir.irPointSource2d(
-#                     srcPos, micPos, config["SAMPLERATE"], config["C"]
+#                     srcPos, micPos, config["samplerate"], config["c"]
 #                 )
 #             else:
 #                 raise ValueError
@@ -57,7 +57,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 
 # def setupPos(config):
 #     print("Setup Positions")
-#     if config["SPATIALDIMS"] == 3:
+#     if config["spatial_dims"] == 3:
 #         if config["ARRAYSHAPES"] == "circle":
 #             if config["REFDIRECTLYOBTAINED"]:
 #                 pos = setup.getPositionsCylinder3d_directref(config)
@@ -78,7 +78,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #                 raise NotImplementedError
 #             else:
 #                 pos = setup.getPositionsDoubleRectangle3d(config)
-#     elif config["SPATIALDIMS"] == 2:
+#     elif config["spatial_dims"] == 2:
 #         if config["ARRAYSHAPES"] == "circle":
 #             if config["REFDIRECTLYOBTAINED"]:
 #                 raise NotImplementedError
@@ -86,7 +86,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #                 pos = setup.getPositionsDisc2d(config)
 #         else:
 #             raise NotImplementedError
-#     elif config["SPATIALDIMS"] == 1:
+#     elif config["spatial_dims"] == 1:
 #         pos = setup.getPositionsLine1d(config)
 #     else:
 #         raise ValueError
@@ -101,7 +101,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #             config["NUMSOURCE"],
 #             config["SOURCEAMP"],
 #             config["NOISEFREQ"],
-#             config["SAMPLERATE"],
+#             config["samplerate"],
 #         )
 #     elif config["SOURCETYPE"] == "noise":
 #         noiseSource = SourceArray(
@@ -109,7 +109,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #             config["NUMSOURCE"],
 #             config["SOURCEAMP"],
 #             [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
-#             config["SAMPLERATE"],
+#             config["samplerate"],
 #         )
 #     elif config["SOURCETYPE"] == "chirp":
 #         noiseSource = SourceArray(
@@ -118,16 +118,16 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 #             config["SOURCEAMP"],
 #             [config["NOISEFREQ"], config["NOISEFREQ"] + config["NOISEBANDWIDTH"]],
 #             8000,
-#             config["SAMPLERATE"],
+#             config["samplerate"],
 #         )
 #     elif config["SOURCETYPE"] == "recorded":
 #         assert config["NUMSOURCE"] == 1
 #         packageDir = Path(__file__).parent
 #         noiseSource = AudioFileSource(
 #             config["SOURCEAMP"][0],
-#             config["SAMPLERATE"],
+#             config["samplerate"],
 #             packageDir.joinpath("audiofiles/" + config["AUDIOFILENAME"]),
-#             config["ENDTIMESTEP"],
+#             config["tot_samples"],
 #             verbose=True,
 #         )
 #     else:
@@ -137,7 +137,7 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 
 # def setupKernelFilters(pos, config):
 #     print("Setup Kernel Filters")
-#     if config["SPATIALDIMS"] == 3:
+#     if config["spatial_dims"] == 3:
 #         A = ki.getAKernelFreqDomain3d(pos.error, config["FREQKERNELFILTLEN"], config)
 
 #         if config["FREQKERNELFILTLEN"] >= 512:

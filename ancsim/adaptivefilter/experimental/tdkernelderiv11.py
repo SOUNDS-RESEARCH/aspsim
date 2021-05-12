@@ -33,7 +33,7 @@ class KernelIP11_papernorm(FxLMS_FF):
         self.secPathNormFilt = Filter_IntBuffer(
             np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
         )
-        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
@@ -42,11 +42,11 @@ class KernelIP11_papernorm(FxLMS_FF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
         self.buffers["eKern"] = np.zeros(
-            (self.numError, self.simChunkSize + self.simBuffer)
+            (self.numError, self.simChunkSize + self.sim_info.sim_buffer)
         )
 
     def prepare(self):
@@ -126,7 +126,7 @@ class KernelIP11_minimumdelay(AdaptiveFilterFF):
                     )
 
         self.secPathNormFilt = Filter_IntBuffer(np.sum(secPathError ** 2, axis=(0, 1)))
-        self.buffers["xfnorm"] = np.zeros((1, s.SIMBUFFER + self.simChunkSize))
+        self.buffers["xfnorm"] = np.zeros((1, s.sim_buffer + self.simChunkSize))
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
         self.eKernelFilt = FilterSum_IntBuffer(self.A)
@@ -135,11 +135,11 @@ class KernelIP11_minimumdelay(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                s.SIMBUFFER + self.simChunkSize,
+                s.sim_buffer + self.simChunkSize,
             )
         )
         self.buffers["eKern"] = np.zeros(
-            (self.numError, s.SIMBUFFER + self.simChunkSize)
+            (self.numError, s.sim_buffer + self.simChunkSize)
         )
 
         self.M = self.A.shape[-1] // 2
@@ -238,11 +238,11 @@ class KernelIP11(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                s.SIMBUFFER + self.simChunkSize,
+                s.sim_buffer + self.simChunkSize,
             )
         )
         self.buffers["eKern"] = np.zeros(
-            (self.numError, s.SIMBUFFER + self.simChunkSize)
+            (self.numError, s.sim_buffer + self.simChunkSize)
         )
 
     # @util.measure("Kernel 11 update")
@@ -323,11 +323,11 @@ class KernelIP_simpleFromCostNewNorm(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                s.SIMBUFFER + self.simChunkSize,
+                s.sim_buffer + self.simChunkSize,
             )
         )
         self.buffers["eKern"] = np.zeros(
-            (self.numError, s.SIMBUFFER + self.simChunkSize)
+            (self.numError, s.sim_buffer + self.simChunkSize)
         )
 
     def updateFilter(self):
@@ -409,11 +409,11 @@ class KernelIP11_postErrorNorm(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                s.SIMBUFFER + self.simChunkSize,
+                s.sim_buffer + self.simChunkSize,
             )
         )
         self.buffers["eKern"] = np.zeros(
-            (self.numError, s.SIMBUFFER + self.simChunkSize)
+            (self.numError, s.sim_buffer + self.simChunkSize)
         )
 
     def updateFilter(self):

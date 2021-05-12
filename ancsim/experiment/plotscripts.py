@@ -430,7 +430,7 @@ def showSoundfield(
 
 
 # def printFilterInfo(A, Afreq, pos, freqs, numMics):
-#     freqidx = int(s.FREQSTART * s.KERNFILTLEN / s.SAMPLERATE)
+#     freqidx = int(s.FREQSTART * s.KERNFILTLEN / s.samplerate)
 #     for a in range(numMics):
 #         for b in range(numMics):
 #             print("Amp Original: ", np.abs(Afreq[[freqidx], a,b]))

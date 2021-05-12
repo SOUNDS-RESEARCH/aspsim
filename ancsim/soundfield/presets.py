@@ -19,7 +19,7 @@ def audioProcessing(config,
     arrays = ar.ArrayCollection()
     arrays.add_array(
         ar.FreeSourceArray("source", np.zeros((1,3)), 
-            src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["SAMPLERATE"]))
+            src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
     )
     arrays.add_array(
         ar.ControllableSourceArray("output", np.zeros((numOutput,3)))
@@ -38,7 +38,7 @@ def signalEstimation(config,
     arrays = ar.ArrayCollection()
     arrays.add_array(
         ar.FreeSourceArray("source", np.zeros((numInput,3)), 
-            #src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["SAMPLERATE"]))
+            #src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
             src.WhiteNoiseSource(numChannels=numInput, power=1))
     )
     arrays.add_array(
@@ -78,7 +78,7 @@ def ancMultiPoint(config,
             speakerHeight,
     )))
 
-    source = src.BandlimitedNoiseSource(1, 1, (50,100), config["SAMPLERATE"])
+    source = src.BandlimitedNoiseSource(1, 1, (50,100), config["samplerate"])
 
     arrays.add_array(ar.FreeSourceArray("source",
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))
@@ -130,16 +130,16 @@ def getPositionsCuboid3d(config,
     # elif config["TARGETPOINTSPLACEMENT"] == "image":
     #     wallMargin = 0.1
     #     roomLims = (
-    #         config["ROOMCENTER"][0] - config["ROOMSIZE"][0] / 2 + wallMargin,
-    #         config["ROOMCENTER"][1] - config["ROOMSIZE"][1] / 2 + wallMargin,
-    #         config["ROOMCENTER"][0] + config["ROOMSIZE"][0] / 2 - wallMargin,
-    #         config["ROOMCENTER"][1] + config["ROOMSIZE"][1] / 2 - wallMargin,
+    #         config["room_center"][0] - config["room_size"][0] / 2 + wallMargin,
+    #         config["room_center"][1] - config["room_size"][1] / 2 + wallMargin,
+    #         config["room_center"][0] + config["room_size"][0] / 2 - wallMargin,
+    #         config["room_center"][1] + config["room_size"][1] / 2 - wallMargin,
     #     )
     #     pos["target"] = gp.uniformFilledRectangle(
     #         numTarget, roomLims, zAxis=0
     #     )
 
-    source = src.BandlimitedNoiseSource(1, 10, (100,300), config["SAMPLERATE"])
+    source = src.BandlimitedNoiseSource(1, 10, (100,300), config["samplerate"])
 
     arrays.add_array(ar.FreeSourceArray("source",
         np.array([[-3.5, 0.4, 0.3]], dtype=np.float64), source))

@@ -44,7 +44,7 @@ class KernelIP10_minimumdelay(FxLMS_FF):
         self.secPathNormFilt = Filter_IntBuffer(
             np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
         )
-        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
 
     def prepare(self):
         self.buffers["xf"][:, :, :, 0 : self.idx] = np.transpose(
@@ -96,7 +96,7 @@ class KernelIP10_interpolatederror(FxLMS_FF):
         self.secPathNormFilt = Filter_IntBuffer(
             np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
         )
-        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
 
     def prepare(self):
         self.buffers["xf"][:, :, :, 0 : self.idx] = np.transpose(
@@ -165,10 +165,10 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         self.secPathXfFilt.setIR(self.combinedFilt)
 
         self.secPathNormFilt = Filter_IntBuffer(np.sum(secPathError ** 2, axis=(0, 1)))
-        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+        self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
 
         # self.xfFilt = FilterMD_IntBuffer((self.numRef,), secPathError)
-        # self.buffers["xfnormal"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+self.simBuffer))
+        # self.buffers["xfnormal"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+self.sim_info.sim_buffer))
 
     def updateFilter(self):
         grad = np.zeros_like(self.H)
@@ -295,7 +295,7 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
 

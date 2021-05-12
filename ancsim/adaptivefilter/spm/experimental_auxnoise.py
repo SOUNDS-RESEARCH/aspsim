@@ -46,13 +46,13 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
             0.997, (2 * blockSize, self.numError, self.numSpeaker), dtype=np.complex128
         )
         self.G = np.transpose(self.G, (0, 2, 1))
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        # self.buffers["f"] = np.zeros((self.numError, s.SIMBUFFER+self.simChunkSize))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        # self.buffers["f"] = np.zeros((self.numError, s.sim_buffer+self.simChunkSize))
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         self.window = win.hamming(2 * self.blockSize, sym=False)[None, :]
@@ -229,14 +229,14 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         # self.secPathEstimate = np.zeros((2*blockSize, self.numError, self.numSpeaker), dtype=np.complex128)
         # self.secPathEstimate.setIR(0.5*self.G)# + np.random.normal(scale=0.0001, size=self.G.shape))
 
-        # self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        # self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.sim_buffer))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -246,7 +246,7 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.metadata["kernelRegularizationParameter"] = kiRegParam
 
     def prepare(self):
-        self.buffers["f"][:, : s.SIMBUFFER] = self.e[:, : s.SIMBUFFER]
+        self.buffers["f"][:, : s.sim_buffer] = self.e[:, : s.sim_buffer]
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
@@ -349,8 +349,8 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         )
         self.G = np.transpose(self.G, (0, 2, 1))
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         kernelRegParam = 1e-4
         self.kiParams = self.constructInterpolation(errorPos, kernelRegParam)
@@ -358,7 +358,7 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         self.diag.addNewDiagnostic(
@@ -368,7 +368,7 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
                 lowFreqLim,
                 highFreqLim,
                 self.samplerate,
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
@@ -402,7 +402,7 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         return secPathIP
 
     def prepare(self):
-        self.buffers["f"][:, : s.SIMBUFFER] = self.e[:, : s.SIMBUFFER]
+        self.buffers["f"][:, : s.sim_buffer] = self.e[:, : s.sim_buffer]
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)

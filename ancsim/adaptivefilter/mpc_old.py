@@ -25,7 +25,7 @@ class FxLMS_FF(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
         self.secPathXfFilt = FilterMD_IntBuffer((self.numRef,), self.secPathFilt.ir)
@@ -67,7 +67,7 @@ class FxLMS_FF_Block(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
         self.secPathXfFilt = FilterMD_IntBuffer((self.numRef,), self.secPathFilt.ir)
@@ -118,7 +118,7 @@ class FastBlockFxLMS(AdaptiveFilterFFComplex):
                 self.numError,
                 self.numSpeaker,
                 self.numRef,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
         self.controlFilt = FilterSum_Freqdomain(

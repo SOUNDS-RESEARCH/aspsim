@@ -1,5 +1,15 @@
+import numpy as np
 
-
+from ancsim.signal.filterclasses import (
+    Filter_IntBuffer,
+    FilterSum_IntBuffer,
+    FilterMD_IntBuffer,
+    FilterSum_Freqdomain,
+    FilterMD_Freqdomain
+)
+import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.signal.freqdomainfiltering as fdf
+from  ancsim.adaptivefilter.base import AudioProcessor
 
 
 
@@ -20,9 +30,9 @@ class BlockLeastMeanSquares(AudioProcessor):
         self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.endTimeStep, self.outputSmoothing))
-        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower("desired", self.endTimeStep, self.outputSmoothing))
-        self.diag.addNewDiagnostic("errorPower", dia.SignalPower("error", self.endTimeStep, self.outputSmoothing))
+        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower("desired", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.addNewDiagnostic("errorPower", dia.SignalPower("error", self.sim_info.tot_samples, self.outputSmoothing))
         
 
     def process(self, numSamples):
@@ -64,9 +74,14 @@ class LeastMeanSquares(AudioProcessor):
         self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.endTimeStep, self.outputSmoothing))
-        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower("desired", self.endTimeStep, self.outputSmoothing))
-        self.diag.addNewDiagnostic("errorPower", dia.SignalPower("error", self.endTimeStep, self.outputSmoothing))
+        self.diag.addNewDiagnostic("inputPower", dia.SignalPower(self.sim_info, "input"))
+        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower(self.sim_info, "desired"))
+        self.diag.addNewDiagnostic("errorPower", dia.SignalPower(self.sim_info, "error"))
+        self.diag.addNewDiagnostic("paramError", dia.StateNMSE(
+                    self.sim_info,
+                    "controlFilter.ir", 
+                    np.pad(self.arrays.paths["source"]["desired"],((0,0),(0,0),(0,512)), mode="constant", constant_values=0), 
+                    100))
         
 
     def process(self, numSamples):

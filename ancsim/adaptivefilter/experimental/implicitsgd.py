@@ -9,7 +9,7 @@ class ImplicitMPC(AdaptiveFilterFF):
         self.name = "Implicit Update FF MPC"
         super().__init__(config, mu, beta, speakerRIR)
         self.buffers["yfilt"] = np.zeros(
-            (self.numError, self.simChunkSize + self.simBuffer)
+            (self.numError, self.simChunkSize + self.sim_info.sim_buffer)
         )
 
     def updateFilter(self):

@@ -32,8 +32,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
         # self.diag.addNewDiagnostic(
         #     "filtered_reference_est",
         #     dia.SignalEstimateNMSEBlock(
-        #         self.endTimeStep,
-        #         self.simBuffer,
+        #         self.sim_info.tot_samples,
+        #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
         #         smoothingLen=self.outputSmoothing,
         #         plotFrequency=self.plotFrequency,
@@ -44,8 +44,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
             "secpath",
             dia.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -58,8 +58,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -72,8 +72,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -86,8 +86,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -97,8 +97,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
             "recorded_ir",
             dia.RecordIR(
                 np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
-                self.endTimeStep, 
-                self.simBuffer, 
+                self.sim_info.tot_samples, 
+                self.sim_info.sim_buffer, 
                 self.simChunkSize,
                 (2,2),
                 plotFrequency=self.plotFrequency,
@@ -109,8 +109,8 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
         #     "secpath_combinations",
         #     dia.ConstantEstimateNMSEAllCombinations(
         #         self.secPathEstimate.tf,
-        #         self.endTimeStep,
-        #         self.simBuffer,
+        #         self.sim_info.tot_samples,
+        #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
         #         plotFrequency=self.plotFrequency,
         #     ),
@@ -120,17 +120,17 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                      plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "primary_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "secondary_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
 
@@ -192,7 +192,7 @@ class FxLMSSMC(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -225,13 +225,13 @@ class FxLMSSMC(AdaptiveFilterFF):
             "secpath",
             dia.ConstantEstimateNMSE(
                 speakerFilters["error"],
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSE(self.endTimeStep, plotFrequency=self.plotFrequency),
+            dia.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
         )
 
     def resetBuffers(self):
@@ -310,7 +310,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -343,13 +343,13 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
             "secpath",
             dia.ConstantEstimateNMSE(
                 speakerFilters["error"],
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSE(self.endTimeStep, plotFrequency=self.plotFrequency),
+            dia.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
         )
 
     def resetBuffers(self):
@@ -425,7 +425,7 @@ class FxLMSSMC_old(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 

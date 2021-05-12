@@ -93,7 +93,7 @@ class KIFxLMS(TDANCProcessor):
 
         # elif normalization == "xfApprox":
         #     self.normFunc = self.xfApproxNormalization
-        #     self.sig["xfnorm"] = np.zeros((1, self.simChunkSize + self.simBuffer))
+        #     self.sig["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
         #     self.secPathNormFilt = Filter_IntBuffer(
         #         np.sum(self.secPathFilt.ir ** 2, axis=(0, 1))
         #     )
@@ -362,7 +362,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
                 self.numSpeaker,
                 self.numRef,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
 

@@ -38,30 +38,33 @@ class ProcessorWrapper():
         #self.ctrlSources = list(arrays.of_type(ar.ArrayType.CTRLSOURCE))
 
     def prepare(self):
+        print("hej1")
         for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,:self.processor.simBuffer] = src.getSamples(self.processor.simBuffer)
+            self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer] = src.getSamples(self.processor.sim_info.sim_buffer)
+        print("hej2")
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.processor.sig[src.name][:,:self.processor.simBuffer])
-            self.processor.sig[src.name+"~"+mic.name][:,:self.processor.simBuffer] = propagated_signal
-            self.processor.sig[mic.name][:,:self.processor.simBuffer] += propagated_signal
-        self.processor.idx = self.processor.simBuffer
+                    self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer])
+            self.processor.sig[src.name+"~"+mic.name][:,:self.processor.sim_info.sim_buffer] = propagated_signal
+            self.processor.sig[mic.name][:,:self.processor.sim_info.sim_buffer] += propagated_signal
+        self.processor.idx = self.processor.sim_info.sim_buffer
+        print("hej3")
         self.processor.prepare()
+        print("hej4")
 
     def reset(self):
         self.processor.reset()
     
     def resetBuffers(self, globalIdx):
-        self.processor.diag.saveData(self.processor.sig, self.processor.idx, globalIdx)
         for sigName, sig in self.processor.sig.items():
             self.processor.sig[sigName] = np.concatenate(
                 (
-                    sig[..., -self.processor.simBuffer :],
-                    np.zeros(sig.shape[:-1] + (self.processor.simChunkSize,)),
+                    sig[..., -self.processor.sim_info.sim_buffer :],
+                    np.zeros(sig.shape[:-1] + (self.processor.sim_info.sim_chunk_size,)),
                 ),
                 axis=-1,
             )
-        self.processor.idx -= self.processor.simChunkSize
+        self.processor.idx -= self.processor.sim_info.sim_chunk_size
         self.processor.resetBuffer()
 
     def propagate(self, globalIdx):
@@ -86,33 +89,35 @@ class ProcessorWrapper():
 
     def process(self, globalIdx):
         self.processor.process(self.blockSize)
-        if self.processor.idx+2*self.blockSize >= self.processor.simChunkSize+self.processor.simBuffer:
+        #if self.processor.diag.shouldSaveData(globalIdx):
+        self.processor.diag.saveData(self.processor, self.processor.sig, self.processor.idx, globalIdx)
+        if self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer:
             self.resetBuffers(globalIdx)
 
         
         
 
 class AudioProcessor(ABC):
-    def __init__(self, config, arrays, blockSize):
-        self.simBuffer = config["SIMBUFFER"]
-        self.simChunkSize = config["SIMCHUNKSIZE"]
-        self.endTimeStep = config["ENDTIMESTEP"]
-        self.samplerate = config["SAMPLERATE"]
+    def __init__(self, sim_info, arrays, blockSize):
+        self.sim_info = sim_info
+        # self.sim_info.sim_buffer = config["sim_buffer"]
+        # self.sim_info.sim_chunk_size = config["sim_chunk_size"]
+        # self.sim_info.tot_samples = config["tot_samples"]
+        # self.samplerate = config["samplerate"]
 
-        self.spatialDims = config["SPATIALDIMS"]
-        self.c = config["C"]
-        self.micSNR = config["MICSNR"]
+        # self.spatialDims = config["spatial_dims"]
+        # self.c = config["c"]
+        # self.micSNR = config["mic_snr"]
 
-        self.saveRawData = config["SAVERAWDATA"]
-        self.outputSmoothing = config["OUTPUTSMOOTHING"]
-        self.plotFrequency = config["PLOTFREQUENCY"]
-        self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
+        # self.saveRawData = config["save_raw_data"]
+        # self.outputSmoothing = config["output_smoothing"]
+        # self.plotFrequency = config["plot_frequency"]
 
         self.blockSize = blockSize
 
         self.name = "Abstract Processor"
         self.arrays = arrays
-        self.diag = dia.DiagnosticHandler(self.simBuffer, self.simChunkSize)
+        self.diag = dia.DiagnosticHandler(self.sim_info, self.blockSize)
         self.rng = np.random.default_rng(1)
         self.metadata = {"block size" : self.blockSize}
         self.idx = 0
@@ -120,7 +125,7 @@ class AudioProcessor(ABC):
         self.sig = {}
 
     def prepare(self):
-        pass
+        self.diag.prepare()
 
     def resetBuffer(self):
         pass
@@ -134,7 +139,7 @@ class AudioProcessor(ABC):
         for sig in self.sig.values():
             sig.fill(0)
         self.diag.reset()
-        self.idx = self.simBuffer
+        self.idx = self.sim_info.sim_buffer
 
     def createNewBuffer(self, name, dim):
         """dim is a tuple or int
@@ -143,7 +148,7 @@ class AudioProcessor(ABC):
         if isinstance(dim, int):
             dim = (dim,)
         assert name not in self.sig
-        self.sig[name] = np.zeros(dim + (self.simBuffer + self.simChunkSize,))
+        self.sig[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
 
     @abstractmethod
     def process(self, numSamples):
@@ -157,8 +162,8 @@ class VolumeControl(AudioProcessor):
         self.name = "Volume Control"
         self.volumeFactor = volumeFactor
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.endTimeStep, self.outputSmoothing))
-        self.diag.addNewDiagnostic("outputPower", dia.SignalPower("output", self.endTimeStep, self.outputSmoothing))
+        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.addNewDiagnostic("outputPower", dia.SignalPower("output", self.sim_info.tot_samples, self.outputSmoothing))
 
         self.metadata["volume factor"] = self.volumeFactor
 
@@ -169,25 +174,25 @@ class VolumeControl(AudioProcessor):
 
 
 class ActiveNoiseControlProcessor(AudioProcessor):
-    def __init__(self, config, arrays, blockSize, updateBlockSize):
-        super().__init__(config, arrays, blockSize)
+    def __init__(self, sim_info, arrays, blockSize, updateBlockSize):
+        super().__init__(sim_info, arrays, blockSize)
         self.updateBlockSize = updateBlockSize
         self.numRef = self.arrays["ref"].num
         self.numError = self.arrays["error"].num
         self.numSpeaker = self.arrays["speaker"].num
         
-        self.diag.addNewDiagnostic("noise_reduction", dia.NoiseReduction("error", "source~error", self.endTimeStep, 1024, False))
+        self.diag.addNewDiagnostic("noise_reduction", dia.NoiseReduction(self.sim_info, "error", "source~error"))
         if "target" in self.arrays:
             self.diag.addNewDiagnostic("spatial_noise_reduction", 
-                dia.NoiseReduction("target", "source~target", self.endTimeStep, 1024, False))
+                dia.NoiseReduction(self.sim_info, "target", "source~target", 1024, False))
 
-        self.updateIdx = self.simBuffer
+        self.updateIdx = self.sim_info.sim_buffer
         
         self.metadata["update block size"] = updateBlockSize
 
     def resetBuffer(self):
         super().resetBuffer()
-        self.updateIdx -= self.simChunkSize
+        self.updateIdx -= self.sim_info.sim_chunk_size
 
     def process(self, numSamples):
         #self.diag.saveBlockData()
@@ -216,17 +221,16 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         self.numSpeaker = config["NUMSPEAKER"]
 #         self.numTarget = config["NUMTARGET"]
 #         self.filtLen = config["FILTLENGTH"]
-#         self.micSNR = config["MICSNR"]
-#         self.saveRawData = config["SAVERAWDATA"]
-#         self.outputSmoothing = config["OUTPUTSMOOTHING"]
-#         self.plotFrequency = config["PLOTFREQUENCY"]
-#         self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
-#         self.c = config["C"]
-#         self.samplerate = config["SAMPLERATE"]
-#         self.spatialDims = config["SPATIALDIMS"]
-#         self.endTimeStep = config["ENDTIMESTEP"]
-#         self.simChunkSize = config["SIMCHUNKSIZE"]
-#         self.simBuffer = config["SIMBUFFER"]
+#         self.micSNR = config["mic_snr"]
+#         self.saveRawData = config["save_raw_data"]
+#         self.outputSmoothing = config["output_smoothing"]
+#         self.plotFrequency = config["plot_frequency"]
+#         self.c = config["c"]
+#         self.samplerate = config["samplerate"]
+#         self.spatialDims = config["spatial_dims"]
+#         self.sim_info.tot_samples = config["tot_samples"]
+#         self.sim_info.sim_chunk_size = config["sim_chunk_size"]
+#         self.sim_info.sim_buffer = config["sim_buffer"]
 #         self.mu = mu
 #         self.beta = beta
 
@@ -238,20 +242,20 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
 #         self.buffers = {}
 
-#         self.y = np.zeros((self.numSpeaker, self.simChunkSize + self.simBuffer))
-#         self.x = np.zeros((self.numRef, self.simChunkSize + self.simBuffer))
-#         self.e = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+#         self.y = np.zeros((self.numSpeaker, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.x = np.zeros((self.numRef, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.e = np.zeros((self.numError, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
 
 #         self.secPathFilt = FilterSum_IntBuffer(speakerRIR["error"])
 
-#         self.diag = DiagnosticHandler(self.simBuffer, self.simChunkSize)
+#         self.diag = DiagnosticHandler(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size)
 #         self.diag.addNewDiagnostic(
 #             "reduction_microphones",
 #             NoiseReductionExternalSignals(
 #                 self.numError,
-#                 self.endTimeStep,
-#                 self.simBuffer,
-#                 self.simChunkSize,
+#                 self.sim_info.tot_samples,
+#                 self.sim_info.sim_buffer,
+#                 self.sim_info.sim_chunk_size,
 #                 smoothingLen=self.outputSmoothing,
 #                 saveRawData=self.saveRawData,
 #                 plotFrequency=self.plotFrequency,
@@ -262,9 +266,9 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #             NoiseReduction(
 #                 self.numTarget,
 #                 speakerRIR["target"],
-#                 self.endTimeStep,
-#                 self.simBuffer,
-#                 self.simChunkSize,
+#                 self.sim_info.tot_samples,
+#                 self.sim_info.sim_buffer,
+#                 self.sim_info.sim_chunk_size,
 #                 smoothingLen=self.outputSmoothing,
 #                 saveRawData=self.saveRawData,
 #                 plotFrequency=self.plotFrequency,
@@ -272,12 +276,12 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         )
 #         # self.diag.addNewDiagnostic("soundfield_target",
 #         #                             SoundfieldImage(self.numEvals, speakerRIR["evals"],
-#         #                             self.simBuffer, self.simChunkSize,
+#         #                             self.sim_info.sim_buffer, self.sim_info.sim_chunk_size,
 #         #                             beginAtBuffer=self.genSoundfieldAtChunk,
 #         #                             plotFrequency=self.plotFrequency))
 
-#         self.idx = self.simBuffer
-#         self.updateIdx = self.simBuffer
+#         self.idx = self.sim_info.sim_buffer
+#         self.updateIdx = self.sim_info.sim_buffer
 
 #         self.metadata = {"mu": mu, "beta": beta, "controlFiltLen": self.filtLen}
 
@@ -311,22 +315,22 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
 #         self.y = np.concatenate(
 #             (
-#                 self.y[:, -self.simBuffer :],
-#                 np.zeros((self.y.shape[0], self.simChunkSize)),
+#                 self.y[:, -self.sim_info.sim_buffer :],
+#                 np.zeros((self.y.shape[0], self.sim_info.sim_chunk_size)),
 #             ),
 #             axis=-1,
 #         )
 #         self.x = np.concatenate(
 #             (
-#                 self.x[:, -self.simBuffer :],
-#                 np.zeros((self.x.shape[0], self.simChunkSize)),
+#                 self.x[:, -self.sim_info.sim_buffer :],
+#                 np.zeros((self.x.shape[0], self.sim_info.sim_chunk_size)),
 #             ),
 #             axis=-1,
 #         )
 #         self.e = np.concatenate(
 #             (
-#                 self.e[:, -self.simBuffer :],
-#                 np.zeros((self.e.shape[0], self.simChunkSize)),
+#                 self.e[:, -self.sim_info.sim_buffer :],
+#                 np.zeros((self.e.shape[0], self.sim_info.sim_chunk_size)),
 #             ),
 #             axis=-1,
 #         )
@@ -334,18 +338,18 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         for bufName, buf in self.buffers.items():
 #             self.buffers[bufName] = np.concatenate(
 #                 (
-#                     buf[..., -self.simBuffer :],
-#                     np.zeros(buf.shape[:-1] + (self.simChunkSize,)),
+#                     buf[..., -self.sim_info.sim_buffer :],
+#                     np.zeros(buf.shape[:-1] + (self.sim_info.sim_chunk_size,)),
 #                 ),
 #                 axis=-1,
 #             )
 
-#         self.idx -= self.simChunkSize
-#         self.updateIdx -= self.simChunkSize
+#         self.idx -= self.sim_info.sim_chunk_size
+#         self.updateIdx -= self.sim_info.sim_chunk_size
 
 #     def forwardPass(self, numSamples, noises):
 #         blockSizes = calcBlockSizes(
-#             numSamples, self.idx, self.simBuffer, self.simChunkSize
+#             numSamples, self.idx, self.sim_info.sim_buffer, self.sim_info.sim_chunk_size
 #         )
 #         errorMicNoise = getWhiteNoiseAtSNR(
 #             self.rng, noises["error"], (self.numError, numSamples), self.micSNR
@@ -380,8 +384,8 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #                 + self.secPathFilt.process(self.y[:, self.idx : self.idx + blockSize])
 #             )
 
-#             assert self.idx + blockSize <= self.simBuffer + self.simChunkSize
-#             if self.idx + blockSize >= (self.simChunkSize + self.simBuffer):
+#             assert self.idx + blockSize <= self.sim_info.sim_buffer + self.sim_info.sim_chunk_size
+#             if self.idx + blockSize >= (self.sim_info.sim_chunk_size + self.sim_info.sim_buffer):
 #                 self.resetBuffers()
 #             self.idx += blockSize
 #             numComputed += blockSize
@@ -395,17 +399,16 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         self.numError = config["NUMERROR"]
 #         self.numSpeaker = config["NUMSPEAKER"]
 #         self.numTarget = config["NUMTARGET"]
-#         self.micSNR = config["MICSNR"]
-#         self.saveRawData = config["SAVERAWDATA"]
-#         self.outputSmoothing = config["OUTPUTSMOOTHING"]
-#         self.plotFrequency = config["PLOTFREQUENCY"]
-#         self.genSoundfieldAtChunk = config["GENSOUNDFIELDATCHUNK"]
-#         self.c = config["C"]
-#         self.samplerate = config["SAMPLERATE"]
-#         self.spatialDims = config["SPATIALDIMS"]
-#         self.endTimeStep = config["ENDTIMESTEP"]
-#         self.simChunkSize = config["SIMCHUNKSIZE"]
-#         self.simBuffer = config["SIMBUFFER"]
+#         self.micSNR = config["mic_snr"]
+#         self.saveRawData = config["save_raw_data"]
+#         self.outputSmoothing = config["output_smoothing"]
+#         self.plotFrequency = config["plot_frequency"]
+#         self.c = config["c"]
+#         self.samplerate = config["samplerate"]
+#         self.spatialDims = config["spatial_dims"]
+#         self.sim_info.tot_samples = config["tot_samples"]
+#         self.sim_info.sim_chunk_size = config["sim_chunk_size"]
+#         self.sim_info.sim_buffer = config["sim_buffer"]
 #         self.mu = mu
 #         self.beta = beta
 #         self.blockSize = blockSize
@@ -420,11 +423,11 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         )
 #         self.buffers = {}
 
-#         self.x = np.zeros((self.numRef, self.simChunkSize + self.simBuffer))
-#         self.e = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
-#         self.y = np.zeros((self.numSpeaker, self.simChunkSize + self.simBuffer))
-#         self.buffers["primary"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
-#         self.buffers["yf"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+#         self.x = np.zeros((self.numRef, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.e = np.zeros((self.numError, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.y = np.zeros((self.numSpeaker, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.buffers["primary"] = np.zeros((self.numError, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
+#         self.buffers["yf"] = np.zeros((self.numError, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
 
 #         self.G = np.transpose(
 #             np.fft.fft(speakerRIR["error"], n=2 * blockSize, axis=-1), (2, 0, 1)
@@ -432,14 +435,14 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
 #         self.secPathFilt = FilterSum_IntBuffer(speakerRIR["error"])
 
-#         self.diag = DiagnosticHandler(self.simBuffer, self.simChunkSize)
+#         self.diag = DiagnosticHandler(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size)
 #         self.diag.addNewDiagnostic(
 #             "reduction_microphones",
 #             NoiseReductionExternalSignals(
 #                 self.numError,
-#                 self.endTimeStep,
-#                 self.simBuffer,
-#                 self.simChunkSize,
+#                 self.sim_info.tot_samples,
+#                 self.sim_info.sim_buffer,
+#                 self.sim_info.sim_chunk_size,
 #                 smoothingLen=self.outputSmoothing,
 #                 saveRawData=self.saveRawData,
 #                 plotFrequency=self.plotFrequency,
@@ -451,9 +454,9 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #                 NoiseReduction(
 #                     self.numTarget,
 #                     speakerRIR["target"],
-#                     self.endTimeStep,
-#                     self.simBuffer,
-#                     self.simChunkSize,
+#                     self.sim_info.tot_samples,
+#                     self.sim_info.sim_buffer,
+#                     self.sim_info.sim_chunk_size,
 #                     smoothingLen=self.outputSmoothing,
 #                     saveRawData=self.saveRawData,
 #                     plotFrequency=self.plotFrequency,
@@ -463,15 +466,15 @@ class ActiveNoiseControlProcessor(AudioProcessor):
         
 #         self.diag.addNewDiagnostic(
 #             "power_primary_noise",
-#                 RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+#                 RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.sim_info.sim_chunk_size,plotFrequency=self.plotFrequency)
 #         )
 #         # self.diag.addNewDiagnostic("soundfield_target",
 #         #                             SoundfieldImage(self.numEvals, speakerRIR["evals"],
-#         #                             self.simBuffer, self.simChunkSize,
+#         #                             self.sim_info.sim_buffer, self.sim_info.sim_chunk_size,
 #         #                             beginAtBuffer=self.genSoundfieldAtChunk,
 #         #                             plotFrequency=self.plotFrequency))
-#         self.idx = self.simBuffer
-#         self.updateIdx = self.simBuffer
+#         self.idx = self.sim_info.sim_buffer
+#         self.updateIdx = self.sim_info.sim_buffer
 
 #         self.metadata = {"mu": mu, "beta": beta, "controlFiltNumFreq": 2 * blockSize}
 
@@ -500,34 +503,34 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         for bufName, buf in self.buffers.items():
 #             self.buffers[bufName] = np.concatenate(
 #                 (
-#                     buf[..., -self.simBuffer :],
-#                     np.zeros(buf.shape[:-1] + (self.simChunkSize,)),
+#                     buf[..., -self.sim_info.sim_buffer :],
+#                     np.zeros(buf.shape[:-1] + (self.sim_info.sim_chunk_size,)),
 #                 ),
 #                 axis=-1,
 #             )
 
 #         self.x = np.concatenate(
 #             (
-#                 self.x[:, -self.simBuffer :],
-#                 np.zeros((self.x.shape[0], self.simChunkSize)),
+#                 self.x[:, -self.sim_info.sim_buffer :],
+#                 np.zeros((self.x.shape[0], self.sim_info.sim_chunk_size)),
 #             ),
 #             axis=-1,
 #         )
 #         self.e = np.concatenate(
 #             (
-#                 self.e[:, -self.simBuffer :],
-#                 np.zeros((self.e.shape[0], self.simChunkSize)),
+#                 self.e[:, -self.sim_info.sim_buffer :],
+#                 np.zeros((self.e.shape[0], self.sim_info.sim_chunk_size)),
 #             ),
 #             axis=-1,
 #         )
 
-#         self.idx -= self.simChunkSize
-#         self.updateIdx -= self.simChunkSize
+#         self.idx -= self.sim_info.sim_chunk_size
+#         self.updateIdx -= self.sim_info.sim_chunk_size
 
 #     def forwardPass(self, numSamples, noises):
 #         assert numSamples == self.blockSize
 
-#         if self.idx + numSamples >= (self.simChunkSize + self.simBuffer):
+#         if self.idx + numSamples >= (self.sim_info.sim_chunk_size + self.sim_info.sim_buffer):
 #             self.resetBuffers()
 
 #         errorMicNoise = getWhiteNoiseAtSNR(

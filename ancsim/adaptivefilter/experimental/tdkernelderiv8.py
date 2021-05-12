@@ -27,7 +27,7 @@ class KernelIP_FB(AdaptiveFilterFB):
         ]
 
         self.computeGradient = tf.function(self.computeGradient, input_signature=spec)
-        self.updateIdx = s.SIMBUFFER
+        self.updateIdx = s.sim_buffer
 
     def updateFilter(self):
         M = int(np.max(self.c.shape)) // 2
@@ -137,7 +137,7 @@ class KernelIP_FF(AdaptiveFilterFF):
         ]
 
         self.computeGradient = tf.function(self.computeGradient, input_signature=spec)
-        self.updateIdx = s.SIMBUFFER
+        self.updateIdx = s.sim_buffer
 
     def updateFilter(self):
         M = int(np.max(self.c.shape)) // 2
@@ -246,7 +246,7 @@ class KernelIP_FFavgnorm(AdaptiveFilterFF):
         ]
 
         self.computeGradient = tf.function(self.computeGradient, input_signature=spec)
-        self.updateIdx = s.SIMBUFFER
+        self.updateIdx = s.sim_buffer
 
     # @util.measure("Kernelip 8a FF avgnorm")
     def updateFilter(self):

@@ -15,6 +15,12 @@ import ancsim.soundfield.roomimpulseresponse as rir
 import ancsim.adaptivefilter.diagnostics as diag
 
 
+class SimulatorSetup:
+    def __init__():
+        pass
+
+
+
 
 class Simulator:
     def __init__(
@@ -27,7 +33,7 @@ class Simulator:
 
         #self.freeSrcProp = FreeSourcePropagator()
 
-        self.setConfig(configutil.getBaseConfig())
+        self.setConfig(configutil.getDefaultConfig())
 
         self.baseFolderPath = baseFolderPath
         self.sessionFolder = sessionFolder
@@ -35,9 +41,8 @@ class Simulator:
         self.rng = np.random.default_rng(1)
 
     def setConfig(self, config):
-        self.config = configutil.processConfig(config)
-        for mic, src in self.arrays.mic_src_combos():
-            self.arrays.paths[src][mic] = self.config["REVERB"]
+        configutil.checkConfig(config)
+        self.config = config
 
     def addArrays(self, arrayCollection):
         for ar in arrayCollection:
@@ -104,25 +109,26 @@ class Simulator:
     #     #self.propFiltersCtrl, irMetadataCtrl = self.setupIR(ArrayType.CTRLSOURCE, self.reverbExceptions)
     #     addToSimMetadata(self.folderPath, irMetadata)
 
-    #     if self.config["AUTOSAVELOAD"]:
+    #     if self.config["auto_save_load"]:
     #         sess.saveSession(self.arrays, self.propFiltersFree, self.propFiltersCtrl)
 
     # def createNewSession(self):
     #     irMetadata = self.setupIR()
 
-    #     if self.config["AUTOSAVELOAD"] and self.sessionFolder is not None:
+    #     if self.config["auto_save_load"] and self.sessionFolder is not None:
     #         sess.saveSession(self.sessionFolder, self.config, self.arrays, simMetadata=irMetadata)
             
             
 
     def prepare(self):
         assert not self.arrays.empty()
-        self.arrays.set_default_path_type(self.config["REVERB"])
-
+        self.sim_info = configutil.SimulatorInfo(self.config)
+        self.arrays.set_default_path_type(self.sim_info.reverb)
+        
         self.folderPath = self.createFigFolder(self.baseFolderPath)
         print(f"Figure folder: {self.folderPath}")
 
-        if self.config["AUTOSAVELOAD"] and self.sessionFolder is not None:
+        if self.sim_info.auto_save_load and self.sessionFolder is not None:
             try:
                 self.arrays = sess.loadSession(self.sessionFolder, self.folderPath, self.config, self.arrays)
             except sess.MatchingSessionNotFoundError:
@@ -132,34 +138,25 @@ class Simulator:
                 sess.addToSimMetadata(self.folderPath, irMetadata)
         else:
             self.setupIR()
-        #self.freeSrcProp.prepare(self.config, self.arrays)
 
         # LOGGING AND DIAGNOSTICS
         sess.saveConfig(self.folderPath, self.config)
-        self.arrays.plot(self.folderPath, self.config["PLOTOUTPUT"])
-        #psc.plotArrays(self.arrays)
-        #plotAnyPos(self.pos, self.folderPath, self.config)
+        self.arrays.plot(self.folderPath, self.sim_info.plot_output)
         
 
     def _setupSimulation(self):
-        #self.config = configPreprocessing(self.config, len(self.processors))
 
         setUniqueFilterNames(self.processors)
         writeFilterMetadata(self.processors, self.folderPath)
 
         self.plotDispatcher = diag.PlotDiagnosticDispatcher(
-            self.processors, self.config["PLOTOUTPUT"]
+            self.processors, self.sim_info.plot_output
         )
 
-        # try:
-        #     blockSizes = [bsize for bsize in self.config["BLOCKSIZE"]]
-        #     assert len(blockSizes) == len(self.processors)
-        # except TypeError:
-        #     blockSizes = [self.config["BLOCKSIZE"] for _ in range(len(self.processors))]
         self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
 
-        #self.freeSrcProp.process(self.config["SIMBUFFER"])
         for filt in self.processors:
+            print("preparing")
             filt.prepare()
 
     def runSimulation(self):
@@ -172,20 +169,20 @@ class Simulator:
         n_tot = 1
         bufferIdx = -1
         #noises = self._updateNoises(n_tot, noises)
-        #noiseIndices = [self.config["SIMBUFFER"] for _ in range(len(self.processors))]
-        while n_tot < self.config["ENDTIMESTEP"] - maxBlockSize:
+        #noiseIndices = [self.config["sim_buffer"] for _ in range(len(self.processors))]
+        while n_tot < self.sim_info.tot_samples - maxBlockSize:
             bufferIdx += 1
             for n in range(
-                self.config["SIMBUFFER"],
-                self.config["SIMBUFFER"]
-                + min(self.config["SIMCHUNKSIZE"], self.config["ENDTIMESTEP"] - n_tot),
+                self.sim_info.sim_buffer,
+                self.sim_info.sim_buffer
+                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples - n_tot),
             ):
                 # Write progress
                 if n_tot % 1000 == 0:
-                    print("Timestep: ", n_tot, end="\r")
+                    print("Timestep: ", n_tot)#, end="\r")
 
                 #Break if simulation is finished
-                if self.config["ENDTIMESTEP"] - maxBlockSize < n_tot:
+                if self.sim_info.tot_samples - maxBlockSize < n_tot:
                     break
 
                 #Generate and propagate noise from free sources
@@ -203,13 +200,13 @@ class Simulator:
                         #noiseIndices[i] += proc.blockSize
 
                 # Generate plots and diagnostics
-                if n_tot % self.config["SIMCHUNKSIZE"] == 0 and n_tot > 0:
-                    if self.config["PLOTOUTPUT"] != "none":
+                if n_tot % self.sim_info.sim_chunk_size == 0 and n_tot > 0:
+                    if self.sim_info.plot_output != "none":
                         self.plotDispatcher.dispatch(
                             [p.processor for p in self.processors], n_tot, bufferIdx, self.folderPath
                         )
-                    if self.config["SAVERAWDATA"] and (
-                        bufferIdx % self.config["SAVERAWDATAFREQUENCY"] == 0
+                    if self.sim_info.save_raw_data and (
+                        bufferIdx % self.sim_info.save_raw_data_freq == 0
                         or bufferIdx - 1 == 0
                     ):
                         sess.saveRawData(self.processors, n_tot, self.folderPath)
@@ -222,15 +219,15 @@ class Simulator:
     #     for src in self.arrays.of_type(ArrayType.FREESOURCE):
     #         for mic in self.arrays.mics():
     #             self.freeSrcSig[src.name][mic.name] = {
-    #                 = src.getSamples(self.config["SIMCHUNKSIZE"])
+    #                 = src.getSamples(self.config["sim_chunk_size"])
     #             }
              
 
     # def _updateNoises(self, timeIdx, noises):
-    #     noise = self.freeSource.getSamples(self.config["SIMCHUNKSIZE"])
+    #     noise = self.freeSource.getSamples(self.config["sim_chunk_size"])
     #     noises = {
     #         filtName: np.concatenate(
-    #             (noises[filtName][:, -self.config["SIMBUFFER"] :], sf.process(noise)),
+    #             (noises[filtName][:, -self.config["sim_buffer"] :], sf.process(noise)),
     #             axis=-1,
     #         )
     #         for filtName, sf in self.sourceFilters.items()
@@ -238,7 +235,7 @@ class Simulator:
     #     return noises
 
     # def _fillBuffers(self):
-    #     noise = self.noiseSource.getSamples(self.config["SIMBUFFER"])
+    #     noise = self.noiseSource.getSamples(self.config["sim_buffer"])
     #     noises = {
     #         filtName: sf.process(noise) for filtName, sf in self.sourceFilters.items()
     #     }
@@ -250,7 +247,7 @@ class Simulator:
     #         (self.config["FILTLENGTH"] + self.config["KERNFILTLEN"], maxSecPathLength)
     #     )
     #     fillNumBlocks = [
-    #         (self.config["SIMBUFFER"] - fillStartIdx) // bs
+    #         (self.config["sim_buffer"] - fillStartIdx) // bs
     #         for bs in self.config["BLOCKSIZE"]
     #     ]
 
@@ -259,7 +256,7 @@ class Simulator:
     #         startIdxs.append([])
     #         for i in range(fillNumBlocks[filtIdx]):
     #             startIdxs[filtIdx].append(
-    #                 self.config["SIMBUFFER"]
+    #                 self.config["sim_buffer"]
     #                 - ((fillNumBlocks[filtIdx] - i) * blockSize)
     #             )
 
@@ -280,8 +277,8 @@ class Simulator:
 
     def setupIR(self):
         """reverbExpeptions is a tuple of tuples, where each inner tuple is
-            formatted as (sourceName, micName, REVERB-PARAMETER), where the options
-            for reverb-parameter are the same as for config['REVERB']"""
+            formatted as (sourceName, micName, reverb-PARAMETER), where the options
+            for reverb-parameter are the same as for config['reverb']"""
         print("Computing Room IR...")
         metadata = {}
 
@@ -303,22 +300,22 @@ class Simulator:
                 assert src.num == mic.num
                 self.arrays.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
             elif reverb == "random":
-                self.arrays.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["MAXROOMIRLENGTH"]))
+                self.arrays.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["max_room_ir_length"]))
             elif reverb == "ism":
-                if self.config["SPATIALDIMS"] == 3:
+                if self.config["spatial_dims"] == 3:
                     self.arrays.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
-                                                        src.pos, mic.pos, self.config["ROOMSIZE"], self.config["ROOMCENTER"], 
-                                                        self.config["MAXROOMIRLENGTH"], self.config["RT60"], self.config["SAMPLERATE"],
+                                                        src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
+                                                        self.config["max_room_ir_length"], self.config["rt60"], self.config["samplerate"],
                                                         calculateMetadata=True)
                 else:
                     raise ValueError
             elif reverb == "freespace":
-                if self.config["SPATIALDIMS"] == 3:
+                if self.config["spatial_dims"] == 3:
                     self.arrays.paths[src.name][mic.name] = rir.irPointSource3d(
-                    src.pos, mic.pos, self.config["SAMPLERATE"], self.config["C"])
-                elif self.config["SPATIALDIMS"] == 2:
+                    src.pos, mic.pos, self.config["samplerate"], self.config["c"])
+                elif self.config["spatial_dims"] == 2:
                     self.arrays.paths[src.name][mic.name] = rir.irPointSource2d(
-                        src.pos, mic.pos, self.config["SAMPLERATE"], self.config["C"]
+                        src.pos, mic.pos, self.config["samplerate"], self.config["c"]
                     )
                 else:
                     raise ValueError
@@ -335,11 +332,11 @@ class Simulator:
 
     # def usePresetPositions(self, config, presetName):
     #     print("Setup Positions")
-    #     if config["SPATIALDIMS"] == 3:
+    #     if config["spatial_dims"] == 3:
     #         if presetName == "circle":
-    #             if config["SPATIALDIMS"] == 3:
+    #             if config["spatial_dims"] == 3:
     #                 posMic, posSrc = setup.getPositionsCylinder3d(config)
-    #             elif config["SPATIALDIMS"] == 2:
+    #             elif config["spatial_dims"] == 2:
     #                 posMic, posSrc  = setup.getPositionsDisc2d(config)
     #         elif presetName == "cuboid":
     #                 posMic, posSrc = setup.getPositionsCuboid3d(config)
@@ -347,7 +344,7 @@ class Simulator:
     #                 posMic, posSrc = setup.getPositionsRectangle3d(config)
     #         elif presetName == "doublerectangle":
     #                 posMic, posSrc = setup.getPositionsDoubleRectangle3d(config)
-    #     elif config["SPATIALDIMS"] == 1:
+    #     elif config["spatial_dims"] == 1:
     #         posMic, posSrc = setup.getPositionsLine1d(config)
     #     else:
     #         raise ValueError
@@ -358,7 +355,7 @@ class Simulator:
 
 
     def createFigFolder(self, folderForPlots, generateSubFolder=True, safeNaming=False):
-        if self.config["PLOTOUTPUT"] != "none":
+        if self.config["plot_output"] != "none":
             if generateSubFolder:
                 folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
                 folderName.mkdir()
@@ -385,24 +382,24 @@ def setUniqueFilterNames(filters):
 
 # def plotAnyPos(pos, folderPath, config):
 #     print("Setup Positions")
-#     if config["SPATIALDIMS"] == 3:
+#     if config["spatial_dims"] == 3:
 #         if config["ARRAYSHAPES"] == "circle":
-#             psc.plotPos3dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
+#             psc.plotPos3dDisc(pos, folderPath, config, config["plot_output"])
 #         elif config["ARRAYSHAPES"] in ("cuboid", "rectangle", "doublerectangle", "smaller_rectangle"):
-#             if config["REVERB"] == "ism":
-#                 psc.plotPos3dRect(pos, folderPath, config, config["ROOMSIZE"], config["ROOMCENTER"], printMethod=config["PLOTOUTPUT"])
+#             if config["reverb"] == "ism":
+#                 psc.plotPos3dRect(pos, folderPath, config, config["room_size"], config["room_center"], printMethod=config["plot_output"])
 #             else:
 #                 psc.plotPos3dRect(
-#                     pos, folderPath, config, printMethod=config["PLOTOUTPUT"]
+#                     pos, folderPath, config, printMethod=config["plot_output"]
 #                 )
 #         else:
-#             psc.plotPos(pos, folderPath,config, printMethod=config["PLOTOUTPUT"])
-#     elif config["SPATIALDIMS"] == 2:
+#             psc.plotPos(pos, folderPath,config, printMethod=config["plot_output"])
+#     elif config["spatial_dims"] == 2:
 #         if config["ARRAYSHAPES"] == "circle":
 #             if config["REFDIRECTLYOBTAINED"]:
 #                 raise NotImplementedError
 #             else:
-#                 psc.plotPos2dDisc(pos, folderPath, config, config["PLOTOUTPUT"])
+#                 psc.plotPos2dDisc(pos, folderPath, config, config["plot_output"])
 #         else:
 #             raise NotImplementedError
 #     else:

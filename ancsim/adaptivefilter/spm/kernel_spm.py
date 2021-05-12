@@ -53,7 +53,7 @@ class FastBlockKIFxLMSSPMYuxue(FastBlockFxLMSSPMYuxue):
                 self.numSpeaker,
                 self.numRef,
                 self.numError,
-                self.simChunkSize + self.simBuffer,
+                self.simChunkSize + self.sim_info.sim_buffer,
             )
         )
 
@@ -143,13 +143,13 @@ class FastBlockKIFxLMSSPMYuxueErrorIP(FastBlockFxLMSSPMYuxue):
 
         self.kiDelay = kiFilt.shape[-1] // 2
 
-        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.sim_info.sim_buffer))
         # self.buffers["kixf"] = np.zeros(
         #     (
         #         self.numSpeaker,
         #         self.numRef,
         #         self.numError,
-        #         self.simChunkSize + self.simBuffer,
+        #         self.simChunkSize + self.sim_info.sim_buffer,
         #     )
         # )
 
@@ -235,7 +235,7 @@ class FastBlockKIFxLMSSPMYuxueSameCost(FastBlockFxLMSSPMYuxue):
 
         self.kiDelay = kiFilt.shape[-1] // 2
 
-        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + self.sim_info.sim_buffer))
 
         self.kiFilt = FilterSum_Freqdomain(
             tf=fdf.fftWithTranspose(kiFilt, n=2 * blockSize)
@@ -347,7 +347,7 @@ class FastBlockKIFxLMSSPMEriksson_old(FastBlockFxLMSSPMEriksson):
                 self.numSpeaker,
                 self.numRef,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -459,10 +459,10 @@ class KernelSPM6(FastBlockFxLMSSPMEriksson):
                 self.numSpeaker,
                 self.numRef,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
-        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["kif"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.metadata["kernelInterpolationDelay"] = int(self.kiDelay)
         self.metadata["kiFiltLength"] = int(kiFiltLen)
@@ -592,14 +592,14 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
             freqIndepNorm=False,
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.G = np.transpose(self.G, (0, 2, 1))
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         # self.combinedFilt = self.G.conj() @ self.A
@@ -610,7 +610,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         self.metadata["muSPM"] = muSPM
 
     def prepare(self):
-        self.buffers["f"][:, : s.SIMBUFFER] = self.e[:, : s.SIMBUFFER]
+        self.buffers["f"][:, : s.sim_buffer] = self.e[:, : s.sim_buffer]
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
@@ -704,7 +704,7 @@ class FDKIFxLMSErikssonInterpolatedF(FDKIFxLMSEriksson):
         self.diag.addNewDiagnostic(
             "weightedsecpath",
             dia.ConstantEstimateNMSE(
-                self.A @ self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.A @ self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -735,14 +735,14 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
             freqIndepNorm=False,
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.G = np.transpose(self.G, (0, 2, 1))
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         # self.combinedFilt = self.G.conj() @ self.A
@@ -754,7 +754,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
         self.metadata["kernelReg"] = kernelReg
 
     def prepare(self):
-        self.buffers["f"][:, : s.SIMBUFFER] = self.e[:, : s.SIMBUFFER]
+        self.buffers["f"][:, : s.sim_buffer] = self.e[:, : s.sim_buffer]
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
@@ -843,9 +843,9 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.secPathEstimate.setIR(initialSecPathEstimate)
 #         self.secPathEstimateSum.setIR(initialSecPathEstimate)
 
-#         self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.SIMBUFFER))
-#         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.SIMBUFFER))
-#         self.buffers["vEst"] = np.zeros((self.numError, self.simChunkSize+s.SIMBUFFER))
+#         self.buffers["xf"] = np.zeros((self.numRef, self.numSpeaker, self.numError, self.simChunkSize+s.sim_buffer))
+#         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.sim_buffer))
+#         self.buffers["vEst"] = np.zeros((self.numError, self.simChunkSize+s.sim_buffer))
 
 #         self.diag.addNewDiagnostic("secpath", dia.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=self.plotFrequency))
 
@@ -914,16 +914,16 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
         # self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
         self.buffers["vIP"] = np.zeros(
             (
                 self.numSpeaker,
                 self.numError,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -1113,16 +1113,16 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
 
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
         self.buffers["vIP"] = np.zeros(
             (
                 self.numSpeaker,
                 self.numError,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -1271,20 +1271,20 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.secPathFilt.ir, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.secPathFilt.ir, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
         self.buffers["vIP"] = np.zeros(
             (
                 self.numSpeaker,
                 self.numError,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -1476,15 +1476,15 @@ class KernelSPM3_old(FreqAuxNoiseFxLMS2):
         kernelReg = 1e-3
         self.kernelMat = self.constructInterpolation(errorPos, kernelReg)
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
+        self.buffers["fip"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
         self.buffers["VIP"] = np.zeros(
             (
                 self.numSpeaker,
                 self.numError,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
@@ -1736,7 +1736,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numSpeaker, self.numError, self.muSec, self.beta)
         self.primPathNLMS = FastBlockNLMS(self.blockSize, self.numRef, self.numError, self.muPrim, self.beta)
 
-       # self.buffers["yip"] = np.zeros((self.numError, self.numError, self.numSpeaker, self.simChunkSize+self.simBuffer))
+       # self.buffers["yip"] = np.zeros((self.numError, self.numError, self.numSpeaker, self.simChunkSize+self.sim_info.sim_buffer))
 
         kiLen = 155
         self.kiFilt = self.constructInterpolation(errorPos, 1e-3, kiLen)
@@ -1755,8 +1755,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         # self.diag.addNewDiagnostic(
         #     "filtered_reference_est",
         #     dia.SignalEstimateNMSEBlock(
-        #         self.endTimeStep,
-        #         self.simBuffer,
+        #         self.sim_info.tot_samples,
+        #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
         #         smoothingLen=self.outputSmoothing,
         #         plotFrequency=self.plotFrequency,
@@ -1768,8 +1768,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
             "secpath",
             dia.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -1782,8 +1782,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -1797,8 +1797,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -1808,8 +1808,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         #     "recorded_ir",
         #     dia.RecordIR(
         #         np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
-        #         self.endTimeStep, 
-        #         self.simBuffer, 
+        #         self.sim_info.tot_samples, 
+        #         self.sim_info.sim_buffer, 
         #         self.simChunkSize,
         #         (2,2),
         #         plotFrequency=self.plotFrequency,
@@ -1820,8 +1820,8 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         #     "secpath_combinations",
         #     dia.ConstantEstimateNMSEAllCombinations(
         #         self.secPathEstimate.tf,
-        #         self.endTimeStep,
-        #         self.simBuffer,
+        #         self.sim_info.tot_samples,
+        #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
         #         plotFrequency=self.plotFrequency,
         #     ),
@@ -1831,17 +1831,17 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                      plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "primary_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "secondary_error",
-            dia.SignalEstimateNMSEBlock(self.endTimeStep, self.simBuffer, self.simChunkSize, 
+            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
 

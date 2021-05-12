@@ -13,12 +13,12 @@ class AdaptiveFilter_tf(ABC):
 
         self.y = tf.Variable(
             tf.zeros(
-                (self.numSpeaker, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64
+                (self.numSpeaker, self.simChunkSize + s.sim_buffer), dtype=tf.float64
             ),
             dtype=tf.float64,
         )
         self.x = tf.Variable(
-            tf.zeros((self.numRef, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64),
+            tf.zeros((self.numRef, self.simChunkSize + s.sim_buffer), dtype=tf.float64),
             dtype=tf.float64,
         )
         self.xf = tf.Variable(
@@ -27,7 +27,7 @@ class AdaptiveFilter_tf(ABC):
                     self.numRef,
                     self.numSpeaker,
                     self.numError,
-                    self.simChunkSize + s.SIMBUFFER,
+                    self.simChunkSize + s.sim_buffer,
                 ),
                 dtype=tf.float64,
             ),
@@ -35,38 +35,38 @@ class AdaptiveFilter_tf(ABC):
         )
         self.e = tf.Variable(
             tf.zeros(
-                (self.numError, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64
+                (self.numError, self.simChunkSize + s.sim_buffer), dtype=tf.float64
             ),
             dtype=tf.float64,
         )
         self.eTarget = tf.Variable(
             tf.zeros(
-                (self.numTarget, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64
+                (self.numTarget, self.simChunkSize + s.sim_buffer), dtype=tf.float64
             ),
             dtype=tf.float64,
         )
 
         self.pointNoise = tf.Variable(
             tf.zeros(
-                (self.numError, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64
+                (self.numError, self.simChunkSize + s.sim_buffer), dtype=tf.float64
             ),
             dtype=tf.float64,
         )
         self.targetNoise = tf.Variable(
             tf.zeros(
-                (self.numTarget, self.simChunkSize + s.SIMBUFFER), dtype=tf.float64
+                (self.numTarget, self.simChunkSize + s.sim_buffer), dtype=tf.float64
             ),
             dtype=tf.float64,
         )
 
-        self.regRed = np.zeros((self.endTimeStep))
+        self.regRed = np.zeros((self.sim_info.tot_samples))
         self.eTargSmoother = Filter_IntBuffer(
             ir=np.ones((self.outputSmoothing)), numIn=self.numTarget
         )
         self.targNoiseSmoother = Filter_IntBuffer(
             ir=np.ones((self.outputSmoothing)), numIn=self.numTarget
         )
-        self.pointRed = np.zeros((self.endTimeStep))
+        self.pointRed = np.zeros((self.sim_info.tot_samples))
         self.eSmoother = Filter_IntBuffer(
             ir=np.ones((self.outputSmoothing)), numIn=self.numError
         )
@@ -74,15 +74,15 @@ class AdaptiveFilter_tf(ABC):
             ir=np.ones((self.outputSmoothing)), numIn=self.numError
         )
 
-        self.loss = np.zeros((self.endTimeStep))
+        self.loss = np.zeros((self.sim_info.tot_samples))
 
         self.secPathError = tf.convert_to_tensor(secPathError, dtype=tf.float64)
         self.secPathTarget = tf.convert_to_tensor(secPathTarget, dtype=tf.float64)
         self.J = tf.convert_to_tensor(secPathError.shape[-1])
         self.tJ = tf.convert_to_tensor(secPathTarget.shape[-1])
 
-        self.idx = tf.Variable(s.SIMBUFFER, dtype=tf.int64)
-        self.updateIdx = tf.Variable(s.SIMBUFFER, dtype=tf.int64)
+        self.idx = tf.Variable(s.sim_buffer, dtype=tf.int64)
+        self.updateIdx = tf.Variable(s.sim_buffer, dtype=tf.int64)
         self.bufferIdx = 0
 
     @abstractmethod
@@ -99,7 +99,7 @@ class AdaptiveFilter_tf(ABC):
         self.y.assign(
             tf.concat(
                 (
-                    self.y[:, -s.SIMBUFFER :],
+                    self.y[:, -s.sim_buffer :],
                     tf.zeros((self.y.shape[0], self.simChunkSize), dtype=tf.float64),
                 ),
                 axis=-1,
@@ -108,7 +108,7 @@ class AdaptiveFilter_tf(ABC):
         self.x.assign(
             tf.concat(
                 (
-                    self.x[:, -s.SIMBUFFER :],
+                    self.x[:, -s.sim_buffer :],
                     tf.zeros((self.x.shape[0], self.simChunkSize), dtype=tf.float64),
                 ),
                 axis=-1,
@@ -117,7 +117,7 @@ class AdaptiveFilter_tf(ABC):
         self.e.assign(
             tf.concat(
                 (
-                    self.e[:, -s.SIMBUFFER :],
+                    self.e[:, -s.sim_buffer :],
                     tf.zeros((self.e.shape[0], self.simChunkSize), dtype=tf.float64),
                 ),
                 axis=-1,
@@ -126,7 +126,7 @@ class AdaptiveFilter_tf(ABC):
         self.eTarget.assign(
             tf.concat(
                 (
-                    self.eTarget[:, -s.SIMBUFFER :],
+                    self.eTarget[:, -s.sim_buffer :],
                     tf.zeros(
                         (self.eTarget.shape[0], self.simChunkSize), dtype=tf.float64
                     ),
@@ -138,7 +138,7 @@ class AdaptiveFilter_tf(ABC):
         self.xf.assign(
             tf.concat(
                 (
-                    self.xf[:, :, :, -s.SIMBUFFER :],
+                    self.xf[:, :, :, -s.sim_buffer :],
                     tf.zeros(
                         (
                             self.xf.shape[0],
@@ -156,7 +156,7 @@ class AdaptiveFilter_tf(ABC):
         self.targetNoise.assign(
             tf.concat(
                 (
-                    self.targetNoise[:, -s.SIMBUFFER :],
+                    self.targetNoise[:, -s.sim_buffer :],
                     tf.zeros(
                         (self.targetNoise.shape[0], self.simChunkSize), dtype=tf.float64
                     ),
@@ -167,7 +167,7 @@ class AdaptiveFilter_tf(ABC):
         self.pointNoise.assign(
             tf.concat(
                 (
-                    self.pointNoise[:, -s.SIMBUFFER :],
+                    self.pointNoise[:, -s.sim_buffer :],
                     tf.zeros(
                         (self.pointNoise.shape[0], self.simChunkSize), dtype=tf.float64
                     ),
@@ -177,13 +177,13 @@ class AdaptiveFilter_tf(ABC):
         )
 
         self.bufferIdx += 1
-        self.idx.assign(s.SIMBUFFER)
+        self.idx.assign(s.sim_buffer)
         self.updateIdx.assign(self.updateIdx - self.simChunkSize)
 
     def saveDiagnostics(self):
-        ePow = self.eSmoother.process(self.e[:, s.SIMBUFFER :].numpy() ** 2)
+        ePow = self.eSmoother.process(self.e[:, s.sim_buffer :].numpy() ** 2)
         pointNoisePow = self.pointNoiseSmoother.process(
-            self.pointNoise[:, s.SIMBUFFER :] ** 2
+            self.pointNoise[:, s.sim_buffer :] ** 2
         )
         self.pointRed[
             self.bufferIdx
@@ -192,10 +192,10 @@ class AdaptiveFilter_tf(ABC):
         ] = util.pow2db(np.mean(ePow / pointNoisePow, axis=0))
 
         eRegPow = self.eTargSmoother.process(
-            self.eTarget[:, s.SIMBUFFER :].numpy() ** 2
+            self.eTarget[:, s.sim_buffer :].numpy() ** 2
         )
         regNoisePow = self.targNoiseSmoother.process(
-            self.targetNoise[:, s.SIMBUFFER :] ** 2
+            self.targetNoise[:, s.sim_buffer :] ** 2
         )
         self.regRed[
             self.bufferIdx
@@ -222,7 +222,7 @@ class MPC_FF_tf(AdaptiveFilter_tf):
     def saveDiagnostics(self):
         super().saveDiagnostics()
 
-        loss = np.sum(self.e[:, s.SIMBUFFER :].numpy() ** 2, axis=0)
+        loss = np.sum(self.e[:, s.sim_buffer :].numpy() ** 2, axis=0)
         self.loss[
             self.bufferIdx
             * self.simChunkSize : (self.bufferIdx + 1)
@@ -290,7 +290,7 @@ class MPC_FF_tf(AdaptiveFilter_tf):
             X = tf.reverse(self.x[:, n - self.filtLen + 1 : n + 1], axis=(-1,))
 
             self.idx.assign_add(1)
-            if self.idx >= (self.simChunkSize + s.SIMBUFFER):
+            if self.idx >= (self.simChunkSize + s.sim_buffer):
                 self.resetBuffers()
 
             self.y[:, self.idx].assign(

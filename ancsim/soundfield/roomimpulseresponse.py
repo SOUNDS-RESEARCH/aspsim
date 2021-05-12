@@ -142,8 +142,8 @@ def irRoomImageSource3d(
         metadata = {}
         metadata["Max Normalized Truncation Error (dB)"] = maxTruncError
         metadata["Max Normalized Truncated Value (dB)"] = maxTruncValue
-        metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
-        metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+        metadata["Measured rt60 (min)"] = np.min(room.measure_rt60())
+        metadata["Measured rt60 (max)"] = np.max(room.measure_rt60())
         metadata["Max ISM order"] = maxOrder
         metadata["Energy Absorption"] = eAbsorption
         return ir, metadata
@@ -210,9 +210,9 @@ def irSimulatedRoom3d_matlab(fromPos, toPos, samplerate, c, irLen=1024, reverbTi
     return ir
 
 
-def showRT60(multiChannelIR):
+def showrt60(multiChannelIR):
     for i in range(multiChannelIR.shape[0]):
         for j in range(multiChannelIR.shape[1]):
             singleIR = multiChannelIR[i, j, :]
             rt = pra.experimental.rt60.measure_rt60(singleIR)
-            print("RT60 is: ", rt)
+            print("rt60 is: ", rt)

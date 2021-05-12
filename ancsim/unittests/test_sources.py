@@ -107,8 +107,8 @@ def test_noisesrc_blocks():
     # sig2 = util.pow2db(np.abs(np.fft.rfft(sig2))**2)
 
     assert np.sum(np.abs(sig1 - sig2)) < 1e-6
-    # plt.plot(np.linspace(0,s.SAMPLERATE/2, N/2+1), np.squeeze(sig2), alpha=0.7)
-    # plt.plot(np.linspace(0,s.SAMPLERATE/2, N/2+1), np.squeeze(sig1), alpha = 0.7)
+    # plt.plot(np.linspace(0,s.samplerate/2, N/2+1), np.squeeze(sig2), alpha=0.7)
+    # plt.plot(np.linspace(0,s.samplerate/2, N/2+1), np.squeeze(sig1), alpha = 0.7)
     # plt.show()
 
 
@@ -134,7 +134,7 @@ def test_chirp_blocks():
 
     # for i in range(100):
     #    f = np.abs(np.fft.rfft(noise[i*100:(i+1)*100]))
-    #    freq = np.argmax(f) * s.SAMPLERATE / 100
+    #    freq = np.argmax(f) * s.samplerate / 100
     #    print(freq)
 
 

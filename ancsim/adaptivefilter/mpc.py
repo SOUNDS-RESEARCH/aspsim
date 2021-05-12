@@ -15,8 +15,8 @@ import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.adaptivefilter.base import ActiveNoiseControlProcessor
 
 class TDANCProcessor(ActiveNoiseControlProcessor):
-    def __init__(self, config, arrays, blockSize, updateBlockSize, controlFiltLen):
-        super().__init__(config, arrays, blockSize, updateBlockSize)
+    def __init__(self, sim_info, arrays, blockSize, updateBlockSize, controlFiltLen):
+        super().__init__(sim_info, arrays, blockSize, updateBlockSize)
         self.filtLen = controlFiltLen
         self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
 
@@ -47,6 +47,7 @@ class BlockFxLMS(TDANCProcessor):
         self.metadata["beta"] = self.beta
 
     def prepare(self):
+        super().prepare()
         self.sig["xf"][:, :, :, : self.idx] = np.transpose(
             self.secPathFilt.process(self.sig["ref"][:, :self.idx]), (2, 0, 1, 3)
         )
@@ -99,6 +100,7 @@ class FastBlockFxLMS(TDANCProcessor):
         self.metadata["beta"] = self.beta
 
     def prepare(self):
+        super().prepare()
         for startIdx, endIdx in blockProcessUntilIndex(0, self.idx, self.filtLen):
             self.sig["xf"][:, :, :, startIdx:endIdx] = np.transpose(
                 self.secPathFilt.process(self.sig["ref"][:, startIdx:endIdx]), (2, 0, 1, 3)

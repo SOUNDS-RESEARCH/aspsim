@@ -34,8 +34,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
         self.name = "Fast Block Online SPM Auxnoise Baseclass"
         self.muSec = muSec
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + self.simBuffer))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + self.simBuffer))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + self.sim_info.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + self.sim_info.sim_buffer))
 
         self.secPathFiltExtraAux = FilterSum_Freqdomain(ir=np.copy(np.concatenate((
             self.secPathFilt.ir, np.zeros((*self.secPathFilt.ir.shape[:2], blockSize-self.secPathFilt.ir.shape[2]))),axis=-1)))
@@ -51,8 +51,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
         # self.diag.addNewDiagnostic(
         #     "filtered_reference_est",
         #     dia.SignalEstimateNMSEBlock(
-        #         self.endTimeStep,
-        #         self.simBuffer,
+        #         self.sim_info.tot_samples,
+        #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
         #         smoothingLen=self.outputSmoothing,
         #         plotFrequency=self.plotFrequency,
@@ -63,8 +63,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             "secpath",
             dia.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -77,8 +77,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -91,8 +91,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -105,8 +105,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
                 100,
                 500,
                 self.samplerate,
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -116,8 +116,8 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             "recorded_ir",
             dia.RecordIR(
                 np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
-                self.endTimeStep, 
-                self.simBuffer, 
+                self.sim_info.tot_samples, 
+                self.sim_info.sim_buffer, 
                 self.simChunkSize,
                 (2,2),
                 plotFrequency=self.plotFrequency,
@@ -128,23 +128,23 @@ class FastBlockAuxNoise(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "power_auxnoise",
-            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+            dia.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
         # self.diag.addNewDiagnostic(
         #     "power_auxnoise_filtered",
-        #     dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        #     dia.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         # )
         self.diag.addNewDiagnostic(
             "power_loudspeaker",
-            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+            dia.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
         # self.diag.addNewDiagnostic(
         #     "power_loudspeaker_filtered",
-        #     dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+        #     dia.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         # )
         self.diag.addNewDiagnostic(
             "power_error",
-            dia.RecordScalar(self.endTimeStep, self.simBuffer, self.simChunkSize,plotFrequency=self.plotFrequency)
+            dia.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
         
 
@@ -315,11 +315,11 @@ class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
         )
 
         self.buffers["vEst"] = np.zeros(
-            (self.numSpeaker, self.numError, self.simChunkSize + self.simBuffer)
+            (self.numSpeaker, self.numError, self.simChunkSize + self.sim_info.sim_buffer)
         )
 
         self.buffers["eps"] = np.zeros(
-            (self.numSpeaker, self.numError, self.simChunkSize + self.simBuffer)
+            (self.numSpeaker, self.numError, self.simChunkSize + self.sim_info.sim_buffer)
         )
 
         self.Pf = MovingAverage(0.9, (self.numError,))
@@ -329,8 +329,8 @@ class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
         self.diag.addNewDiagnostic(
             "mu_spm",
             dia.RecordVectorSummary(
-                self.endTimeStep,
-                self.simBuffer,
+                self.sim_info.tot_samples,
+                self.sim_info.sim_buffer,
                 self.simChunkSize,
                 plotFrequency=self.plotFrequency,
             ),
@@ -338,7 +338,7 @@ class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
         self.diag.addNewDiagnostic(
             "variable_auxnoise_power",
             dia.RecordVector(
-                self.numSpeaker, self.endTimeStep, self.simBuffer, self.simChunkSize, plotFrequency=self.plotFrequency
+                self.numSpeaker, self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, plotFrequency=self.plotFrequency
             ),
         )
         
@@ -450,18 +450,18 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["vEst"] = np.zeros(
-            (self.numError, self.simChunkSize + s.SIMBUFFER)
+            (self.numError, self.simChunkSize + s.sim_buffer)
         )
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                speakerRIR["error"], self.endTimeStep, plotFrequency=self.plotFrequency
+                speakerRIR["error"], self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -530,7 +530,7 @@ class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
             "secpath",
             dia.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
@@ -544,8 +544,8 @@ class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
             dataDims=self.numRef, tf=self.secPathEstimate.tf
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["auxNoisePower"] = self.auxNoiseSource.power
@@ -644,20 +644,20 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
             1 - invForgetFactor, (self.numSpeaker, self.numError, secPathEstimateLen)
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["xf"] = np.zeros(
             (
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.secPathFilt.ir, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.secPathFilt.ir, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -736,13 +736,13 @@ class FastBlockFxLMSSPMTuningless_old(FastBlockFxLMS):
             dtype=np.complex128,
         )
 
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simBuffer + self.simChunkSize))
-        self.buffers["f"] = np.zeros((self.numError, self.simBuffer + self.simChunkSize))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.sim_info.sim_buffer + self.simChunkSize))
+        self.buffers["f"] = np.zeros((self.numError, self.sim_info.sim_buffer + self.simChunkSize))
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -843,18 +843,18 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["vEst"] = np.zeros(
-            (self.numError, self.simChunkSize + s.SIMBUFFER)
+            (self.numError, self.simChunkSize + s.sim_buffer)
         )
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                speakerRIR["error"], self.endTimeStep, plotFrequency=self.plotFrequency
+                speakerRIR["error"], self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -969,16 +969,16 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["vEst"] = np.zeros(
-            (self.numSpeaker, self.numError, self.simChunkSize + s.SIMBUFFER)
+            (self.numSpeaker, self.numError, self.simChunkSize + s.sim_buffer)
         )
 
         self.buffers["eps"] = np.zeros(
-            (self.numSpeaker, self.numError, self.simChunkSize + s.SIMBUFFER)
+            (self.numSpeaker, self.numError, self.simChunkSize + s.sim_buffer)
         )
 
         self.Pf = SinglePoleLowPass(0.9, (self.numError,))
@@ -989,7 +989,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
             "secpath",
             dia.ConstantEstimateNMSE(
                 speakerFilters["error"],
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
@@ -997,14 +997,14 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
             "mu_spm",
             dia.RecordVector(
                 self.numSpeaker * self.numError,
-                self.endTimeStep,
+                self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
             ),
         )
         self.diag.addNewDiagnostic(
             "aux_noise_power",
             dia.RecordVector(
-                self.numSpeaker, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.numSpeaker, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
 
@@ -1120,13 +1120,13 @@ class FxLMSSPMZhang(AdaptiveFilterFF):
                 self.numRef,
                 self.numSpeaker,
                 self.numError,
-                self.simChunkSize + s.SIMBUFFER,
+                self.simChunkSize + s.sim_buffer,
             )
         )
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
-        self.buffers["u"] = np.zeros((self.numError, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
+        self.buffers["u"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
         self.buffers["vEst"] = np.zeros(
-            (self.numError, self.simChunkSize + s.SIMBUFFER)
+            (self.numError, self.simChunkSize + s.sim_buffer)
         )
 
     def prepare(self):

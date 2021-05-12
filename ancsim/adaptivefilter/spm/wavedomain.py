@@ -25,12 +25,12 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
             stepSize=muSPM,
         )
         self.G = np.transpose(self.G, (0, 2, 1))
-        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.SIMBUFFER))
+        self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
 
         self.diag.addNewDiagnostic(
             "secpath",
             dia.ConstantEstimateNMSE(
-                self.G, self.endTimeStep, plotFrequency=self.plotFrequency
+                self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         self.window = win.hamming(2 * self.blockSize, sym=False)[None, :]

@@ -39,7 +39,7 @@ class KernelMPC_9b(AdaptiveFilterFF):
         self.computeGradient = tf.function(self.computeGradient, input_signature=spec)
         # self.computeLoss = tf.function(self.computeLoss, input_signature=spec2)
 
-        self.updateIdx = s.SIMBUFFER
+        self.updateIdx = s.sim_buffer
 
     def updateFilter(self):
         M = int(np.max(self.L.shape)) // 2
@@ -97,7 +97,7 @@ class KernelMPC_9b(AdaptiveFilterFF):
         self, numSamples, noiseAtError, noiseAtRef, noiseAtTarget, errorMicNoise
     ):
         blockSizes = calcBlockSizes(
-            numSamples, self.idx, self.simBuffer, self.simChunkSize
+            numSamples, self.idx, self.sim_info.sim_buffer, self.simChunkSize
         )
         numComputed = 0
         for b in blockSizes:
@@ -136,5 +136,5 @@ class KernelMPC_9b(AdaptiveFilterFF):
 
             self.idx += b
             numComputed += b
-            if self.idx >= (self.simChunkSize + self.simBuffer):
+            if self.idx >= (self.simChunkSize + self.sim_info.sim_buffer):
                 self.resetBuffers()
