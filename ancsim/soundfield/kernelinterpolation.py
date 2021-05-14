@@ -46,6 +46,32 @@ def kernelDirectional3d(points1, points2, waveNum, angle, beta):
     return special.spherical_jn(0, 1j*np.sqrt(np.sum((angleFactor + posFactor)**2, axis=-1)))
 
 
+def kernelReciprocal3d(points1, points2, waveNum):
+    """points is a tuple (micPoints, srcPoints),
+        where micPoints is ndarray of shape (numMic, 3)
+        srcPoints is ndarray of shape (numSrc, 3)
+
+        waveNum is shape (numFreq)
+        output has shape (numFreq, numMic1*numSrc1, numMic2*numSrc2)
+        they are placed according to micIdx+numMics*srcIdx
+    
+    From the paper: Kernel interpolation of acoustic transfer 
+                function between regions considering reciprocity"""
+    waveNum = waveNum[:,None,None,None,None]
+    micDist = distfuncs.cdist(points1[0], points2[0])[None,None,:,None,:]
+    srcDist = distfuncs.cdist(points1[1], points2[1])[None,:,None,:,None]
+    mixDist1 = distfuncs.cdist(points1[0], points2[1])[None,None,:,:,None]
+    mixDist2 = distfuncs.cdist(points1[1], points2[0])[None,:,None,None,:]
+
+    kVal = 0.5 * (special.spherical_jn(0, waveNum * micDist) * \
+                        special.spherical_jn(0, waveNum * srcDist)) + \
+                        (special.spherical_jn(0, waveNum * mixDist1) * \
+                        special.spherical_jn(0, waveNum * mixDist2))
+    kVal = np.reshape(kVal, kVal.shape[:3]+(-1,))
+    kVal = np.reshape(kVal, (kVal.shape[0], -1,kVal.shape[-1]))
+    return kVal
+
+
 def getKernelWeightingFilter(kernelFunc, regParam, micPos, integralDomain, 
                                 mcSamples, numFreq, samplerate, c, *args):
     """Calculates kernel weighting filter A(w) in frequency domain
