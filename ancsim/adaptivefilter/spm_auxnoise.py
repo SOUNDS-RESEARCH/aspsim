@@ -24,53 +24,34 @@ from ancsim.adaptivefilter.conventional.lms import (
 import ancsim.signal.freqdomainfiltering as fdf
 import ancsim.adaptivefilter.diagnostics as dia
 import ancsim.utilities as util
+import ancsim.soundfield.kernelinterpolation as ki
 
 
-
-class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
+class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
     def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
         super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen)
+        self.name = "Fast Block Auxnoise SPM"
         self.mu = mu
         self.beta = beta
-        self.name = "Fast Block OSPM Eriksson"
         self.muSec = muSec
 
         self.createNewBuffer("v", self.numSpeaker)
         self.createNewBuffer("f", self.numError)
         self.createNewBuffer("xf", (self.numRef, self.numSpeaker, self.numError))
 
-        self.secPathFilt = FilterMD_Freqdomain(dataDims=self.numRef, filtDim=(self.numSpeaker, self.numError), irLen=self.filtLen)
-        # self.secPathFiltExtraAux = FilterSum_Freqdomain(ir=np.copy(np.concatenate((
-        #     self.secPathFilt.ir, np.zeros((*self.secPathFilt.ir.shape[:2], blockSize-self.secPathFilt.ir.shape[2]))),axis=-1)))
-
         self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numSpeaker, power=auxNoisePower)
 
-        self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numSpeaker, self.numError, self.muSec, self.beta)
+        self.secPathFilt = FilterMD_Freqdomain(dataDims=self.numRef, filtDim=(self.numSpeaker, self.numError), irLen=self.filtLen)
 
         true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)), constant_values=0)
         true_secpath = fdf.fftWithTranspose(true_secpath, n=2*self.filtLen)
         self.diag.addNewDiagnostic("secpath_estimate", dia.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
 
-        #self.secPathFilt.tf[...] = np.zeros_like(self.secPathFilt.tf)
-        
         self.metadata["mu"] = self.mu
         self.metadata["beta"] = self.beta
         self.metadata["muSec"] = muSec
         self.metadata["auxNoiseSource"] = self.auxNoiseSource.__class__.__name__
         self.metadata["auxNoisePower"] = self.auxNoiseSource.power
-
-    def genSpeakerSignals(self, numSamples):
-        super().genSpeakerSignals(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
-        self.sig["v"][:, self.idx - numSamples : self.idx] = v
-        self.sig["speaker"][:, self.idx : self.idx + numSamples] += v
-
-    # def forwardPassImplement(self, numSamples):
-    #     super().forwardPassImplement(numSamples)
-    #     v = self.auxNoiseSource.getSamples(numSamples)
-    #     self.buffers["v"][:, self.idx : self.idx + numSamples] = v
-    #     self.y[:, self.idx : self.idx + numSamples] += v
-        
 
     def updateFilter(self):
         self.updateSPM()
@@ -92,6 +73,22 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
 
         self.controlFilter.ir -= self.mu * norm * tdGrad
 
+    @abstractmethod
+    def updateSPM(self):
+        pass
+        
+
+class FastBlockFxLMSEriksson(FastBlockFxLMSAuxnoiseSPM):
+    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
+        super().__init__(config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
+
+        self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numSpeaker, self.numError, self.muSec, self.beta)
+
+    def genSpeakerSignals(self, numSamples):
+        super().genSpeakerSignals(numSamples)
+        v = self.auxNoiseSource.getSamples(numSamples)
+        self.sig["v"][:, self.idx - numSamples : self.idx] = v
+        self.sig["speaker"][:, self.idx : self.idx + numSamples] += v
 
     def updateSPM(self):
         startIdx = self.updateIdx
@@ -109,30 +106,83 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
         self.secPathFilt.tf[...] = np.moveaxis(self.secPathNLMS.filt.tf, 1,2)
 
 
-# class FastBlockFxLMSSPMEriksson(FastBlockAuxNoise):
-#     """Frequency domain equivalent algorithm to FxLMSSPMEriksson"""
-#     def __init__(self, config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower):
-#         super().__init__(config, mu, beta, speakerRIR, blockSize, muSec, auxNoisePower)
-#         self.name = "Fast Block SPM Eriksson"
+class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
+    """Uses reciprocal kernel interpolation to interpolated between loudspeaker placement
+        To only need aux noise for a few speakers"""
+    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
+        super().__init__(config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
+        self.name = "SPM Eriksson Reciprocal KI"
+        self.errorPos = arrays["error"].pos
+        self.speakerPos = arrays["speaker"].pos
+        
+        self.auxSpeakerIdx = np.array([0,2,4,6])#np.arange(self.numSpeaker)[0,2,4,6]
+        self.kiSpeakerIdx = np.array([i for i in range(self.numSpeaker) if i not in self.auxSpeakerIdx])
+        self.numKeep = len(self.auxSpeakerIdx)
 
-#         self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numSpeaker, self.numError, self.muSec,self.beta)
 
-#     def updateSPM(self):
-#         vf = self.secPathNLMS.process(
-#             self.buffers["v"][:, self.updateIdx : self.idx]
-#         )
+        
+        kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, 1e-3, 
+                            (errorPos, speakerPos[self.kiSpeakerIdx,:]),
+                            (errorPos, speakerPos[self.auxSpeakerIdx,:]),
+                            4096,
+                            self.samplerate, 
+                            self.c)
+        self.kiFiltLen = 155
+        self.kiDly = self.kiFiltLen // 2
+        kiIR = np.transpose(fd.firFromFreqsWindow(kiTF, self.kiFiltLen), (1,0,2))
+        self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
 
-#         self.buffers["f"][:, self.updateIdx : self.idx] = (
-#             self.e[:, self.updateIdx : self.idx] - vf
-#         )
+        self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numKeep, power=auxNoisePower)
+        self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numKeep, self.numError, self.muSec,self.beta)
 
-#         self.secPathNLMS.update(self.buffers["v"][:, self.idx-(2*self.blockSize):self.idx], 
-#                                 self.buffers["f"][:,self.idx-self.blockSize:self.idx])
- 
-#         self.secPathEstimate.tf[...] = self.secPathNLMS.filt.tf
-#         self.diag.saveBlockData("secpath", self.idx, self.secPathEstimate.tf)
-#         self.diag.saveBlockData("secpath_select_freq", self.idx, self.secPathEstimate.tf)
-#         self.diag.saveBlockData("secpath_phase_select_freq", self.idx, self.secPathEstimate.tf)
-#         self.diag.saveBlockData("secpath_phase_weighted_select_freq", self.idx, self.secPathEstimate.tf)
-#         self.diag.saveBufferData("recorded_ir", self.idx, np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize]))
+    def genSpeakerSignals(self, numSamples):
+        super().genSpeakerSignals(numSamples)
+        v = self.auxNoiseSource.getSamples(numSamples)
+        self.sig["v"][self.auxSpeakerIdx, self.idx - numSamples : self.idx] = v
+        self.sig["speaker"][self.auxSpeakerIdx, self.idx : self.idx + numSamples] += v
 
+    def updateSPM(self):
+        vf = self.secPathNLMS.process(
+            self.buffers["v"][self.auxSpeakerIdx, self.updateIdx : self.idx]
+        )
+
+        self.buffers["f"][:, self.updateIdx : self.idx] = (
+            self.e[:, self.updateIdx : self.idx] - vf
+        )
+
+        self.secPathNLMS.update(self.buffers["v"][self.auxSpeakerIdx, self.idx-(2*self.blockSize):self.idx], 
+                                self.buffers["f"][:,self.idx-self.blockSize:self.idx])
+
+
+        ir = np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize])
+        ir = np.transpose(ir, (1,0,2)).reshape(-1,self.blockSize)
+        self.kiFilt.buffer.fill(0)
+        ipIR = self.kiFilt.process(ir)
+        ipIR = ipIR.reshape((self.numSpeaker-self.numKeep, self.numError, self.blockSize))
+        ipIR = np.concatenate((ipIR[...,self.kiDly:], np.zeros(
+                    ipIR.shape[:-1] + (2*self.blockSize-ipIR.shape[-1]+self.kiDly,))),axis=-1)
+
+        ipTF = np.transpose(fdf.fftWithTranspose(ipIR), (0,2,1))
+        self.secPathEstimate.tf[...,self.auxSpeakerIdx] = self.secPathNLMS.filt.tf[...]
+        self.secPathEstimate.tf[...,self.kiSpeakerIdx] = ipTF
+
+        
+        # trueir = self.secPathFilt.ir[self.auxSpeakerIdx,...].reshape((-1,self.secPathFilt.ir.shape[-1]))
+        # trueir = np.concatenate((trueir, np.zeros(
+        #             trueir.shape[:-1] + (self.blockSize-trueir.shape[-1],))),axis=-1)
+        # self.kiFilt.buffer.fill(0)
+        # ipIR = self.kiFilt.process(ir)
+        # ipIR = ipIR.reshape((self.numSpeaker-self.numKeep, self.numError, self.blockSize))
+        # trueIpIR = self.secPathFilt.ir[self.kiSpeakerIdx,...]
+        # import matplotlib.pyplot as plt
+
+
+    # def forwardPassImplement(self, numSamples):
+    #     super().forwardPassImplement(numSamples)
+
+    #     v = self.auxNoiseSource.getSamples(numSamples)[self.auxSpeakerIdx,:]
+    #     #for i in self.auxSpeakerIdx:
+    #     self.buffers["v"][self.auxSpeakerIdx, self.idx : self.idx + numSamples] = v
+    #     self.y[self.auxSpeakerIdx, self.idx : self.idx + numSamples] += v
+
+    #     self.diag.saveBlockData("power_auxnoise", self.idx, np.mean(v**2))

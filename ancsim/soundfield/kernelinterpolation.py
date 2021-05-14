@@ -10,6 +10,8 @@ import ancsim.utilities as util
 import ancsim.signal.filterdesign as fd
 import ancsim.integration.montecarlo as mc
 import ancsim.integration.pointgenerator as gen
+import ancsim.signal.filterclasses as fc
+import ancsim.soundfield.roomimpulseresponse as rir
 
 
 def kernelHelmholtz2d(points1, points2, waveNum):
@@ -159,11 +161,34 @@ def soundfieldInterpolation(
 
 class ATFKernelInterpolator():
     """Uses the method kernel interpolation with reciprocity (by ribeiro)
-        It can interpolate the source positions as well. """
-    def __init__(self):
-        pass
+        It can interpolate the source positions as well. 
+        
+        Currently implemented only for interpolating between different speakers using the 
+        same set of microphones"""
+    def __init__(self, kiFromSpeakerPos, kiToSpeakerPos, micPos, regParam, kiFiltLen, atfLen, numFreq, samplerate, c):
+        assert kiFiltLen % 2 = 1
+        self.kiFiltLen = kiFiltLen
+        self.kiDly = self.kiFiltLen // 2
+        self.atfLen = atfLen
 
-    def interpolate(self):
+        waveNum = fd.getFrequencyValues(numFreq, samplerate) / c
+        kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, regParam, 
+                            (errorPos, speakerPos[self.kiSpeakerIdx,:]),
+                            (errorPos, speakerPos[self.auxSpeakerIdx,:]),
+                            waveNum)
+        
+        
+        kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
+        kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiFiltLen)))
+        self.kiFilt = fc.createFilter(ir=kiIR)
+
+
+
+        self.directCompFrom = rir.irRoomImageSource3d(self.kiFromSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen, 0, samplerate)
+        self.directCompTo = rir.irRoomImageSource3d(self.kiToSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen, 0, samplerate)
+        #self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
+
+    def interpolate(self, kiFromIR):
         pass
 
 
