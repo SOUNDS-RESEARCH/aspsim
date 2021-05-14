@@ -5,7 +5,7 @@ import ancsim.utilities as util
 import ancsim.array as ar
 from ancsim.signal.filterclasses import (
     Filter_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     FilterSum_Freqdomain,
     FilterMD_Freqdomain
@@ -27,7 +27,7 @@ class ProcessorWrapper():
         for src, mic, path in arrays.iter_paths():
             if src.name not in self.path_filters:
                 self.path_filters[src.name] = {}
-            self.path_filters[src.name][mic.name] = FilterSum_IntBuffer(path)
+            self.path_filters[src.name][mic.name] = FilterSum(path)
 
         for mic in self.arrays.mics():
             self.processor.createNewBuffer(mic.name, mic.num)
@@ -232,7 +232,7 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 
 #         self.rng = np.random.RandomState(5)
 
-#         self.controlFilt = FilterSum_IntBuffer(
+#         self.controlFilt = FilterSum(
 #             np.zeros((self.numRef, self.numSpeaker, self.filtLen))
 #         )
 
@@ -242,7 +242,7 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #         self.x = np.zeros((self.numRef, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
 #         self.e = np.zeros((self.numError, self.sim_info.sim_chunk_size + self.sim_info.sim_buffer))
 
-#         self.secPathFilt = FilterSum_IntBuffer(speakerRIR["error"])
+#         self.secPathFilt = FilterSum(speakerRIR["error"])
 
 #         self.diag = DiagnosticHandler(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size)
 #         self.diag.addNewDiagnostic(
@@ -429,7 +429,7 @@ class ActiveNoiseControlProcessor(AudioProcessor):
 #             np.fft.fft(speakerRIR["error"], n=2 * blockSize, axis=-1), (2, 0, 1)
 #         )
 
-#         self.secPathFilt = FilterSum_IntBuffer(speakerRIR["error"])
+#         self.secPathFilt = FilterSum(speakerRIR["error"])
 
 #         self.diag = DiagnosticHandler(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size)
 #         self.diag.addNewDiagnostic(

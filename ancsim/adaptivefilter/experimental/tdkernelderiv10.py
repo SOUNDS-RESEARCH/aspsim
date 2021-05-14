@@ -3,7 +3,7 @@ import ancsim.utilities as util
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FxLMS_FF
 from ancsim.signal.filterclasses import FilterMD_IntBuffer, Filter_IntBuffer
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 
 
 # Derivation 10 but with simple heuristic norm, using the reference filtered through secondary paths
@@ -89,7 +89,7 @@ class KernelIP10_interpolatederror(FxLMS_FF):
         super().__init__(config, mu, beta, speakerFilters)
         self.name = "Kernel IP 10 interpolated error"
 
-        self.kernelFilt = FilterSum_IntBuffer(np.transpose(tdA, (1, 2, 0)))
+        self.kernelFilt = FilterSum(np.transpose(tdA, (1, 2, 0)))
         self.M = self.kernelFilt.ir.shape[-1] // 2
 
         self.secPathXfFilt.setIR(speakerFilters["error"])
@@ -148,7 +148,7 @@ class KernelIP10_xfnorm(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10 xfnorm"
         self.A = np.transpose(tdA, (1, 2, 0))
-        # self.Afilt = FilterSum_IntBuffer(self.A)
+        # self.Afilt = FilterSum(self.A)
         self.combinedFilt = np.zeros(
             (
                 secPathError.shape[0],
@@ -220,7 +220,7 @@ class KernelIP10(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10"
         self.A = np.transpose(tdA, (1, 2, 0))
-        # self.Afilt = FilterSum_IntBuffer(self.A)
+        # self.Afilt = FilterSum(self.A)
         self.combinedFilt = np.zeros(
             (
                 secPathError.shape[0],
@@ -274,7 +274,7 @@ class KernelIP10_postErrorNorm(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP 10 posterior error normalization"
         self.A = np.transpose(tdA, (1, 2, 0))
-        # self.Afilt = FilterSum_IntBuffer(self.A)
+        # self.Afilt = FilterSum(self.A)
         self.combinedIR = np.zeros(
             (
                 secPathError.shape[0],
@@ -348,7 +348,7 @@ class KernelIP_tdSimple_newnormMoreConservative(AdaptiveFilterFF):
         super().__init__(config, mu, beta, speakerRIR)
         self.name = "Kernel IP Timedomain simple newnorm more conversavite"
         self.A = np.transpose(tdA, (1, 2, 0))
-        # self.Afilt = FilterSum_IntBuffer(self.A)
+        # self.Afilt = FilterSum(self.A)
         self.combinedFilt = np.zeros(
             (
                 secPathError.shape[0],

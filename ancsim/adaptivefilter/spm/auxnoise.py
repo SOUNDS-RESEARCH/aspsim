@@ -6,7 +6,7 @@ import itertools as it
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import (
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     SinglePoleLowPass,
     FilterIndividualInputs,
@@ -631,7 +631,7 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
             power=self.auxNoisePower, numChannels=self.numSpeaker
         )
 
-        self.secPathEstimate = FilterSum_IntBuffer(
+        self.secPathEstimate = FilterSum(
             irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError
         )
         self.secPathEstimateMD = FilterMD_IntBuffer(
@@ -1105,13 +1105,13 @@ class FxLMSSPMZhang(AdaptiveFilterFF):
             irDims=(self.numSpeaker, self.numError),
         )
         # self.secPathEstimateMD.ir = initialSecPathEstimate
-        self.secPathEstimate = FilterSum_IntBuffer(
+        self.secPathEstimate = FilterSum(
             irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError
         )
         # self.secPathEstimate.ir = initialSecPathEstimate
 
         self.distFiltLen = secPathEstimateLen
-        self.disturbanceFilter = FilterSum_IntBuffer(
+        self.disturbanceFilter = FilterSum(
             irLen=self.distFiltLen, numIn=self.numRef, numOut=self.numError
         )
 

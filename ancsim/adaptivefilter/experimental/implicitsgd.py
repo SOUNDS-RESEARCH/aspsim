@@ -1,7 +1,7 @@
 import numpy as np
 
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 
 
 class ImplicitMPC(AdaptiveFilterFF):

@@ -2,7 +2,7 @@ import numpy as np
 from hypothesis import given
 import hypothesis.strategies as st
 from ancsim.signal.filterclasses import (
-    FilterSum_IntBuffer,
+    FilterSum,
     Filter_IntBuffer,
     FilterSum_Freqdomain,
     FilterMD_IntBuffer,
@@ -26,7 +26,7 @@ def setupconstants():
 
 def test_hardcoded_filtersum():
     ir = np.vstack((np.sin(np.arange(5)), np.cos(np.arange(5))))
-    filt1 = FilterSum_IntBuffer(ir[:, None, :])
+    filt1 = FilterSum(ir[:, None, :])
 
     inSig = np.array([[10, 9, 8, 7, 6, 5], [4, 5, 4, 5, 4, 5]])
     out = filt1.process(inSig)
@@ -38,11 +38,11 @@ def test_hardcoded_filtersum():
 
 
 def test_impulseir_filtersum():
-    filt1 = FilterSum_IntBuffer(np.ones((1, 1, 1)))
+    filt1 = FilterSum(np.ones((1, 1, 1)))
 
     ir2 = np.zeros((1, 1, 10))
     ir2[0, 0, 0] = 1
-    filt2 = FilterSum_IntBuffer(ir2)
+    filt2 = FilterSum(ir2)
 
     inSig = np.random.rand(1, 16)
 
@@ -83,7 +83,7 @@ def test_freq_time_filter_sum_equal_results(irLen, numIn, numOut, numBlocks):
     ir = np.random.standard_normal((numIn, numOut, irLen))
     # ir = np.zeros((numIn, numOut, irLen))
     # ir[:,:,0] = 1
-    tdFilt = FilterSum_IntBuffer(ir=ir)
+    tdFilt = FilterSum(ir=ir)
     fdFilt = FilterSum_Freqdomain(ir=ir)
 
     tdOut = np.zeros((numOut, numBlocks * irLen))
@@ -137,8 +137,8 @@ def test_freq_time_md_filter_equal_results(irLen, dataDim, filtDim, numBlocks):
 #     ir = np.random.standard_normal((numIn, numOut, irLen))
 
 #     sig = np.random.standard_normal((numIn, sigLen))
-#     newFilt = fcn.FilterSum_IntBuffer(ir = ir)
-#     oldFilt = FilterSum_IntBuffer(ir = ir)
+#     newFilt = fcn.FilterSum(ir = ir)
+#     oldFilt = FilterSum(ir = ir)
 
 #     s = time.time()
 #     newOut = newFilt.process(sig)
@@ -157,8 +157,8 @@ def test_freq_time_md_filter_equal_results(irLen, dataDim, filtDim, numBlocks):
 #     ir = np.random.standard_normal((numIn, numOut, irLen))
 #     sig = np.random.standard_normal((numIn, sigLen))
 
-#     incrFilt = fcn.FilterSum_IntBuffer(ir = ir)
-#     fullFilt = fcn.FilterSum_IntBuffer(ir = ir)
+#     incrFilt = fcn.FilterSum(ir = ir)
+#     fullFilt = fcn.FilterSum(ir = ir)
 
 #     incrementalOut = np.zeros((numOut, sigLen))
 #     fullOut = np.zeros((numOut, sigLen))
@@ -184,8 +184,8 @@ def test_freq_time_md_filter_equal_results(irLen, dataDim, filtDim, numBlocks):
 #     ir = np.random.standard_normal((numIn, numOut, irLen))
 #     sig = np.random.standard_normal((numIn, sigLen))
 
-#     newFilt = fcn.FilterSum_IntBuffer(ir = ir)
-#     oldFilt = FilterSum_IntBuffer(ir = ir)
+#     newFilt = fcn.FilterSum(ir = ir)
+#     oldFilt = FilterSum(ir = ir)
 
 #     newOut = np.zeros((numOut, sigLen))
 #     oldOut = np.zeros((numOut, sigLen))

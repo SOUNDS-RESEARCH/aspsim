@@ -3,7 +3,7 @@ import pytest
 from hypothesis import given
 import hypothesis.strategies as st
 
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 import ancsim.signal.freqdomainfiltering as fdf
 
 
@@ -17,7 +17,7 @@ def test_freq_time_domain_convolution_is_equal(irLen, numIn, numOut, numBlocks):
     signal = np.random.standard_normal((numIn, numBlocks * irLen))
     ir = np.random.standard_normal((numIn, numOut, irLen))
 
-    tdFilt = FilterSum_IntBuffer(ir)
+    tdFilt = FilterSum(ir)
     fdFilt = np.fft.fft(np.concatenate((ir, np.zeros_like(ir)), axis=-1), axis=-1).T
     initSig = np.random.standard_normal((numIn, irLen))
     tdFilt.process(initSig)

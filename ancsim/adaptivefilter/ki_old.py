@@ -3,7 +3,7 @@ import numpy as np
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import (
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterSum_Freqdomain,
     FilterMD_Freqdomain,
     Filter_IntBuffer,

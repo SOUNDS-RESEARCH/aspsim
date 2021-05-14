@@ -5,7 +5,7 @@ import itertools as it
 
 import ancsim.adaptivefilter.mpc as mpc
 from ancsim.signal.filterclasses import (
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     SinglePoleLowPass,
     FilterIndividualInputs,
@@ -47,6 +47,9 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
 
         self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numSpeaker, self.numError, self.muSec, self.beta)
 
+        true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)), constant_values=0)
+        true_secpath = fdf.fftWithTranspose(true_secpath, n=2*self.filtLen)
+        self.diag.addNewDiagnostic("secpath_estimate", dia.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
 
         #self.secPathFilt.tf[...] = np.zeros_like(self.secPathFilt.tf)
         
@@ -70,7 +73,6 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
         
 
     def updateFilter(self):
-        #self.diag.saveBlockData("power_error", self.idx-self.blockSize, np.mean(self.e[:,self.idx-self.blockSize:self.idx]**2))
         self.updateSPM()
         startIdx = self.updateIdx
         endIdx = self.updateIdx + self.updateBlockSize
@@ -88,14 +90,8 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
             + self.beta
         )
 
-        #trueXf = self.secPathTrueMD.process(self.x[:,self.updateIdx:self.idx])
-        # self.diag.saveBlockData("filtered_reference_est", self.idx, 
-        #         self.buffers["xf"][...,self.updateIdx:self.idx],
-        #         trueXf)
-
         self.controlFilter.ir -= self.mu * norm * tdGrad
-        #self.updateIdx += self.blockSize
-        #self.updated = True
+
 
     def updateSPM(self):
         startIdx = self.updateIdx
@@ -105,10 +101,8 @@ class FastBlockFxLMSEriksson(mpc.TDANCProcessor):
             self.sig["v"][:, startIdx:endIdx]
         )
 
-        self.sig["f"][:, startIdx:endIdx] = (
-            self.sig["error"][:, startIdx:endIdx] - vf
-        )
-
+        self.sig["f"][:, startIdx:endIdx] = self.sig["error"][:, startIdx:endIdx] - vf
+        
         self.secPathNLMS.update(self.sig["v"][:, endIdx-(2*self.filtLen):endIdx], 
                                 self.sig["f"][:,endIdx-self.filtLen:endIdx])
  

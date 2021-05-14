@@ -11,7 +11,7 @@ from ancsim.signal.sources import (
     LinearChirpSource,
     BandlimitedNoiseSource,
 )
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 
 
 # def setupIR(pos, config):
@@ -44,12 +44,12 @@ from ancsim.signal.filterclasses import FilterSum_IntBuffer
 
 #     for srcName, irSet in propagationFilters.items():
 #         for micName, ir in irSet.items():
-#             propagationFilters[srcName][micName] = FilterSum_IntBuffer(ir=ir)
+#             propagationFilters[srcName][micName] = FilterSum(ir=ir)
 
 
 #     if config["REFDIRECTLYOBTAINED"]:
 #         assert config["NUMREF"] == config["NUMSOURCE"]
-#         propagationFilters["source"]["ref"] = FilterSum_IntBuffer(
+#         propagationFilters["source"]["ref"] = FilterSum(
 #             np.ones((config["NUMREF"], config["NUMSOURCE"], 1))
 #         )
 #     return propagationFilters, metadata

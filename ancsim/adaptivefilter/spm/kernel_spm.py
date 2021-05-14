@@ -16,7 +16,7 @@ from ancsim.signal.filterclasses import (
     FilterSum_Freqdomain,
     FilterMD_Freqdomain,
     FilterMD_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     MovingAverage
 )
 
@@ -834,7 +834,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.kernelParams = soundfieldInterpolation(errorPos, errorPos, 2*blockSize, 1e-2)
 
 #         self.secPathEstimate = FilterMD_IntBuffer(dataDims=self.numRef, irLen=secPathEstimateLen, irDims=(self.numSpeaker, self.numError))
-#         self.secPathEstimateSum = FilterSum_IntBuffer(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
+#         self.secPathEstimateSum = FilterSum(irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError)
 
 #         initialSecPathEstimate = np.random.normal(scale=0.0001, size=self.secPathEstimate.ir.shape)
 #         commonLength = np.min((secPathEstimateLen,speakerFilters["error"].shape[-1]))
@@ -1253,10 +1253,10 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
             ir=self.constructInterpolation(errorPos, kernelReg, kiFiltLen),
         )
 
-        self.secPathEstimate = FilterSum_IntBuffer(
+        self.secPathEstimate = FilterSum(
             numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
         )
-        self.secPathEstimateIP = FilterSum_IntBuffer(
+        self.secPathEstimateIP = FilterSum(
             numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
         )
         self.secPathEstimateMD = FilterMD_IntBuffer(

@@ -4,7 +4,7 @@ import scipy.signal.windows as win
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.signal.filterclasses import (
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     SinglePoleLowPass,
     MovingAverage,

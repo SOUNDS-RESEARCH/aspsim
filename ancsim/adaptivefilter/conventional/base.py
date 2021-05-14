@@ -1,5 +1,5 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterSum_Freqdomain
+from ancsim.signal.filterclasses import FilterSum, FilterSum_Freqdomain
 from abc import ABC, abstractmethod
 
 
@@ -13,7 +13,7 @@ class AdaptiveFilterBase(ABC):
         if filterType is not None:
             self.filt = filterType(ir=np.zeros(filterDim))
         else:
-            self.filt = FilterSum_IntBuffer(ir=np.zeros(filterDim))
+            self.filt = FilterSum(ir=np.zeros(filterDim))
 
         self.x = np.zeros((self.numIn, self.irLen, 1))  # Column vector
 

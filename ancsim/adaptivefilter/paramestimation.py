@@ -2,7 +2,7 @@ import numpy as np
 
 from ancsim.signal.filterclasses import (
     Filter_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     FilterSum_Freqdomain,
     FilterMD_Freqdomain
@@ -27,7 +27,7 @@ class BlockLeastMeanSquares(AudioProcessor):
         self.createNewBuffer("error", self.numOut)
         self.createNewBuffer("estimate", self.numOut)
 
-        self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
+        self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
         self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
@@ -71,7 +71,7 @@ class LeastMeanSquares(AudioProcessor):
         self.createNewBuffer("error", self.numOut)
         self.createNewBuffer("estimate", self.numOut)
 
-        self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
+        self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
         self.diag.addNewDiagnostic("inputPower", dia.SignalPower(self.sim_info, "input"))

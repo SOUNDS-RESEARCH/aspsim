@@ -1,5 +1,5 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum_IntBuffer, SinglePoleLowPass, MovingAverage
+from ancsim.signal.filterclasses import FilterSum, SinglePoleLowPass, MovingAverage
 from ancsim.adaptivefilter.conventional.base import (
     AdaptiveFilterBase,
     AdaptiveFilterFreqDomain,

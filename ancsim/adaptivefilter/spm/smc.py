@@ -5,7 +5,7 @@ from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.adaptivefilter.conventional.lms import NLMS, FastBlockNLMS
 from ancsim.adaptivefilter.conventional.rls import RLS
-from ancsim.signal.filterclasses import FilterSum_IntBuffer, FilterMD_IntBuffer, FilterMD_Freqdomain
+from ancsim.signal.filterclasses import FilterSum, FilterMD_IntBuffer, FilterMD_Freqdomain
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia
 from ancsim.utilities import measure
@@ -438,12 +438,12 @@ class FxLMSSMC_old(AdaptiveFilterFF):
             scale=0.00001, size=self.secPathEstimateMD.ir.shape
         )
         # self.secPathEstimateMD.ir = initialSecPathEstimate
-        self.secPathEstimate = FilterSum_IntBuffer(
+        self.secPathEstimate = FilterSum(
             irLen=secPathEstimateLen, numIn=self.numSpeaker, numOut=self.numError
         )
         # self.secPathEstimate.ir = initialSecPathEstimate
 
-        self.primPathEstimate = FilterSum_IntBuffer(
+        self.primPathEstimate = FilterSum(
             irLen=secPathEstimateLen, numIn=self.numRef, numOut=self.numError
         )
         # self.primPathEstimate.ir = np.random.normal(scale=0.00001, size=self.primPathEstimate.ir.shape)

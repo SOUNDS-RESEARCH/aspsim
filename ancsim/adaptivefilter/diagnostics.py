@@ -10,7 +10,7 @@ import ancsim.utilities as util
 import ancsim.experiment.plotscripts as psc
 from ancsim.signal.filterclasses import (
     Filter_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
 )
 import ancsim.adaptivefilter.diagnosticplots as dplot
@@ -48,7 +48,7 @@ class PlotDiagnosticDispatcher:
 
     def plotThisBuffer(self, bufferIdx, funcInfo):
         return bufferIdx >= funcInfo.plot_begin and (
-            bufferIdx % funcInfo.plot_frequency == 0 or bufferIdx - 1 == 0
+            (bufferIdx+1) % funcInfo.plot_frequency == 0 or bufferIdx == 0
         )
 
     def dispatch(self, filters, timeIdx, bufferIdx, folder):
@@ -491,7 +491,7 @@ class SignalPower(SignalDiagnostic):
 #             plot_begin=plot_begin,
 #             plot_frequency=plot_frequency,
 #         )
-#         self.pathFilter = FilterSum_IntBuffer(acousticPath)
+#         self.pathFilter = FilterSum(acousticPath)
 
 #         self.totalNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
 #         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
@@ -700,7 +700,7 @@ class SoundfieldImage:
         self.samplesForSF = np.min((2048, self.sim_buffer, self.sim_chunk_size))
         self.totalNoise = np.zeros((numPoints, self.samplesForSF))
         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
-        self.pathFilter = FilterSum_IntBuffer(acousticPath)
+        self.pathFilter = FilterSum(acousticPath)
 
     def getOutput(self):
         return self.totalNoise
@@ -752,7 +752,7 @@ class RecordSpectrum:
         self.samplesForSF = np.min((2048, self.sim_buffer, self.sim_chunk_size))
         self.totalNoise = np.zeros((numPoints, self.samplesForSF))
         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
-        self.pathFilter = FilterSum_IntBuffer(acousticPath)
+        self.pathFilter = FilterSum(acousticPath)
 
     def getOutput(self):
         return self.totalNoise
@@ -1379,9 +1379,9 @@ class saveTotalPower:
         )
         self.noisePower = np.zeros(tot_samples)
         if acousticPath is not None:
-            self.pathFilter = FilterSum_IntBuffer(acousticPath)
+            self.pathFilter = FilterSum(acousticPath)
         else:
-            self.pathFilter = FilterSum_IntBuffer(np.ones((1, 1, 1)))
+            self.pathFilter = FilterSum(np.ones((1, 1, 1)))
 
     def getOutput(self):
         return self.noisePower

@@ -4,11 +4,12 @@ import ancsim.utilities as util
 import ancsim.array as ar
 from ancsim.signal.filterclasses import (
     Filter_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     FilterMD_IntBuffer,
     FilterSum_Freqdomain,
     FilterMD_Freqdomain
 )
+import ancsim.signal.filterclasses as fc
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
@@ -18,8 +19,8 @@ class TDANCProcessor(ActiveNoiseControlProcessor):
     def __init__(self, sim_info, arrays, blockSize, updateBlockSize, controlFiltLen):
         super().__init__(sim_info, arrays, blockSize, updateBlockSize)
         self.filtLen = controlFiltLen
-        #self.controlFilter = FilterSum_IntBuffer(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
-        self.controlFilter = FilterSum_IntBuffer(np.zeros((self.numRef, self.numSpeaker, self.filtLen)))
+        #self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
+        self.controlFilter = FilterSum(np.zeros((self.numRef, self.numSpeaker, self.filtLen)))
 
         self.metadata["control filter length"] = controlFiltLen
 
@@ -40,7 +41,9 @@ class BlockFxLMS(TDANCProcessor):
         self.beta = beta
 
         secPathIr = np.concatenate((np.zeros((secPath.shape[0], secPath.shape[1], self.blockSize)), secPath),axis=-1)
-        self.secPathFilt = FilterMD_IntBuffer((self.numRef,), secPathIr)
+        self.secPathFilt = fc.createFilter(ir=secPathIr, broadcastDim=self.numRef, sumOverInput=False)
+        
+        #FilterMD_IntBuffer((self.numRef,), secPathIr)
         self.createNewBuffer("xf", (self.numRef, self.numSpeaker, self.numError))
 
 

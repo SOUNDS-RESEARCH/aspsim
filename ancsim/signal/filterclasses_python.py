@@ -6,33 +6,16 @@ import numba as nb
 
 
 
-def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None, sumOverInput=True):
-    if numIn is not None and numOut is not None and irLen is not None:
-        assert ir is None
-        ir = np.zeros((numIn, numOut, irLen))
+def createFilter(ir=None, )
 
-    if ir is not None:
-        assert numIn is None and numOut is None and irLen is None
-        if broadcastDim is not None:
-            if sumOverInput:
-                raise NotImplementedError
-            assert ir.ndim == 3 and isinstance(broadcastDim, int) # A fallback to non-numba MD-filter can be added instead of assert
-            return FilterMD(broadcastDim, ir)
-        
-        if sumOverInput:
-            return FilterSum(ir)
-        return FilterIndividualInputs(ir)
-
-
-
-spec_filtersum = [
+spec = [
     ("ir", nb.float64[:,:,:]),
     ("numIn", nb.int32),
     ("numOut", nb.int32),
     ("irLen", nb.int32),
     ("buffer", nb.float64[:,:]),
 ]
-@nb.experimental.jitclass(spec_filtersum)
+@nb.experimental.jitclass(spec)
 class FilterSum:
     """# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
         Ex. a (3,2,5) filter has 6 (3x2) IRs each of length 5
@@ -40,10 +23,18 @@ class FilterSum:
         Second dimension sets the number of outputs
         (3,None) in, (2,None) out"""
     def __init__(self, ir):
-        self.ir = ir
-        self.numIn = ir.shape[0]
-        self.numOut = ir.shape[1]
-        self.irLen = ir.shape[2]
+        if ir is not None:
+            self.ir = ir
+            self.numIn = ir.shape[0]
+            self.numOut = ir.shape[1]
+            self.irLen = ir.shape[2]
+        # elif (irLen is not None) and (numIn is not None) and (numOut is not None):
+        #     self.ir = np.zeros((numIn, numOut, irLen))
+        #     self.irLen = irLen
+        #     self.numIn = numIn
+        #     self.numOut = numOut
+        # else:
+        #     raise Exception("Not enough constructor arguments")
         self.buffer = np.zeros((self.numIn, self.irLen - 1))
 
     def process(self, dataToFilter):
@@ -58,48 +49,13 @@ class FilterSum:
         self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
         return filtered
 
-
-spec_filtermd = [
-    ("ir", nb.float64[:,:,:]),
-    ("irDim1", nb.int32),
-    ("irDim2", nb.int32),
-    ("irLen", nb.int32),
-    ("dataDims", nb.int32),
-    ("buffer", nb.float64[:,:]),
-]
-@nb.experimental.jitclass(spec_filtermd)
-class FilterMD:
-    """Filter that filters each channel of the input signal
-        through each channel of the impulse response.
-        input signal is shape (dataDims, numSamples)
-        impulse response is shape (dim1, dim2, irLen)
-        output signal is  (dataDims, dim1, dim2, numSamples)"""
-    def __init__(self, dataDims, ir):
-        self.ir = ir
-        self.irDim1 = ir.shape[0]
-        self.irDim2 = ir.shape[1]
-        self.irLen = ir.shape[-1]
-        self.dataDims = dataDims
-
-        #self.outputDims = self.irDims + self.dataDims
-        #self.numDataDims = len(self.dataDims)
-        #self.numIrDims = len(self.irDims)
-        self.buffer = np.zeros((self.dataDims, self.irLen - 1))
-
-    def process(self, dataToFilter):
-        #inDims = dataToFilter.shape[0:-1]
-        numSamples = dataToFilter.shape[-1]
-
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
-        filtered = np.zeros((self.irDim1, self.irDim2, self.dataDims, numSamples))
-
-        for i in range(numSamples):
-            filtered[:, :, :,i] = np.sum(np.expand_dims(self.ir,2) * \
-                    np.expand_dims(np.expand_dims(np.fliplr(bufferedInput[:,i:self.irLen+i]),0),0),axis=-1)
-
-        self.buffer[:, :] = bufferedInput[:, -self.irLen + 1:]
-        return filtered
-
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.numIn = irNew.shape[0]
+            self.numOut = irNew.shape[1]
+            self.irLen = irNew.shape[2]
+            self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.ir = irNew
 
 
 # The ir is a 3D array, where each entry in the first two dimensions is an impulse response
@@ -586,3 +542,14 @@ def applyFilterSum(data, ir):
         for inIdx in range(numIn):
             out[outIdx, :] += sig.convolve(data[inIdx, :], ir[inIdx, outIdx, :], "full")
     return out
+
+
+if __name__ == "__main__":
+    import setupfunctions as setup
+    import settings as s
+    import matplotlib.pyplot as plt
+
+    filt1 = FilterSum(np.ones((1, 1, 1)))
+
+    inSig = np.array([[10, 9, 8, 7, 6, 5]])
+    out = filt1.process(inSig)

@@ -18,7 +18,7 @@ def addToSummary(diagName, summaryValues, timeIdx, folderPath):
 
 def meanNearTimeIdx(outputs, timeIdx):
     summaryValues = {}
-    numToAverage = 2000
+    numToAverage = 3000
 
     for filtName, output in outputs.items():
         # val = diagnostic.getOutput()[timeIdx-numToAverage:timeIdx]

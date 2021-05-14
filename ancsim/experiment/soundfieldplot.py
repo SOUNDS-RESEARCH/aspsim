@@ -10,7 +10,7 @@ from ancsim.experiment.plotscripts import outputPlot
 import ancsim.soundfield.roomimpulseresponse as rir
 from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 import ancsim.utilities as util
 
 
@@ -99,7 +99,7 @@ def soundSim(
     samplesToAverage = maxBlockSize * int(np.ceil(minSamplesToAverage / maxBlockSize))
     totNumSamples = startBuffer + samplesToAverage
 
-    # sourceToRefFilt = FilterSum_IntBuffer(sourceToRef)
+    # sourceToRefFilt = FilterSum(sourceToRef)
     sourceSig = source.getSamples(totNumSamples)
 
     refSig = sourceToRef.process(sourceSig)[:, refFiltLen:]
@@ -116,7 +116,7 @@ def soundSim(
     while i < numTotPoints:
         print(i)
         numPoints = np.min((maxPointsInIter, numTotPoints - i))
-        sourceToPointsFilt = FilterSum_IntBuffer(
+        sourceToPointsFilt = FilterSum(
             sourceToPoints.ir[:, i : i + numPoints, :]
         )
         pointNoise = sourceToPointsFilt.process(sourceSig)[:, startBuffer:]
@@ -133,10 +133,10 @@ def soundSim(
         while i < numTotPoints:
             print(i)
             numPoints = np.min((maxPointsInIter, numTotPoints - i))
-            sourceToPointsFilt = FilterSum_IntBuffer(
+            sourceToPointsFilt = FilterSum(
                 sourceToPoints.ir[:, i : i + numPoints, :]
             )
-            speakerToPointsFilt = FilterSum_IntBuffer(
+            speakerToPointsFilt = FilterSum(
                 speakerToPoints[:, i : i + numPoints, :]
             )
             pointSig = speakerToPointsFilt.process(speakerSig)[:, -samplesToAverage:]
@@ -157,7 +157,7 @@ def genSpeakerSignals(
     outputs = []
     for ir in filterCoeffs.values():
         if ir.dtype == np.float64:
-            filt = FilterSum_IntBuffer(ir)
+            filt = FilterSum(ir)
             outputs.append(filt.process(refSig[:, :-blockSize])[:, ir.shape[-1] :])
         elif ir.dtype == np.complex128:
             idx = blockSize

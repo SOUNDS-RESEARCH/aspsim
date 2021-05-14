@@ -1,5 +1,5 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 from ancsim.adaptivefilter.conventional.base import AdaptiveFilterBase
 
 

@@ -8,7 +8,7 @@ import dill
 import ancsim.utilities as util
 import ancsim.configutil as configutil
 from ancsim.simulatorlogging import addToSimMetadata
-from ancsim.signal.filterclasses import FilterSum_IntBuffer
+from ancsim.signal.filterclasses import FilterSum
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.array as ar
 
@@ -142,7 +142,7 @@ def loadSourceFilters(folderPath):
     with np.load(folderPath.joinpath("sourcefilters.npz")) as srcFilt:
         sourceFilters = {}
         for key in srcFilt.files:
-            sourceFilters[key] = FilterSum_IntBuffer(srcFilt[key])
+            sourceFilters[key] = FilterSum(srcFilt[key])
     return sourceFilters
 
 

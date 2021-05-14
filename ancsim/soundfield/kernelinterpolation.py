@@ -96,8 +96,6 @@ def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
     return params
 
 
-
-
 def soundfieldInterpolationFIR(
     toPoints, fromPoints, irLen, regParam, numFreq, spatialDims, samplerate, c
 ):
@@ -129,6 +127,20 @@ def soundfieldInterpolation(
     ipParams = getKRRParameters(kernelFunc, regParam, toPoints, fromPoints, waveNum)
     ipParams = fd.insertNegativeFrequencies(ipParams, even=True)
     return ipParams
+
+
+
+
+class ATFKernelInterpolator():
+    """Uses the method kernel interpolation with reciprocity (by ribeiro)
+        It can interpolate the source positions as well. """
+    def __init__(self):
+        pass
+
+    def interpolate(self):
+        pass
+
+
 
 
 

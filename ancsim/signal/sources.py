@@ -1,10 +1,12 @@
 import numpy as np
+import numba as nb
 import pathlib
 import scipy.signal as spsig
 import soundfile as sf
 from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
+
 
 
 class SourceArray:
@@ -233,43 +235,6 @@ class LinearChirpSource:
         return noise
 
 
-# class WhiteNoiseSource:
-#     def __init__(self, power, numChannels=1):
-#         self.numChannels = numChannels
-#         self.setPower(power)
-#         self.rng = np.random.default_rng(1)
-
-#     def getSamples(self, numSamples):
-#         return self.rng.normal(
-#             loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
-#         ).T
-    
-#     def setPower(self, newPower):
-#         self.power = newPower
-#         self.stdDev = np.sqrt(newPower)
-
-#         if isinstance(self.power, np.ndarray):
-#             assert self.power.ndim == 1
-#             assert self.power.shape[0] == self.numChannels or \
-#                     self.power.shape[0] == 1
-
-class WhiteNoiseSource_old:
-    def __init__(self, power, numChannels=1):
-        self.numChannels = numChannels
-        self.power = power
-        self.stdDev = np.sqrt(power)
-        self.rng = np.random.RandomState(1)
-
-    def getSamples(self, numSamples):
-        return self.rng.normal(
-            loc=0, scale=self.stdDev, size=(self.numChannels, numSamples)
-    )
-    
-    def setPower(newPower):
-        self.power = newPower
-        self.stdDev = np.sqrt(newPower)
-
-
 class AudioFileSource:
     def __init__(self, amplitude, samplerate, filename, endTimestep, verbose=False):
         # filename = "noise_bathroom_fan.wav"
@@ -387,3 +352,42 @@ class GoldSequenceSource:
             raise ValueError
         self.amplitude = np.sqrt(self.power)
         
+
+# class WhiteNoiseSource:
+#     def __init__(self, power, numChannels=1):
+#         self.numChannels = numChannels
+#         self.setPower(power)
+#         self.rng = np.random.default_rng(1)
+
+#     def getSamples(self, numSamples):
+#         return self.rng.normal(
+#             loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+#         ).T
+    
+#     def setPower(self, newPower):
+#         self.power = newPower
+#         self.stdDev = np.sqrt(newPower)
+
+#         if isinstance(self.power, np.ndarray):
+#             assert self.power.ndim == 1
+#             assert self.power.shape[0] == self.numChannels or \
+#                     self.power.shape[0] == 1
+
+# class WhiteNoiseSource_old:
+#     def __init__(self, power, numChannels=1):
+#         self.numChannels = numChannels
+#         self.power = power
+#         self.stdDev = np.sqrt(power)
+#         self.rng = np.random.RandomState(1)
+
+#     def getSamples(self, numSamples):
+#         return self.rng.normal(
+#             loc=0, scale=self.stdDev, size=(self.numChannels, numSamples)
+#     )
+    
+#     def setPower(newPower):
+#         self.power = newPower
+#         self.stdDev = np.sqrt(newPower)
+
+
+

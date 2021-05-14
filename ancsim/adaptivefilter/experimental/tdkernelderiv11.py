@@ -5,7 +5,7 @@ from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FxLMS_FF
 from ancsim.signal.filterclasses import (
     FilterMD_IntBuffer,
-    FilterSum_IntBuffer,
+    FilterSum,
     Filter_IntBuffer,
 )
 
@@ -36,7 +36,7 @@ class KernelIP11_papernorm(FxLMS_FF):
         self.buffers["xfnorm"] = np.zeros((1, self.simChunkSize + self.sim_info.sim_buffer))
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
-        self.eKernelFilt = FilterSum_IntBuffer(self.A)
+        self.eKernelFilt = FilterSum(self.A)
         self.buffers["xKern"] = np.zeros(
             (
                 self.numRef,
@@ -129,7 +129,7 @@ class KernelIP11_minimumdelay(AdaptiveFilterFF):
         self.buffers["xfnorm"] = np.zeros((1, s.sim_buffer + self.simChunkSize))
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
-        self.eKernelFilt = FilterSum_IntBuffer(self.A)
+        self.eKernelFilt = FilterSum(self.A)
         self.buffers["xKern"] = np.zeros(
             (
                 self.numRef,
@@ -232,7 +232,7 @@ class KernelIP11(AdaptiveFilterFF):
                     )
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
-        self.eKernelFilt = FilterSum_IntBuffer(self.A)
+        self.eKernelFilt = FilterSum(self.A)
         self.buffers["xKern"] = np.zeros(
             (
                 self.numRef,
@@ -317,7 +317,7 @@ class KernelIP_simpleFromCostNewNorm(AdaptiveFilterFF):
                     )
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
-        self.eKernelFilt = FilterSum_IntBuffer(self.A)
+        self.eKernelFilt = FilterSum(self.A)
         self.buffers["xKern"] = np.zeros(
             (
                 self.numRef,
@@ -403,7 +403,7 @@ class KernelIP11_postErrorNorm(AdaptiveFilterFF):
                     )
 
         self.xKernelFilt = FilterMD_IntBuffer((self.numRef,), ir=self.combinedFilt)
-        self.eKernelFilt = FilterSum_IntBuffer(self.A)
+        self.eKernelFilt = FilterSum(self.A)
         self.buffers["xKern"] = np.zeros(
             (
                 self.numRef,
