@@ -68,7 +68,6 @@ def irPointSource2d(fromPos, toPos, samplerate, c, extraLen=100, maxOrder=25):
             ir[row, col, :] = fullIr
     return ir
 
-
 def irRoomImageSource3d(
     fromPos,
     toPos,
@@ -77,6 +76,7 @@ def irRoomImageSource3d(
     irLen,
     rt60,
     samplerate,
+    c, 
     calculateMetadata=False,
 ):
 
@@ -88,10 +88,23 @@ def irRoomImageSource3d(
 
     posOffset = roomSize / 2 - roomCenter
 
-    eAbsorption, maxOrder = pra.inverse_sabine(rt60, roomSize)
-    maxOrder += 20
+    if rt60 > 0:
+        eAbsorption, maxOrder = pra.inverse_sabine(rt60, roomSize)
+        maxOrder += 10
+    else:
+        eAbsorption = 0.9
+        maxOrder = 0
     # print("Energy Absorption: ", eAbsorption)
     # print("Max Order: ", maxOrder)
+
+    pra.constants.set("c", c)
+
+    shortest_distance = np.min(distfuncs.cdist(fromPos, toPos))
+    min_dly = int(np.ceil(shortest_distance * samplerate / c))
+    frac_dly_len = 2*min_dly+1
+    pra.constants.set("frac_delay_length",frac_dly_len)
+    if frac_dly_len < 20:
+        print("WARNING: fractional delay length: ",frac_dly_len)
 
     maxTruncError = np.NINF
     maxTruncValue = np.NINF
@@ -126,9 +139,10 @@ def irRoomImageSource3d(
         room.compute_rir()
         for toIdx, receiver in enumerate(room.rir):
             for fromIdx, singleRIR in enumerate(receiver):
-                irLenToUse = np.min((len(singleRIR), irLen))
+                irLenToUse = np.min((len(singleRIR), irLen)) - min_dly
+                #print(irLenToUse)
                 ir[fromIdx, numComputed + toIdx, :irLenToUse] = np.array(singleRIR)[
-                    :irLenToUse
+                    min_dly:irLenToUse+min_dly
                 ]
         numComputed += blockSize
 
@@ -142,14 +156,14 @@ def irRoomImageSource3d(
         metadata = {}
         metadata["Max Normalized Truncation Error (dB)"] = maxTruncError
         metadata["Max Normalized Truncated Value (dB)"] = maxTruncValue
-        metadata["Measured rt60 (min)"] = np.min(room.measure_rt60())
-        metadata["Measured rt60 (max)"] = np.max(room.measure_rt60())
+        metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
+        metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
         metadata["Max ISM order"] = maxOrder
         metadata["Energy Absorption"] = eAbsorption
         return ir, metadata
     return ir
 
-
+    
 def calculateTruncationInfo(allRIR, truncLen):
     maxTruncError = np.NINF
     maxTruncValue = np.NINF

@@ -28,8 +28,8 @@ import ancsim.soundfield.kernelinterpolation as ki
 
 
 class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
-    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
-        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen)
+    def __init__(self, sim_info, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
+        super().__init__(sim_info, arrays, blockSize, controlFiltLen, controlFiltLen)
         self.name = "Fast Block Auxnoise SPM"
         self.mu = mu
         self.beta = beta
@@ -79,8 +79,8 @@ class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
         
 
 class FastBlockFxLMSEriksson(FastBlockFxLMSAuxnoiseSPM):
-    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
-        super().__init__(config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
+    def __init__(self, sim_info, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
+        super().__init__(sim_info, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
 
         self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numSpeaker, self.numError, self.muSec, self.beta)
 
@@ -109,8 +109,8 @@ class FastBlockFxLMSEriksson(FastBlockFxLMSAuxnoiseSPM):
 class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
     """Uses reciprocal kernel interpolation to interpolated between loudspeaker placement
         To only need aux noise for a few speakers"""
-    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
-        super().__init__(config, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
+    def __init__(self, sim_info, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower):
+        super().__init__(sim_info, arrays, blockSize, controlFiltLen, mu, beta, muSec, auxNoisePower)
         self.name = "SPM Eriksson Reciprocal KI"
         self.errorPos = arrays["error"].pos
         self.speakerPos = arrays["speaker"].pos
@@ -118,19 +118,22 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
         self.auxSpeakerIdx = np.array([0,2,4,6])#np.arange(self.numSpeaker)[0,2,4,6]
         self.kiSpeakerIdx = np.array([i for i in range(self.numSpeaker) if i not in self.auxSpeakerIdx])
         self.numKeep = len(self.auxSpeakerIdx)
-
-
         
-        kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, 1e-3, 
-                            (errorPos, speakerPos[self.kiSpeakerIdx,:]),
-                            (errorPos, speakerPos[self.auxSpeakerIdx,:]),
-                            4096,
-                            self.samplerate, 
-                            self.c)
-        self.kiFiltLen = 155
-        self.kiDly = self.kiFiltLen // 2
-        kiIR = np.transpose(fd.firFromFreqsWindow(kiTF, self.kiFiltLen), (1,0,2))
-        self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
+        self.atfkiFilt = ki.ATFKernelInterpolator(self.speakerPos[self.kiSpeakerIdx,:], 
+                                                    self.speakerPos[self.auxSpeakerIdx,:],
+                                self.errorPos, 1e-3, 155, 2*controlFiltLen, 4096, 
+                                self.sim_info.samplerate, self.sim_info.c, self.blockSize)
+        
+        # kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, 1e-3, 
+        #                     (errorPos, speakerPos[self.kiSpeakerIdx,:]),
+        #                     (errorPos, speakerPos[self.auxSpeakerIdx,:]),
+        #                     4096,
+        #                     self.samplerate, 
+        #                     self.c)
+        # self.kiFiltLen = 155
+        # self.kiDly = self.kiFiltLen // 2
+        # kiIR = np.transpose(fd.firFromFreqsWindow(kiTF, self.kiFiltLen), (1,0,2))
+        # self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
 
         self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numKeep, power=auxNoisePower)
         self.secPathNLMS = FastBlockNLMS(self.blockSize, self.numKeep, self.numError, self.muSec,self.beta)
@@ -154,17 +157,20 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
                                 self.buffers["f"][:,self.idx-self.blockSize:self.idx])
 
 
-        ir = np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize])
-        ir = np.transpose(ir, (1,0,2)).reshape(-1,self.blockSize)
-        self.kiFilt.buffer.fill(0)
-        ipIR = self.kiFilt.process(ir)
-        ipIR = ipIR.reshape((self.numSpeaker-self.numKeep, self.numError, self.blockSize))
-        ipIR = np.concatenate((ipIR[...,self.kiDly:], np.zeros(
-                    ipIR.shape[:-1] + (2*self.blockSize-ipIR.shape[-1]+self.kiDly,))),axis=-1)
+        # ir = np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize])
+        # ir = np.transpose(ir, (1,0,2)).reshape(-1,self.blockSize)
+        # self.kiFilt.buffer.fill(0)
+        # ipIR = self.kiFilt.process(ir)
+        # ipIR = ipIR.reshape((self.numSpeaker-self.numKeep, self.numError, self.blockSize))
+        # ipIR = np.concatenate((ipIR[...,self.kiDly:], np.zeros(
+        #             ipIR.shape[:-1] + (2*self.blockSize-ipIR.shape[-1]+self.kiDly,))),axis=-1)
 
-        ipTF = np.transpose(fdf.fftWithTranspose(ipIR), (0,2,1))
+        # ipTF = np.transpose(fdf.fftWithTranspose(ipIR), (0,2,1))
+        currentIr = np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize])
+        kiIR = self.atfkiFilt.process(currentIr)
+        kiTF = fdf.fftWithTranspose(kiIR, n=2*self.filtLen)
         self.secPathEstimate.tf[...,self.auxSpeakerIdx] = self.secPathNLMS.filt.tf[...]
-        self.secPathEstimate.tf[...,self.kiSpeakerIdx] = ipTF
+        self.secPathEstimate.tf[...,self.kiSpeakerIdx] = kiTF
 
         
         # trueir = self.secPathFilt.ir[self.auxSpeakerIdx,...].reshape((-1,self.secPathFilt.ir.shape[-1]))

@@ -165,33 +165,42 @@ class ATFKernelInterpolator():
         
         Currently implemented only for interpolating between different speakers using the 
         same set of microphones"""
-    def __init__(self, kiFromSpeakerPos, kiToSpeakerPos, micPos, regParam, kiFiltLen, atfLen, numFreq, samplerate, c):
-        assert kiFiltLen % 2 = 1
+    def __init__(self, kiFromSpeakerPos, kiToSpeakerPos, micPos, regParam, kiFiltLen, atfLen, numFreq, samplerate, c, atfDelay=0):
+        assert kiFiltLen % 2 == 1
         self.kiFiltLen = kiFiltLen
         self.kiDly = self.kiFiltLen // 2
         self.atfLen = atfLen
 
+        self.kiFromSpeakerPos = kiFromSpeakerPos
+        self.kiToSpeakerPos = kiToSpeakerPos
+        self.micPos = micPos
+
+
         waveNum = fd.getFrequencyValues(numFreq, samplerate) / c
-        kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, regParam, 
-                            (errorPos, speakerPos[self.kiSpeakerIdx,:]),
-                            (errorPos, speakerPos[self.auxSpeakerIdx,:]),
+        kiTF = getKRRParameters(kernelReciprocal3d, regParam, 
+                            (self.micPos, self.kiFromSpeakerPos),
+                            (self.micPos, self.kiToSpeakerPos),
                             waveNum)
         
         
         kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
-        kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiFiltLen)))
+        kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiDly)))
         self.kiFilt = fc.createFilter(ir=kiIR)
 
-
-
-        self.directCompFrom = rir.irRoomImageSource3d(self.kiFromSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen, 0, samplerate)
+        self.directCompFrom = rir.irRoomImageSource3d(self.kiFromSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen-atfDelay, 0, samplerate)
+        self.directCompFrom = np.pad(self.directCompFrom, ((0,0),(0,0),(atfDelay,0)))
         self.directCompTo = rir.irRoomImageSource3d(self.kiToSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen, 0, samplerate)
+        self.directCompTo = np.pad(self.directCompTo, ((0,0),(0,0),(atfDelay,0)))
         #self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
 
     def interpolate(self, kiFromIR):
-        pass
-
-
+        assert kiFromIR.shape[-1] == self.atfLen
+        reverbComp = kiFromIR - self.directCompFrom
+        self.kiFilt.buffer.fill(0)
+        interpolatedIR = self.kiFilt.process(reverbComp)
+        truncIPIR = interpolatedIR[...,self.kiDly:]
+        truncIPIR += self.directCompTo
+        return interpolatedIR
 
 
 
