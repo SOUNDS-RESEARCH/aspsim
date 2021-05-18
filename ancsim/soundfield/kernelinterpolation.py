@@ -109,19 +109,30 @@ def getKernelWeightingFilter(kernelFunc, regParam, micPos, integralDomain,
 
 
 
-
 def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
     """Calculates parameter vector or matrix given a kernel function for Kernel Ridge Regression.
     Both dataArg and outputArg should be formatted as (numPoints, pointDimension)
     kernelFunc should return args as (numfreq, numPoints1, numPoints2)
     returns params of shape (numFreq, numOutPoints, numDataPoints)"""
-    dataDim = dataArg.shape[0]
     K = kernelFunc(dataArg, dataArg, *args)
-    Kreg = K + regParam * np.eye(dataDim)
-    kappa = kernelFunc(dataArg, outputArg, *args)
+    Kreg = K + regParam * np.eye(K.shape[-1])
+    kappa = np.transpose(kernelFunc(outputArg, dataArg, *args), (0,2,1))
 
     params = np.transpose(np.linalg.solve(Kreg, kappa), (0, 2, 1))
     return params
+
+# def getKRRParameters(kernelFunc, regParam, outputArg, dataArg, *args):
+#     """Calculates parameter vector or matrix given a kernel function for Kernel Ridge Regression.
+#     Both dataArg and outputArg should be formatted as (numPoints, pointDimension)
+#     kernelFunc should return args as (numfreq, numPoints1, numPoints2)
+#     returns params of shape (numFreq, numOutPoints, numDataPoints)"""
+#     dataDim = dataArg.shape[0]
+#     K = kernelFunc(dataArg, dataArg, *args)
+#     Kreg = K + regParam * np.eye(dataDim)
+#     kappa = kernelFunc(dataArg, outputArg, *args)
+
+#     params = np.transpose(np.linalg.solve(Kreg, kappa), (0, 2, 1))
+#     return params
 
 
 def soundfieldInterpolationFIR(
@@ -175,6 +186,9 @@ class ATFKernelInterpolator():
         self.kiToSpeakerPos = kiToSpeakerPos
         self.micPos = micPos
 
+        self.numSpeakerFrom = self.kiFromSpeakerPos.shape[0]
+        self.numSpeakerTo = self.kiToSpeakerPos.shape[0]
+        self.numMics = self.micPos.shape[0]
 
         waveNum = fd.getFrequencyValues(numFreq, samplerate) / c
         kiTF = getKRRParameters(kernelReciprocal3d, regParam, 
@@ -184,23 +198,36 @@ class ATFKernelInterpolator():
         
         
         kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
-        kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiDly)))
+        #kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiDly+100)))
         self.kiFilt = fc.createFilter(ir=kiIR)
 
-        self.directCompFrom = rir.irRoomImageSource3d(self.kiFromSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen-atfDelay, 0, samplerate)
+        self.directCompFrom = rir.irRoomImageSource3d(self.kiFromSpeakerPos, self.micPos, 
+                                        [10,10,5], [0,0,0], self.atfLen-atfDelay, 0, samplerate, c)
+        #self.directCompFrom = np.moveaxis(self.directCompFrom, 0,1)
         self.directCompFrom = np.pad(self.directCompFrom, ((0,0),(0,0),(atfDelay,0)))
-        self.directCompTo = rir.irRoomImageSource3d(self.kiToSpeakerPos, self.micPos, [1,1,1], [0,0,0], self.atfLen, 0, samplerate)
+        #self.directCompFrom = self.directCompFrom.reshape((-1, self.directCompFrom.shape[-1]))
+
+
+        self.directCompTo = rir.irRoomImageSource3d(self.kiToSpeakerPos, self.micPos, 
+                                        [10,10,5], [0,0,0], self.atfLen-atfDelay, 0, samplerate, c)
         self.directCompTo = np.pad(self.directCompTo, ((0,0),(0,0),(atfDelay,0)))
+        #self.directCompTo = self.directCompTo.reshape((-1, self.directCompTo.shape[-1]))
+
+
         #self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
 
-    def interpolate(self, kiFromIR):
-        assert kiFromIR.shape[-1] == self.atfLen
-        reverbComp = kiFromIR - self.directCompFrom
+    def process(self, kiFromIr):
+        assert kiFromIr.shape == (self.numSpeakerFrom, self.numMics, self.atfLen)
         self.kiFilt.buffer.fill(0)
-        interpolatedIR = self.kiFilt.process(reverbComp)
-        truncIPIR = interpolatedIR[...,self.kiDly:]
-        truncIPIR += self.directCompTo
-        return interpolatedIR
+        reverbComp = kiFromIr - self.directCompFrom
+        reverbComp = reverbComp.reshape(-1, kiFromIr.shape[-1])
+        reverbComp = np.pad(reverbComp, ((0,0),(0,self.kiDly)))
+
+        interpolatedIr = self.kiFilt.process(reverbComp)
+        truncIPIr = interpolatedIr[...,self.kiDly:]
+        truncIPIr = truncIPIr.reshape(self.numSpeakerTo, self.numMics, self.atfLen)
+        truncIPIr += self.directCompTo
+        return truncIPIr
 
 
 

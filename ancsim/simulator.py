@@ -138,7 +138,8 @@ class SimulatorSetup:
                 if self.config["spatial_dims"] == 3:
                     self.arrays.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
                                                         src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
-                                                        self.config["max_room_ir_length"], self.config["rt60"], self.config["samplerate"],
+                                                        self.config["max_room_ir_length"], self.config["rt60"], 
+                                                        self.config["samplerate"], self.config["c"],
                                                         calculateMetadata=True)
                 else:
                     raise ValueError
