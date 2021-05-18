@@ -220,7 +220,7 @@ class ATFKernelInterpolator():
         assert kiFromIr.shape == (self.numSpeakerFrom, self.numMics, self.atfLen)
         self.kiFilt.buffer.fill(0)
         reverbComp = kiFromIr - self.directCompFrom
-        reverbComp = reverbComp.reshape(-1, kiFromIr.shape[-1])
+        reverbComp = reverbComp.reshape(-1, self.atfLen)
         reverbComp = np.pad(reverbComp, ((0,0),(0,self.kiDly)))
 
         interpolatedIr = self.kiFilt.process(reverbComp)
