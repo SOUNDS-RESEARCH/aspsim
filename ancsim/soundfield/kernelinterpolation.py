@@ -56,7 +56,10 @@ def kernelReciprocal3d(points1, points2, waveNum):
         waveNum is shape (numFreq)
         output has shape (numFreq, numMic1*numSrc1, numMic2*numSrc2)
         they are placed according to micIdx+numMics*srcIdx
-    
+
+        When flattened, the index for microphone m, speaker l is m+l*M. i.e.
+        the microphone index changes faster. 
+
     From the paper: Kernel interpolation of acoustic transfer 
                 function between regions considering reciprocity"""
     waveNum = waveNum[:,None,None,None,None]
@@ -191,13 +194,18 @@ class ATFKernelInterpolator():
         self.numMics = self.micPos.shape[0]
 
         waveNum = fd.getFrequencyValues(numFreq, samplerate) / c
+        # kiTF = getKRRParameters(kernelReciprocal3d, regParam, 
+        #                     (self.micPos, self.kiFromSpeakerPos),
+        #                     (self.micPos, self.kiToSpeakerPos),
+        #                     waveNum)
         kiTF = getKRRParameters(kernelReciprocal3d, regParam, 
-                            (self.micPos, self.kiFromSpeakerPos),
                             (self.micPos, self.kiToSpeakerPos),
+                            (self.micPos, self.kiFromSpeakerPos),
                             waveNum)
         
         
         kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
+        kiIR = np.transpose(kiIR, (1,0,2))
         #kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiDly+100)))
         self.kiFilt = fc.createFilter(ir=kiIR)
 
@@ -228,6 +236,19 @@ class ATFKernelInterpolator():
         truncIPIr = truncIPIr.reshape(self.numSpeakerTo, self.numMics, self.atfLen)
         truncIPIr += self.directCompTo
         return truncIPIr
+
+    def process_alt(self, ir):
+        assert ir.shape == (self.numSpeakerFrom, self.numMics, self.atfLen)
+        ir -= self.directCompFrom
+        ir = ir.reshape(-1, ir.shape[-1])
+        ir_ip = np.zeros((self.numMics*self.numSpeakerTo, self.atfLen+self.kiFiltLen-1))
+        for inIdx in range(self.kiFilt.ir.shape[0]):
+            for outIdx in range(self.kiFilt.ir.shape[1]):
+                ir_ip[outIdx,:] += np.convolve(self.kiFilt.ir[inIdx, outIdx, :], ir[inIdx,:], "full")
+        ir_ip = ir_ip.reshape(self.numSpeakerTo, self.numMics, self.atfLen+self.kiFiltLen-1)
+        ir_ip = ir_ip[...,self.kiDly:-self.kiDly]
+        ir_ip += self.directCompTo
+        return ir_ip
 
 
 
