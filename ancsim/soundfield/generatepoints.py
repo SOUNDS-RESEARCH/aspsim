@@ -73,9 +73,11 @@ def uniformCylinder(numPoints, radius, height):
     return allPoints
 
 
-# translated from user3717023's MATLAB code from stackoverflow
-# Could be updated using the method in this paper "A better way to construct the sunflower head"
+
 def sunflowerPattern(N, radius, offsetAngle=0):
+    """ translated from user3717023's MATLAB code from stackoverflow
+        could be updated using the method in this paper 
+        'A better way to construct the sunflower head'"""
     phisq = np.square((np.sqrt(5) + 1) / 2)
     # golden ratio
     k = np.arange(1, N + 1)
@@ -254,62 +256,6 @@ def equidistantRectangle(numPoints, dims, offset=0.5):
             )
             numCounter += numAxisPoints
             startPos = pointDist - distLeft
-
-    return points
-
-
-def stackedEquidistantRectangles_old(numPoints, numRect, dims, zDistance):
-    a = numRect // 2
-    zValues = [i * zDistance for i in range(-a, a + numRect)]
-    if numRect % 2 == 0:
-        zValues = [zVal + zDistance / 2 for zVal in zValues]
-
-    pointsPerRect = [numPoints // numRect for _ in range(numRect)]
-    for i in range(numPoints - numRect * (numPoints // numRect)):
-        pointsPerRect[i] += 1
-
-    points = np.zeros((numPoints, 3))
-    for i in range(numRect):
-        points[
-            i * pointsPerRect[i] : (i + 1) * pointsPerRect[i], 0:2
-        ] = equidistantRectangle(pointsPerRect[i], dims)
-        points[i * pointsPerRect[i] : (i + 1) * pointsPerRect[i], 2] = zValues[i]
-    return points
-
-
-def equidistantRectangle_old(numPoints, dims):
-    totalLength = 2 * (dims[0] + dims[1])
-    pointDist = totalLength / numPoints
-
-    points = np.zeros((numPoints, 2))
-    if numPoints < 4:
-        points = equidistantRectangle(4, dims)
-        pointChoices = np.random.choice(4, numPoints, replace=False)
-        points = points[pointChoices, :]
-    else:
-        lengths = [dims[0], dims[1], dims[0], dims[1]]
-        xVal = [-dims[0] / 2, dims[0] / 2, dims[0] / 2, -dims[0] / 2]
-        yVal = [-dims[1] / 2, -dims[1] / 2, dims[1] / 2, dims[1] / 2]
-        startPos = pointDist / 2 + np.clip(np.random.randn() * 0.3, -1, 1) * (
-            pointDist / 2
-        )
-        xFac = [1, 0, -1, 0]
-        yFac = [0, 1, 0, -1]
-        numCounter = 0
-
-        for i in range(np.min((4, numPoints))):
-            numAxisPoints = 1 + int((lengths[i] - startPos) / pointDist)
-            axisPoints = startPos + np.arange(numAxisPoints) * pointDist
-            distLeft = lengths[i] - axisPoints[-1]
-            points[numCounter : numCounter + numAxisPoints, 0] = (
-                xVal[i] + xFac[i] * axisPoints
-            )
-            points[numCounter : numCounter + numAxisPoints, 1] = (
-                yVal[i] + yFac[i] * axisPoints
-            )
-            numCounter += numAxisPoints
-            startPos = pointDist - distLeft
-
     return points
 
 
@@ -354,13 +300,3 @@ def equidistantRectangle_forfewer(numPoints, dims):
             startPos = pointDist - distLeft
 
     return points
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    points = stackedEquidistantRectangles(2, 40, [4, 5], 0.4)
-
-    plt.plot(points[0:20, 0], points[0:20, 1], "x")
-    plt.plot(points[20:, 0], points[20:, 1], "x")
-    plt.show()

@@ -180,7 +180,7 @@ class ArrayCollection():
 #     def is_source(self):
 #         return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
 
-
+class GroupedArray(Array)
 
 
 class Array(ABC):
@@ -196,8 +196,19 @@ class Array(ABC):
         self.pos = pos
         self.num = pos.shape[0]
 
+        self.group_idxs = None
+        self.num_groups = 1
+
         assert pos.ndim == 2
         assert pos.shape[1] == 3
+
+    def set_groups(self, group_idxs):
+        """group_idxs is a list of lists or a list of 1D nd.arrays
+            Each inner list is the indices of the array elements 
+            belonging to one group."""
+        self.num_groups = len(group_idxs)
+        self.group_idxs = group_idxs
+        
 
     def plot(self, ax):
         ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
