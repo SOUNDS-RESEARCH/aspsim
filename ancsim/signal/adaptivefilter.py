@@ -1,11 +1,67 @@
 import numpy as np
-from ancsim.signal.filterclasses import FilterSum, SinglePoleLowPass, MovingAverage
-from ancsim.adaptivefilter.conventional.base import (
-    AdaptiveFilterBase,
-    AdaptiveFilterFreqDomain,
-    AdaptiveFilterFreq,
-)
+from abc import ABC, abstractmethod
+
+from ancsim.signal.filterclasses import FilterSum, FilterSum_Freqdomain, SinglePoleLowPass, MovingAverage
 import ancsim.signal.freqdomainfiltering as fdf
+
+
+class AdaptiveFilterBase(ABC):
+    def __init__(self, irLen, numIn, numOut, filterType=None):
+        filterDim = (numIn, numOut, irLen)
+        self.numIn = numIn
+        self.numOut = numOut
+        self.irLen = irLen
+
+        if filterType is not None:
+            self.filt = filterType(ir=np.zeros(filterDim))
+        else:
+            self.filt = FilterSum(ir=np.zeros(filterDim))
+
+        self.x = np.zeros((self.numIn, self.irLen, 1))  # Column vector
+
+    def insertInSignal(self, ref):
+        assert ref.shape[-1] == 1
+        self.x = np.roll(self.x, 1, axis=1)
+        self.x[:, 0:1, 0] = ref
+
+    def prepare(self):
+        pass
+
+    @abstractmethod
+    def update(self):
+        pass
+
+    def process(self, signalToProcess):
+        return self.filt.process(signalToProcess)
+
+    def setIR(self, newIR):
+        if newIR.shape != self.filt.ir.shape:
+            self.numIn = newIR.shape[0]
+            self.numOut = newIR.shape[1]
+            self.irLen = newIR.shape[2]
+        self.filt.setIR(newIR)
+
+
+
+class AdaptiveFilterFreq(ABC):
+    def __init__(self, numFreq, numIn, numOut):
+        assert numFreq % 2 == 0
+        self.numIn = numIn
+        self.numOut = numOut
+        self.numFreq = numFreq
+
+        self.filt = FilterSum_Freqdomain(numFreq=numFreq, numIn=numIn, numOut=numOut)
+
+    @abstractmethod
+    def update(self):
+        pass
+
+    def process(self, signalToProcess):
+        return self.filt.process(signalToProcess)
+    
+    def processWithoutSum(self, signalToProcess):
+        return self.filt.processWithoutSum(signalToProcess)
+
 
 class LMS(AdaptiveFilterBase):
     """Dimension of filter is (input channels, output channels, IR length)"""
@@ -108,24 +164,6 @@ class BlockNLMS(AdaptiveFilterBase):
         self.filt.ir += self.mu * norm * grad
 
 
-class NLMS_FREQ(AdaptiveFilterFreqDomain):
-    """Looks like it doesn't overlap add, should probably use FastBlockNLMS instead"""
-    def __init__(self, numFreq, numIn, numOut, stepSize, regularization=1e-4):
-        super().__init__(numFreq, numIn, numOut)
-        self.mu = stepSize
-        self.beta = regularization
-
-    def update(self, ref, error):
-        """Inputs should be of the shape (numFreq, numChannels, 1)"""
-        assert ref.shape[1] == self.numIn
-        assert error.shape[1] == self.numOut
-        assert ref.shape[0] == error.shape[0]
-        assert ref.shape[-1] == error.shape[-1] == 1
-
-        normalization = 1 / (self.beta + np.transpose(ref.conj(), (0, 2, 1)) @ ref)
-        self.ir += self.mu * normalization * error @ np.transpose(ref.conj(), (0, 2, 1))
-
-
 class FastBlockNLMS(AdaptiveFilterFreq):
     """Identical to BlockNLMS when scalar normalization is used"""
     def __init__(
@@ -186,67 +224,6 @@ class FastBlockNLMS(AdaptiveFilterFreq):
     #     return fdf.convolveSum(self.ir, concatBlock)
 
 
-
-
-
-class FastBlockNLMS_old(AdaptiveFilterFreqDomain):
-    def __init__(
-        self,
-        blockSize,
-        numIn,
-        numOut,
-        stepSize,
-        regularization=1e-3,
-        freqIndepNorm=False,
-    ):
-        super().__init__(2 * blockSize, numIn, numOut)
-        self.mu = stepSize
-        self.beta = regularization
-        self.blockSize = blockSize
-        if freqIndepNorm:
-            self.refPowerEstimate = SinglePoleLowPass(0.9, (2 * blockSize, 1, 1))
-            self.normFunc = self.freqIndependentNormalization
-        else:
-            self.normFunc = self.scalarNormalization
-
-    def scalarNormalization(self, X):
-        return 1 / (np.mean(np.transpose(X.conj(), (0, 2, 1)) @ X) + self.beta)
-
-    def freqIndependentNormalization(self, X):
-        self.refPowerEstimate.update(np.real(np.transpose(X.conj(), (0, 2, 1)) @ X))
-        return 1 / (self.refPowerEstimate.state + self.beta)
-
-    def update(self, ref, error):
-        assert ref.shape == (self.numIn, 2 * self.blockSize)
-        assert error.shape == (self.numOut, self.blockSize)
-
-        paddedError = np.concatenate((np.zeros_like(error), error), axis=-1)
-        E = np.fft.fft(paddedError, axis=-1).T[:, :, None]
-        X = np.fft.fft(ref, axis=-1).T[:, :, None]
-
-        gradient = E @ np.transpose(X.conj(), (0, 2, 1))
-        tdgrad = np.fft.ifft(gradient, axis=0)
-        tdgrad[self.blockSize :, :, :] = 0
-        gradient = np.fft.fft(tdgrad, axis=0)
-
-        norm = self.normFunc(X)
-        self.ir += self.mu * norm * gradient
-
-    def process(self, signal):
-        assert signal.shape == (self.numIn, 2 * self.blockSize)
-        X = np.fft.fft(signal, axis=-1).T[:, :, None]
-        output = self.ir @ X
-        output = np.squeeze(np.fft.ifft(output, axis=0), axis=-1).T
-        output = output[:, self.blockSize :]
-
-        if np.mean(np.abs(np.imag(output))) > 0.00001:
-            print(
-                "WARNING: Fast block adaptive filter produces significant imaginary component"
-            )
-
-        return np.real(output)
-
-
 class FastBlockWeightedNLMS(FastBlockNLMS):
     def __init__(
         self,
@@ -278,3 +255,107 @@ class FastBlockWeightedNLMS(FastBlockNLMS):
 
         norm = self.normFunc(X)
         self.ir += self.mu * norm * gradient
+
+
+
+class RLS(AdaptiveFilterBase):
+    """Dimension of filter is (input channels, output channels, IR length)"""
+
+    def __init__(self, irLen, numIn, numOut, forgettingFactor=0.999, signalPowerEst=10):
+        super().__init__(irLen, numIn, numOut)
+        self.flatIrLen = self.irLen * self.numIn
+
+        self.forget = forgettingFactor
+        self.forgetInv = 1 / forgettingFactor
+        self.signalPowerEst = signalPowerEst
+
+        self.invRefCorr = np.zeros((1, self.flatIrLen, self.flatIrLen))
+        self.invRefCorr[0, :, :] = np.eye(self.flatIrLen) * signalPowerEst
+        self.crossCorr = np.zeros((self.numOut, self.flatIrLen, 1))
+
+    def update(self, ref, desired):
+        """Inputs should be of the shape (channels, numSamples)"""
+        assert ref.shape[-1] == desired.shape[-1]
+        numSamples = ref.shape[-1]
+
+        for n in range(numSamples):
+            self.insertInSignal(ref[:, n : n + 1])  # )
+
+            X = self.x.reshape((1, -1, 1))
+            tempMat = self.invRefCorr @ X
+            g = tempMat @ np.transpose(tempMat, (0, 2, 1))
+            denom = self.forget + np.transpose(X, (0, 2, 1)) @ tempMat
+            self.invRefCorr = self.forgetInv * (self.invRefCorr - g / denom)
+
+            self.crossCorr *= self.forget
+            self.crossCorr += desired[:, n, None, None] * X
+            newFilt = np.transpose(self.invRefCorr @ self.crossCorr, (0, 2, 1))
+            self.filt.ir = np.transpose(
+                newFilt.reshape((self.numOut, self.numIn, self.irLen)), (1, 0, 2)
+            )
+
+
+class RLS_singleRef(AdaptiveFilterBase):
+    """Dimension of filter is (input channels, output channels, IR length)
+    Only works for input channels == 1.
+    If more is needed, stack the vectors into one instead"""
+
+    def __init__(self, irLen, numIn, numOut, forgettingFactor=0.999, signalPowerEst=10):
+        assert numIn == 1
+        super().__init__(irLen, numIn, numOut)
+
+        self.forget = forgettingFactor
+        self.forgetInv = 1 / forgettingFactor
+        self.signalPowerEst = signalPowerEst
+
+        self.invRefCorr = np.zeros((1, self.irLen, self.irLen))
+        self.invRefCorr[:, :, :] = np.eye(self.irLen) * signalPowerEst
+        self.crossCorr = np.zeros((self.numOut, self.irLen, 1))
+
+    def update(self, ref, desired):
+        """Inputs should be of the shape (channels, numSamples)"""
+        assert ref.shape[-1] == desired.shape[-1]
+        numSamples = ref.shape[-1]
+
+        for n in range(numSamples):
+            self.insertInSignal(ref[:, n : n + 1])
+
+            tempMat = self.invRefCorr @ self.x
+            g = tempMat @ np.transpose(tempMat, (0, 2, 1))
+            denom = self.forget + np.transpose(self.x, (0, 2, 1)) @ tempMat
+            self.invRefCorr = self.forgetInv * (self.invRefCorr - g / denom)
+
+            self.crossCorr *= self.forget
+            self.crossCorr += desired[:, n, None, None] * self.x
+            self.filt.ir = np.transpose(self.invRefCorr @ self.crossCorr, (2, 0, 1))
+
+
+class RLS_1d_only(AdaptiveFilterBase):
+    """Dimension of filter is (input channels, output channels, IR length)"""
+
+    def __init__(self, filterDim, forgettingFactor=0.999, signalPowerEst=10):
+        super().__init__(filterDim)
+        assert filterDim[0] == filterDim[1] == 1
+        self.forget = forgettingFactor
+        self.forgetInv = 1 / forgettingFactor
+        self.signalPowerEst = signalPowerEst
+
+        self.invRefCorr = np.zeros((1, self.irLen, self.irLen))
+        self.invRefCorr[:, :, :] = np.eye(self.irLen) * signalPowerEst
+        self.crossCorr = np.zeros((1, self.irLen, 1))
+
+    def update(self, ref, desired):
+        assert ref.shape[-1] == desired.shape[-1]
+        numSamples = ref.shape[-1]
+
+        for n in range(numSamples):
+            self.insertInSignal(ref[:, n : n + 1])
+
+            tempMat = self.invRefCorr @ self.x
+            g = tempMat @ np.transpose(tempMat, (0, 2, 1))
+            denom = self.forget + np.transpose(self.x, (0, 2, 1)) @ tempMat
+            self.invRefCorr = self.forgetInv * (self.invRefCorr - g / denom)
+
+            self.crossCorr *= self.forget
+            self.crossCorr += desired[:, n] * self.x
+            self.filt.ir = np.transpose(self.invRefCorr @ self.crossCorr, (0, 2, 1))

@@ -10,7 +10,7 @@ from ancsim.signal.filterclasses import (
     MovingAverage,
 )
 from ancsim.signal.sources import WhiteNoiseSource, GoldSequenceSource
-from ancsim.adaptivefilter.conventional.lms import NLMS, NLMS_FREQ, FastBlockNLMS
+from ancsim.signal.adaptivefilter import NLMS, NLMS_FREQ, FastBlockNLMS
 from ancsim.soundfield.kernelinterpolation import soundfieldInterpolation
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia

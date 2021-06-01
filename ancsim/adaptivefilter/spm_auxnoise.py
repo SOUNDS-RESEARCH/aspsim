@@ -15,7 +15,7 @@ from ancsim.signal.filterclasses import (
 )
 import ancsim.signal.sources as src
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-from ancsim.adaptivefilter.conventional.lms import (
+from ancsim.signal.adaptivefilter import (
     NLMS,
     NLMS_FREQ,
     FastBlockNLMS,
@@ -43,7 +43,7 @@ class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
 
         self.secPathFilt = FilterMD_Freqdomain(dataDims=self.numRef, filtDim=(self.numSpeaker, self.numError), irLen=self.filtLen)
 
-        true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)), constant_values=0)
+        true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)))
         true_secpath = fdf.fftWithTranspose(true_secpath, n=2*self.filtLen)
         self.diag.addNewDiagnostic("secpath_estimate", dia.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
 
@@ -101,9 +101,20 @@ class FastBlockFxLMSEriksson(FastBlockFxLMSAuxnoiseSPM):
 
         self.sig["f"][:, startIdx:endIdx] = self.sig["error"][:, startIdx:endIdx] - vf
         
-        self.secPathNLMS.update(self.sig["v"][:, endIdx-(2*self.filtLen):endIdx], 
+        try:
+            self.secPathNLMS.update(self.sig["v"][:, endIdx-(2*self.filtLen):endIdx], 
                                 self.sig["f"][:,endIdx-self.filtLen:endIdx])
- 
+        except AssertionError as err:
+            print("v shape", self.sig["v"].shape)
+            print("attempted v shape", self.sig["v"][:, endIdx-(2*self.filtLen):endIdx].shape)
+            print("v indices", endIdx-(2*self.filtLen), endIdx)
+            print("f shape", self.sig["f"].shape)
+            print("attempted f shape", self.sig["f"][:,endIdx-self.filtLen:endIdx].shape)
+            print("f indices", endIdx-self.filtLen, endIdx)
+            print("filtlen", self.filtLen)
+            print("startIdx", startIdx)
+            print("endIdx", endIdx)
+            raise err
         self.secPathFilt.tf[...] = np.moveaxis(self.secPathNLMS.filt.tf, 1,2)
 
 
@@ -120,20 +131,20 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
         self.errorPos = arrays["error"].pos
         self.speakerPos = arrays["speaker"].pos
         
-        self.auxSpeakerIdx = np.array([0,2,4,6])#np.arange(self.numSpeaker)[0,2,4,6]
+        self.auxSpeakerIdx = np.array([0,2,4,6,8,10,12,14])#np.arange(self.numSpeaker)[0,2,4,6]
         self.kiSpeakerIdx = np.array([i for i in range(self.numSpeaker) if i not in self.auxSpeakerIdx])
         self.numKeep = len(self.auxSpeakerIdx)
-        self.numKi = len(self.kiSpeakerIdx)
+        #self.numKi = len(self.kiSpeakerIdx)
         
         self.atfkiFilt = ki.ATFKernelInterpolator(self.speakerPos[self.auxSpeakerIdx,:], 
                                                     self.speakerPos[self.kiSpeakerIdx,:],
-                                self.errorPos, 1e-3, 155, controlFiltLen, 4096, 
+                                self.errorPos, 1e-5, 55, controlFiltLen, 4096, 
                                 self.sim_info.samplerate, self.sim_info.c, self.blockSize)
         
-        trueSecPath = self.arrays.paths["speaker"]["error"]
-        trueSecPath = np.pad(trueSecPath, 
-                    ((0,0),(0,0),(self.blockSize, self.filtLen-trueSecPath.shape[-1]-self.blockSize)))
-        testip = self.atfkiFilt.process(trueSecPath[self.auxSpeakerIdx,:,:])
+        # trueSecPath = self.arrays.paths["speaker"]["error"]
+        # trueSecPath = np.pad(trueSecPath, 
+        #             ((0,0),(0,0),(self.blockSize, self.filtLen-trueSecPath.shape[-1]-self.blockSize)))
+        # testip = self.atfkiFilt.process(trueSecPath[self.auxSpeakerIdx,:,:])
 
         # kiTF = ki.getKRRParameters(ki.kernelReciprocal3d, 1e-3, 
         #                     (errorPos, speakerPos[self.kiSpeakerIdx,:]),
@@ -148,6 +159,22 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
 
         self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numKeep, power=auxNoisePower)
         self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numKeep, self.numError, self.muSec,self.beta)
+
+        freqDirectComponent = np.moveaxis(fdf.fftWithTranspose(self.atfkiFilt.directCompFrom, n=2*self.filtLen), 1,2)
+        self.secPathNLMS.filt.tf += freqDirectComponent
+
+
+
+        currentIr = np.moveaxis(np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.filtLen]), 0,1)
+        kiIR = self.atfkiFilt.process(currentIr)
+        kiTF = fdf.fftWithTranspose(kiIR, n=2*self.filtLen)
+        self.secPathFilt.tf[:,self.auxSpeakerIdx,:] = np.moveaxis(self.secPathNLMS.filt.tf[...],1,2)
+        self.secPathFilt.tf[:,self.kiSpeakerIdx,:] = kiTF
+        #self.secPathFilt.tf += np.moveaxis(freqDirectComponent,1,2)
+        self.metadata["auxnoise speaker index"] = self.auxSpeakerIdx.tolist()
+        self.metadata["interpolated speaker index"] = self.kiSpeakerIdx.tolist()
+        self.metadata["auxnoise speaker positions"] = self.speakerPos[self.auxSpeakerIdx,:].tolist()
+        self.metadata["interpolated speaker positions"] = self.speakerPos[self.kiSpeakerIdx,:].tolist()
 
     def genSpeakerSignals(self, numSamples):
         super().genSpeakerSignals(numSamples)
@@ -165,8 +192,22 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
 
         self.sig["f"][:, startIdx:endIdx] = self.sig["error"][:, startIdx:endIdx] - vf
 
-        self.secPathNLMS.update(self.sig["v"][self.auxSpeakerIdx, endIdx-(2*self.filtLen):endIdx], 
+        try:
+            self.secPathNLMS.update(self.sig["v"][self.auxSpeakerIdx, endIdx-(2*self.filtLen):endIdx], 
                                 self.sig["f"][:,endIdx-self.filtLen:endIdx])
+        except AssertionError as err:
+            print("v shape", self.sig["v"].shape)
+            print("v selected shape", self.sig["v"][self.auxSpeakerIdx,:].shape)
+            print("attempted v shape", self.sig["v"][self.auxSpeakerIdx, endIdx-(2*self.filtLen):endIdx].shape)
+            print("v indices", self.auxSpeakerIdx, endIdx-(2*self.filtLen), endIdx)
+            print("f shape", self.sig["f"].shape)
+            print("attempted f shape", self.sig["f"][:,endIdx-self.filtLen:endIdx].shape)
+            print("f indices", endIdx-self.filtLen, endIdx)
+            print("filtlen", self.filtLen)
+            print("startIdx", startIdx)
+            print("endIdx", endIdx)
+            raise err
+            
 
 
         # ir = np.real(fdf.ifftWithTranspose(self.secPathNLMS.filt.tf)[...,:self.blockSize])

@@ -3,8 +3,8 @@ import numpy as np
 import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.adaptivefilter.base import AdaptiveFilterFF
 from ancsim.adaptivefilter.mpc import FastBlockFxLMS
-from ancsim.adaptivefilter.conventional.lms import NLMS, FastBlockNLMS
-from ancsim.adaptivefilter.conventional.rls import RLS
+from ancsim.signal.adaptivefilter import NLMS, FastBlockNLMS
+from ancsim.signal.adaptivefilter import RLS
 from ancsim.signal.filterclasses import FilterSum, FilterMD_IntBuffer, FilterMD_Freqdomain
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
 import ancsim.adaptivefilter.diagnostics as dia

@@ -16,7 +16,7 @@ from ancsim.signal.filterclasses import (
 )
 from ancsim.signal.sources import WhiteNoiseSource, GoldSequenceSource
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-from ancsim.adaptivefilter.conventional.lms import (
+from ancsim.signal.adaptivefilter import (
     NLMS,
     NLMS_FREQ,
     FastBlockNLMS,

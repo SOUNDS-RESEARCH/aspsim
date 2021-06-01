@@ -4,7 +4,7 @@ from ancsim.adaptivefilter.mpc import FastBlockFxLMS
 from ancsim.adaptivefilter.ki import FastBlockKIFxLMS
 from ancsim.adaptivefilter.spm.auxnoise import FastBlockFxLMSSPMEriksson, FastBlockAuxNoise, FastBlockFxLMSSPMYuxue
 from ancsim.signal.sources import GoldSequenceSource, WhiteNoiseSource
-from ancsim.adaptivefilter.conventional.lms import FastBlockNLMS, FastBlockWeightedNLMS
+from ancsim.signal.adaptivefilter import FastBlockNLMS, FastBlockWeightedNLMS
 from ancsim.soundfield.kernelinterpolation import (
     soundfieldInterpolation,
     soundfieldInterpolationFIR,

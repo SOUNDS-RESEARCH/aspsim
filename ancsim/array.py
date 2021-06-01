@@ -24,6 +24,15 @@ class ArrayCollection():
     def __contains__(self, arrayName):
         return arrayName in self.arrays
 
+    def save_metadata(self, filepath):
+        metadata = {"array_info" : {},
+                    "path_info" : {}}
+        for arName, ar in self.arrays.items():
+            metadata["array_info"]["type"] = ar.__class__.__name__
+        
+        for src, mic in self.mic_src_combos():
+            metadata["path_info"][f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
+
     @staticmethod
     def prototype_equals(prototype, initialized):
         """prototype and initialized are both instances of ArrayCollection

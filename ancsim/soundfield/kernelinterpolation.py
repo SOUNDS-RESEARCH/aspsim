@@ -193,7 +193,7 @@ class ATFKernelInterpolator():
         self.numSpeakerTo = self.kiToSpeakerPos.shape[0]
         self.numMics = self.micPos.shape[0]
 
-        waveNum = fd.getFrequencyValues(numFreq, samplerate) / c
+        waveNum = 2 * np.pi * fd.getFrequencyValues(numFreq, samplerate) / c
         # kiTF = getKRRParameters(kernelReciprocal3d, regParam, 
         #                     (self.micPos, self.kiFromSpeakerPos),
         #                     (self.micPos, self.kiToSpeakerPos),
@@ -202,7 +202,7 @@ class ATFKernelInterpolator():
                             (self.micPos, self.kiToSpeakerPos),
                             (self.micPos, self.kiFromSpeakerPos),
                             waveNum)
-        
+        kiTF = fd.insertNegativeFrequencies(kiTF, even=True)
         
         kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
         kiIR = np.transpose(kiIR, (1,0,2))
@@ -251,7 +251,16 @@ class ATFKernelInterpolator():
         return ir_ip
 
 
-
+def kiFilter(kernelFunc, regParam, toPoints, fromPoints, numFreq, samplerate, c, *args):
+    """ Convenience function for calculating the frequency domain interpolation filter
+    from a set of points to a set of points. Uses any kernel, in contrast to soundfieldInterpolation
+    Returns frequency domain coefficients. Use with filterdesign.firFromFreqsWindow() for FIR filter"""
+    assert numFreq
+    freqs = fd.getFrequencyValues(numFreq, samplerate)#[:, None, None]
+    waveNum = 2 * np.pi * freqs / c
+    ipParams = getKRRParameters(kernelFunc, regParam, toPoints, fromPoints, waveNum, *args)
+    ipParams = fd.insertNegativeFrequencies(ipParams, even=True)
+    return ipParams
 
 
 
