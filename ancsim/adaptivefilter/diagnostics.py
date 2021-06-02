@@ -126,6 +126,7 @@ class DiagnosticHandler:
         self.diagnostics = {}
         self.lastGlobalSaveIdx = {}
         self.lastSaveIdx = {}
+        self.samplesUntilSave = {}
 
         #self.lastIdx = self.sim_buffer
         #self.lastGlobalIdx = 0
@@ -135,6 +136,7 @@ class DiagnosticHandler:
         for diagName, diag in self.diagnostics.items():
             self.lastGlobalSaveIdx[diagName] = 0
             self.lastSaveIdx[diagName] = self.sim_info.sim_buffer
+            self.samplesUntilSave[diagName] = self.sim_info.sim_buffer
             diag.prepare()
         #for diagName, diag in self.diagnostics.items():
         #    diag.save_frequency
@@ -162,16 +164,18 @@ class DiagnosticHandler:
 
     def saveData(self, processor, sig, idx, globalIdx):
         for diagName, diag in self.diagnostics.items():
-            if globalIdx >= self.lastGlobalSaveIdx[diagName] + diag.save_frequency:
-
+            if globalIdx >= self.lastGlobalSaveIdx[diagName] + self.samplesUntilSave[diagName]:
+                
                 if idx < self.lastSaveIdx[diagName]:
                     self.lastSaveIdx[diagName] -= self.sim_info.sim_chunk_size
                 numSamples = idx - self.lastSaveIdx[diagName]
 
                 diag.saveData(processor, sig, self.lastSaveIdx[diagName], idx, self.lastGlobalSaveIdx[diagName], globalIdx)
 
+                self.samplesUntilSave[diagName] += diag.save_frequency - numSamples
                 self.lastSaveIdx[diagName] += numSamples
                 self.lastGlobalSaveIdx[diagName] += numSamples
+                
 
     def saveData_old(self, sig, idx, globalIdx):
         if idx-self.lastIdx < globalIdx-self.lastGlobalIdx:
@@ -232,9 +236,9 @@ class DiagnosticInfo:
             and self.plot_frequency == other.plot_frequency
         )
         
-
 class DiagnosticOverTime(ABC):
-    def __init__(self, sim_info, 
+    def __init__(self, sim_info,
+                        blockSize=None,
                         smoothing_len=None,
                         save_frequency=None, 
                         save_raw_data=None, 
@@ -242,6 +246,7 @@ class DiagnosticOverTime(ABC):
                         plot_frequency=None):
 
         self.sim_info = sim_info
+        self.blockSize = blockSize
         self.smoothing_len = smoothing_len
         self.save_frequency = save_frequency
         self.save_raw_data = save_raw_data
@@ -257,7 +262,11 @@ class DiagnosticOverTime(ABC):
         if self.plot_frequency is None:
             self.plot_frequency = sim_info.plot_frequency
         if self.save_frequency is None:
-            self.save_frequency = min(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size)
+            if self.blockSize is None:
+                raise ValueError
+            #hacky solution, works if simbuffer is large enough 
+            self.save_frequency = 1024#max(min(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size) - self.blockSize, self.blockSize)
+            #assert self.save_frequency > 0
 
         outputFunc = [dplot.functionOfTimePlot]
         if save_raw_data:
@@ -280,8 +289,6 @@ class DiagnosticOverTime(ABC):
         pass
         #self.blockSize = blockSize
         
-
-
     @abstractmethod
     def saveData(self, processor, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
         pass
@@ -336,58 +343,56 @@ class StateDiagnostic(DiagnosticOverTime):
 
 #     @abstractmethod
 #     def getOutput(self):
-        pass
+#        pass
 
-class NoiseReduction(SignalDiagnostic):
+class SignalPowerRatio(SignalDiagnostic):
     def __init__(
         self,
         sim_info, 
-        totalNoiseName,
-        beforeReductionName,
+        numeratorName,
+        denominatorName,
         **kwargs
     ):
         super().__init__(sim_info, **kwargs)
-        self.totalNoiseName = totalNoiseName
-        self.beforeReductionName = beforeReductionName
+        self.numeratorName = numeratorName
+        self.denominatorName = denominatorName
         
-        self.totalNoisePower = np.zeros(self.sim_info.tot_samples)
-        self.primaryNoisePower = np.zeros(self.sim_info.tot_samples)
-        self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
-        self.primaryNoiseSmoother = Filter_IntBuffer(
-            ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1
-        )
-        self.noiseReduction = np.full((self.sim_info.tot_samples), np.nan)
+        self.numPower = np.zeros(self.sim_info.tot_samples)
+        self.denomPower = np.zeros(self.sim_info.tot_samples)
+        self.numSmoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
+        self.denomSmoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
+        self.powerRatio = np.full((self.sim_info.tot_samples), np.nan)
 
-        self.plot_data["title"] = "Noise Reduction"
-        self.plot_data["ylabel"] = "Reduction (dB)"
+        self.plot_data["title"] = "Power Ratio: " + self.numeratorName + " / " + self.denominatorName
+        self.plot_data["ylabel"] = "Ratio (dB)"
         
 
     def saveData(self, processor, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
-        totalNoisePower = np.mean(sig[self.totalNoiseName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True)
-        primaryNoisePower = np.mean(
-            sig[self.beforeReductionName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True
+        numPower = np.mean(sig[self.numeratorName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True)
+        denomPower = np.mean(
+            sig[self.denominatorName][..., startIdx:endIdx] ** 2, axis=0, keepdims=True
         )
 
-        totalNoisePowerSmooth = self.totalNoiseSmoother.process(totalNoisePower)
-        primaryNoisePowerSmooth = self.primaryNoiseSmoother.process(primaryNoisePower)
+        numPowerSmooth = self.numSmoother.process(numPower)
+        denomPowerSmooth = self.denomSmoother.process(denomPower)
 
-        self.noiseReduction[saveStartIdx:saveEndIdx] = util.pow2db(
-            totalNoisePowerSmooth / primaryNoisePowerSmooth
+        self.powerRatio[saveStartIdx:saveEndIdx] = util.pow2db(
+            numPowerSmooth / denomPowerSmooth
         )
-        self.totalNoisePower[saveStartIdx:saveEndIdx] = totalNoisePower
-        self.primaryNoisePower[saveStartIdx:saveEndIdx] = primaryNoisePower
+        self.numPower[saveStartIdx:saveEndIdx] = numPower
+        self.denomPower[saveStartIdx:saveEndIdx] = denomPower
 
     def getOutput(self):
         if self.save_raw_data:
             return [
-                self.noiseReduction,
+                self.powerRatio,
                 {
-                    "Total Noise Power": self.totalNoisePower,
-                    "Primary Noise Power": self.primaryNoisePower,
+                    "Numerator Power": self.numPower,
+                    "Denominator Power": self.denomPower,
                 },
             ]
         else:
-            return self.noiseReduction
+            return self.powerRatio
 
 class StateNMSE(StateDiagnostic):
     def __init__(self,
@@ -429,6 +434,7 @@ class SignalPower(SignalDiagnostic):
             raise NotImplementedError
     
     def saveData(self, processor, sig, startIdx, endIdx, saveStartIdx, saveEndIdx):
+        #print(startIdx, endIdx)
         signal_power = np.mean(sig[self.signal_name][:, startIdx:endIdx] ** 2, axis=0, keepdims=True)
         self.signal_power[saveStartIdx:saveEndIdx] = util.pow2db(self.signal_smoother.process(signal_power))
 

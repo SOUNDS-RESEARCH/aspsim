@@ -96,19 +96,6 @@ class ProcessorWrapper():
 class AudioProcessor(ABC):
     def __init__(self, sim_info, arrays, blockSize):
         self.sim_info = sim_info
-        # self.sim_info.sim_buffer = config["sim_buffer"]
-        # self.sim_info.sim_chunk_size = config["sim_chunk_size"]
-        # self.sim_info.tot_samples = config["tot_samples"]
-        # self.samplerate = config["samplerate"]
-
-        # self.spatialDims = config["spatial_dims"]
-        # self.c = config["c"]
-        # self.micSNR = config["mic_snr"]
-
-        # self.saveRawData = config["save_raw_data"]
-        # self.outputSmoothing = config["output_smoothing"]
-        # self.plotFrequency = config["plot_frequency"]
-
         self.blockSize = blockSize
 
         self.name = "Abstract Processor"
@@ -148,7 +135,11 @@ class AudioProcessor(ABC):
 
     @abstractmethod
     def process(self, numSamples):
-        """"""
+        """ microphone signals up to self.idx (excluding) are available. i.e. [:,choose-start-idx:self.idx] can be used
+            To play a signal through controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
+            for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.blockSize]. 
+            Adding samples further ahead than that will likely cause a outOfBounds error. 
+        """
         pass
 
 
@@ -177,10 +168,10 @@ class ActiveNoiseControlProcessor(AudioProcessor):
         self.numError = self.arrays["error"].num
         self.numSpeaker = self.arrays["speaker"].num
         
-        self.diag.addNewDiagnostic("noise_reduction", dia.NoiseReduction(self.sim_info, "error", "source~error"))
+        self.diag.addNewDiagnostic("noise_reduction", dia.SignalPowerRatio(self.sim_info, "error", "source~error"))
         if "target" in self.arrays:
             self.diag.addNewDiagnostic("spatial_noise_reduction", 
-                dia.NoiseReduction(self.sim_info, "target", "source~target", 1024, False))
+                dia.SignalPowerRatio(self.sim_info, "target", "source~target", 1024, False))
 
         self.updateIdx = self.sim_info.sim_buffer
         
@@ -191,7 +182,6 @@ class ActiveNoiseControlProcessor(AudioProcessor):
         self.updateIdx -= self.sim_info.sim_chunk_size
 
     def process(self, numSamples):
-        #self.diag.saveBlockData()
         self.genSpeakerSignals(numSamples)
         if self.updateIdx <= self.idx - self.updateBlockSize:
             self.updateFilter()

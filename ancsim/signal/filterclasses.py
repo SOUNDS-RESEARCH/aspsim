@@ -12,7 +12,7 @@ def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None
         ir = np.zeros((numIn, numOut, irLen))
 
     if ir is not None:
-        assert numIn is None and numOut is None and irLen is None
+        #assert numIn is None and numOut is None and irLen is None
         if broadcastDim is not None:
             if sumOverInput:
                 raise NotImplementedError

@@ -180,7 +180,6 @@ class ArrayCollection():
 #     def is_source(self):
 #         return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
 
-class GroupedArray(Array)
 
 
 class Array(ABC):

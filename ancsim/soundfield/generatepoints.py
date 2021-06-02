@@ -39,12 +39,18 @@ def concentricalCircles(
     return coords
 
 
-def equiangularCircle(numPoints, radius, startAngle=0, z=None):
+def equiangularCircle(numPoints, radius, startAngle=0, z=None, rng=None):
+    """radius is a tuple of length two. The actual radia of the points
+        is uniformly distributed between the two provided values. 
+        Two dimensional points are returned if no z value is provided. """
+    if rng is None:
+        rng = np.random.default_rng()
+
     angleStep = 2 * np.pi / numPoints
 
     angles = startAngle + np.arange(numPoints) * angleStep
     angles = np.mod(angles, 2 * np.pi)
-    radia = np.random.uniform(radius[0], radius[1], size=numPoints)
+    radia = rng.uniform(radius[0], radius[1], size=numPoints)
     [x, y] = util.pol2cart(radia, angles)
 
     if z is not None:
@@ -127,20 +133,7 @@ def uniformFilledRectangle(numPoints, lim=(-2.4, 2.4), zAxis=None):
         )
     return evalPoints
 
-
 def uniformFilledCuboid(numPoints, dims, zNumPoints=4):
-    pointsPerAxis = int(np.sqrt(numPoints / zNumPoints))
-    assert np.isclose(pointsPerAxis ** 2 * zNumPoints, numPoints)
-    x = np.linspace(-dims[0] / 2, dims[0] / 2, pointsPerAxis)
-    y = np.linspace(-dims[1] / 2, dims[1] / 2, pointsPerAxis)
-    z = np.linspace(-dims[2] / 2, dims[2] / 2, zNumPoints)
-    [xGrid, yGrid, zGrid] = np.meshgrid(x, y, z)
-    evalPoints = np.vstack((xGrid.flatten(), yGrid.flatten(), zGrid.flatten())).T
-
-    return evalPoints
-
-
-def uniformFilledCuboid_better(numPoints, dims, zNumPoints=4):
     pointsPerAxis = int(np.sqrt(numPoints / zNumPoints))
     assert np.isclose(pointsPerAxis ** 2 * zNumPoints, numPoints)
     x = np.linspace(-dims[0] / 2, dims[0] / 2, 2 * pointsPerAxis + 1)[1::2]
@@ -222,9 +215,12 @@ def stackedEquidistantRectangles(
     return points
 
 
-def equidistantRectangle(numPoints, dims, offset=0.5):
+def equidistantRectangle(numPoints, dims, offset=0.5, z=None):
     if numPoints == 0:
-        return np.zeros((0, 2))
+        if z is None:
+            return np.zeros((0, 2))
+        else:
+            return np.zeros((0,3))
     totalLength = 2 * (dims[0] + dims[1])
     pointDist = totalLength / numPoints
 
@@ -256,6 +252,8 @@ def equidistantRectangle(numPoints, dims, offset=0.5):
             )
             numCounter += numAxisPoints
             startPos = pointDist - distLeft
+    if z is not None:
+        points = np.concatenate((points, np.full((points.shape[0], 1), z)), axis=-1)
     return points
 
 
