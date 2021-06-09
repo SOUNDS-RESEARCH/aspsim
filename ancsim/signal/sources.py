@@ -29,6 +29,10 @@ class Source(ABC):
         self.power = power
 
         self.rng = np.random.default_rng(1)
+
+        self.metadata = {}
+        self.metadata["number of channels"] = self.numChannels
+        self.metadata["power"] = self.power
     
     @abstractmethod
     def getSamples(self, numSamples):
@@ -46,6 +50,8 @@ class SineSource(Source):
         self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.numChannels,1))
 
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
+
+        self.metadata["frequency"] = self.freq
 
     def getSamples(self, numSamples):
         
@@ -95,6 +101,8 @@ class BandlimitedNoiseSource(Source):
         self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.numChannels,1))
 
         self.setPower(power)
+        
+        self.metadata["frequency span"] = freqLim
 
     def getSamples(self, numSamples):
         noise = self.amplitude * self.rng.normal(size=(self.numChannels, numSamples))

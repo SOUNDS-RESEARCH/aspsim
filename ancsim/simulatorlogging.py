@@ -5,17 +5,17 @@ import ancsim.utilities as util
 
 def addToSimMetadata(folderPath, dictToAdd):
     try:
-        with open(folderPath.joinpath("simmetadata.json"), "r") as f:
+        with open(folderPath.joinpath("metadata_sim.json"), "r") as f:
             oldData = json.load(f)
             totData = {**oldData, **dictToAdd}
     except FileNotFoundError:
         totData = dictToAdd
-    with open(folderPath.joinpath("simmetadata.json"), "w") as f:
+    with open(folderPath.joinpath("metadata_sim.json"), "w") as f:
         json.dump(totData, f, indent=4)
 
 
 def writeFilterMetadata(filters, folderPath):
-    fileName = "filtermetadata.json"
+    fileName = "metadata_processor.json"
     totMetadata = {}
     for filt in filters:
         totMetadata[filt.name] = filt.metadata

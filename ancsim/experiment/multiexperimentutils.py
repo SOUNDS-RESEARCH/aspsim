@@ -160,7 +160,7 @@ def extractFilterParameters(expFolder):
     allParameters = {}
     for subFolder in expFolder.iterdir():
         if subFolder.is_dir():
-            metadataFile = subFolder.joinpath("filtermetadata.json")
+            metadataFile = subFolder.joinpath("metadata_processor.json")
             with open(metadataFile, "r") as f:
                 metadata = json.load(f)
             for filtName, paramDict in metadata.items():
@@ -170,7 +170,7 @@ def extractFilterParameters(expFolder):
                     if paramName not in allParameters[filtName]:
                         allParameters[filtName][paramName] = []
                     allParameters[filtName][paramName].append(paramValue)
-    with open(expFolder.joinpath("full_experiment_filtermetadata.json"), "w") as f:
+    with open(expFolder.joinpath("full_experiment_metadata_processor.json"), "w") as f:
         json.dump(allParameters, f, indent=4)
 
 
@@ -303,7 +303,7 @@ def openData(folder, selectIdx="latest"):
         settings = json.load(f)
     with open(folder.joinpath("full_experiment_config.json"), "r") as f:
         config = json.load(f)
-    with open(folder.joinpath("full_experiment_filtermetadata.json"), "r") as f:
+    with open(folder.joinpath("full_experiment_metadata_processor.json"), "r") as f:
         filtParams = json.load(f)
     return summary, settings, config, filtParams
 

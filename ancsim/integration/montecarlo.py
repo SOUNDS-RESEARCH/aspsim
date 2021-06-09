@@ -106,7 +106,3 @@ def diagnostics(newVal, oldVal, blockIdx):
     print("Max Value: " + "{:2.12E}".format(maxVal))
     print()
     return maxRelChange
-
-
-if __name__ == "__main__":
-    freeze_support()

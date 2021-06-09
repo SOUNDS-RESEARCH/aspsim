@@ -156,8 +156,12 @@ def irRoomImageSource3d(
         metadata = {}
         metadata["Max Normalized Truncation Error (dB)"] = maxTruncError
         metadata["Max Normalized Truncated Value (dB)"] = maxTruncValue
-        metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
-        metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+        if rt60 > 0:
+            metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
+            metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+        else:
+            metadata["Measured RT60 (min)"] = 0
+            metadata["Measured RT60 (max)"] = 0
         metadata["Max ISM order"] = maxOrder
         metadata["Energy Absorption"] = eAbsorption
         return ir, metadata
@@ -185,6 +189,8 @@ def calculateTruncationError(RIR, truncLen):
 
 
 def calculateTruncationValue(RIR, truncLen):
+    if len(RIR) <= truncLen:
+        return -np.inf
     maxTruncValue = np.max(np.abs(RIR[truncLen:]))
     maxValue = np.max(np.abs(RIR))
     return 20 * np.log10(maxTruncValue / maxValue)

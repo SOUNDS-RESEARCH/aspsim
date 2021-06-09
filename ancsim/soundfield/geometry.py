@@ -84,9 +84,81 @@ class Cuboid(Region):
         ax.add_patch(rect)
 
 
+class Rectangle(Region):
+    def __init__(self, side_lengths, center=(0, 0, 0), point_spacing=(1,1)):
+        self.side_lengths =  np.array(side_lengths)
+        self.center = np.array(center)
+        self.point_spacing = np.array(point_spacing)
+
+        self.low_lim = self.center[:2] - self.side_lengths / 2
+        self.high_lim = self.center[:2] + self.side_lengths / 2
+        self.area = np.prod(side_lengths)
+        self.rng = np.random.default_rng(1)
+        
+    def is_in_region(self, coordinate):
+        raise NotImplementedError
+
+    def equally_spaced_points(self):
+        num_points = np.floor(self.side_lengths / self.point_spacing)
+        assert min(num_points) >= 1
+
+        single_axes = [np.arange(num_p) * p_dist for num_p, p_dist in zip(num_points, self.point_spacing)]
+        remainders = [s_len - single_ax[-1] for single_ax, s_len in zip(single_axes, self.side_lengths)]
+        single_axes = [single_ax + remainder / 2 for single_ax, remainder in zip(single_axes, remainders)]
+        all_points = np.meshgrid(*single_axes)
+        all_points = np.concatenate([points.flatten()[:, None] for points in all_points], axis=-1)
+        all_points = all_points + self.low_lim
+        all_points = np.concatenate((all_points, np.full((all_points.shape[0],1), self.center[-1])), axis=-1)
+        return all_points
+
+    def sample_points(self, num_points):
+        raise NotImplementedError
+
+    def plot(self, ax, label=None):
+        raise NotImplementedError
+
+
 class Cylinder(Region):
-    def __init__(self):
-        pass
+    def __init__(self, radius, height, center=(0,0,0), point_spacing=(1,1,1)):
+        self.radius = radius
+        self.height = height
+        self.center = np.array(center)
+        self.point_spacing = np.array(point_spacing)
+        #self.num_points_circle = num_points_circle
+        #self.num_points_height = num_points_height
+        self.rng = np.random.default_rng(10)
+        self.volume = self.radius**2 * np.pi * self.height
+
+    def is_in_region(self, coordinate):
+        raise NotImplementedError
+
+    def equally_spaced_points(self):
+        point_dist = self.point_spacing
+        block_dims = np.array([self.radius*2, self.radius*2, self.height])
+        num_points = np.ceil(block_dims / point_dist)
+        single_axes = [np.arange(num_p) * p_dist for num_p, p_dist in zip(num_points, point_dist)]
+        all_points = np.concatenate(np.meshgrid(*single_axes), axis=-1).reshape(-1,3)
+
+        shift = (num_points-1)*point_dist / 2
+        all_points -= shift[None,:]
+
+        inside_cylinder = np.sqrt(np.sum(all_points[:,:2]**2,axis=-1)) <= self.radius
+        all_points = all_points[inside_cylinder,:]
+
+        all_points += self.center[None,:]
+        return all_points
+
+    def sample_points(self, num_points):
+        r = self.radius * np.sqrt(self.rng.uniform(0,1,num_points))
+        angle = 2 * np.pi * self.rng.uniform(0,1,num_points)
+        x = r * np.cos(angle) + self.center[0]
+        y = r * np.sin(angle) + self.center[1]
+        h = self.rng.uniform(-self.height/2,self.height/2, num_points) + self.center[-1]
+        return np.stack((x,y,h), axis=1)
+
+    def plot(self, ax, label=None):
+        circ = patches.Circle(self.center[:2], self.radius, fill=True, alpha=0.3, label=label)
+        ax.add_patch(circ)
 
 
 

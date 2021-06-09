@@ -56,7 +56,7 @@ class KIFxLMS(TDANCProcessor):
             self.c
         )
 
-        kiFilt = fd.firFromFreqsWindow(freqKernelFilter, kiFiltLen)
+        kiFilt,_ = fd.firFromFreqsWindow(freqKernelFilter, kiFiltLen)
 
         reducedSecPath, numSamplesRemoved = reduceIRLength(
             secPathIr,
@@ -205,7 +205,7 @@ class FastBlockKIFxLMS(TDANCProcessor):
             self.samplerate,
             self.c,
         )
-        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        kiFilt,_ = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
         assert kiFilt.shape[-1] <= self.updateBlockSize
 
         secPath = np.concatenate((np.zeros((secPath.shape[0], secPath.shape[1], self.blockSize)), 
@@ -336,7 +336,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
             angle,
             directionWeight
         )
-        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        kiFilt,_ = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
         
 
         reducedSecPath, numSamplesRemoved = reduceIRLength(

@@ -1,36 +1,17 @@
 import numpy as np
 from copy import deepcopy
-from enum import Enum
 from abc import ABC, abstractmethod
 from functools import partial
 import itertools as it
 from operator import attrgetter
 
+import ancsim.array as ar
 import ancsim.utilities as util
 import ancsim.experiment.plotscripts as psc
-from ancsim.signal.filterclasses import (
-    Filter_IntBuffer,
-    FilterSum,
-    FilterMD_IntBuffer,
-)
+import ancsim.signal.filterclasses as fc
 import ancsim.adaptivefilter.diagnosticplots as dplot
 import ancsim.adaptivefilter.diagnosticsummary as dsum
 
-
-# class DIAGNOSTICTYPE(Enum):
-#     perSimBuffer = 1
-#     perSample = 2
-#     perBlock = 3
-
-# class OUTPUTFUNCTION(Enum):
-#     functionoftime = 1
-#     soundfield = 2
-#     savenpz = 3
-
-class SUMMARYFUNCTION(Enum):
-    none = 0
-    lastValue = 1
-    meanNearTimeIdx = 2
 
 class PlotDiagnosticDispatcher:
     def __init__(self, filters, outputFormat):
@@ -235,6 +216,24 @@ class DiagnosticInfo:
             and self.plot_begin == other.plot_begin
             and self.plot_frequency == other.plot_frequency
         )
+
+class SoundfieldPower(ABC):
+    """image_width, center, and num_points are tuples of length 2, 
+        specifying the width, center and number of measurement points 
+        in x and y direction.
+        """
+    def __init__(self, sim_info, arrays, rectangle, reverb=None):
+        self.arrays = ar.ArrayCollection()
+        self.arrays.add_array(ar.RegionArray("measure_points", rectangle))
+        for src in arrays.sources():
+            self.arrays.add_array(deepcopy(src))
+
+        
+
+        #self.propFilt = fc.FilterSum(self.ir)
+
+        if reverb is None:
+            reverb = sim_info.reverb
         
 class DiagnosticOverTime(ABC):
     def __init__(self, sim_info,
@@ -359,8 +358,8 @@ class SignalPowerRatio(SignalDiagnostic):
         
         self.numPower = np.zeros(self.sim_info.tot_samples)
         self.denomPower = np.zeros(self.sim_info.tot_samples)
-        self.numSmoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
-        self.denomSmoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
+        self.numSmoother = fc.Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
+        self.denomSmoother = fc.Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
         self.powerRatio = np.full((self.sim_info.tot_samples), np.nan)
 
         self.plot_data["title"] = "Power Ratio: " + self.numeratorName + " / " + self.denominatorName
@@ -425,7 +424,7 @@ class SignalPower(SignalDiagnostic):
         super().__init__(sim_info, **kwargs)
         self.signal_name = signal_name
         self.signal_power = np.full(self.sim_info.tot_samples, np.nan)
-        self.signal_smoother = Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
+        self.signal_smoother = fc.Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
 
         self.plot_data["title"] = "Signal power"
         self.plot_data["ylabel"] = "Power (dB)"
@@ -453,7 +452,7 @@ class SignalPower(SignalDiagnostic):
 #         super.__init__(smoothing_len, False, plot_begin, plot_frequency)
 #         self.signal_name = signal_name
 #         self.signal_power = np.full(tot_samples, np.nan)
-#         self.signal_smoother = Filter_IntBuffer(ir=np.ones((smoothing_len))/smoothing_len, numIn=1)
+#         self.signal_smoother = fc.Filter_IntBuffer(ir=np.ones((smoothing_len))/smoothing_len, numIn=1)
 
 #         self.plot_data["title"] = "Power"
 #         self.plot_data["ylabel"] = "Power (dB)"
@@ -497,7 +496,7 @@ class SignalPower(SignalDiagnostic):
 #             plot_begin=plot_begin,
 #             plot_frequency=plot_frequency,
 #         )
-#         self.pathFilter = FilterSum(acousticPath)
+#         self.pathFilter = fc.FilterSum(acousticPath)
 
 #         self.totalNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
 #         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
@@ -505,8 +504,8 @@ class SignalPower(SignalDiagnostic):
 #         self.totalNoisePower = np.zeros(tot_samples)
 #         self.primaryNoisePower = np.zeros(tot_samples)
 
-#         self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothing_len)), numIn=1)
-#         self.primaryNoiseSmoother = Filter_IntBuffer(
+#         self.totalNoiseSmoother = fc.Filter_IntBuffer(ir=np.ones((smoothing_len)), numIn=1)
+#         self.primaryNoiseSmoother = fc.Filter_IntBuffer(
 #             ir=np.ones((smoothing_len)), numIn=1
 #         )
 
@@ -609,8 +608,8 @@ class SignalPower(SignalDiagnostic):
 #         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
 #         self.totalNoisePower = np.zeros(tot_samples)
 #         self.primaryNoisePower = np.zeros(tot_samples)
-#         self.totalNoiseSmoother = Filter_IntBuffer(ir=np.ones((smoothing_len)), numIn=1)
-#         self.primaryNoiseSmoother = Filter_IntBuffer(
+#         self.totalNoiseSmoother = fc.Filter_IntBuffer(ir=np.ones((smoothing_len)), numIn=1)
+#         self.primaryNoiseSmoother = fc.Filter_IntBuffer(
 #             ir=np.ones((smoothing_len)), numIn=1
 #         )
 #         self.noiseReduction = np.full((tot_samples), np.nan)
@@ -706,7 +705,7 @@ class SoundfieldImage:
         self.samplesForSF = np.min((2048, self.sim_buffer, self.sim_chunk_size))
         self.totalNoise = np.zeros((numPoints, self.samplesForSF))
         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
-        self.pathFilter = FilterSum(acousticPath)
+        self.pathFilter = fc.FilterSum(acousticPath)
 
     def getOutput(self):
         return self.totalNoise
@@ -758,7 +757,7 @@ class RecordSpectrum:
         self.samplesForSF = np.min((2048, self.sim_buffer, self.sim_chunk_size))
         self.totalNoise = np.zeros((numPoints, self.samplesForSF))
         self.primaryNoise = np.zeros((numPoints, self.sim_chunk_size + self.sim_buffer))
-        self.pathFilter = FilterSum(acousticPath)
+        self.pathFilter = fc.FilterSum(acousticPath)
 
     def getOutput(self):
         return self.totalNoise
@@ -1184,7 +1183,7 @@ class SignalEstimateNMSE:
             "ylabel": "NMSE (dB)",
         }
         # self.errorSmoother = Filter_IntBuffer(ir=np.ones((smoothing_len)))
-        self.true_valuePowerSmoother = Filter_IntBuffer(
+        self.true_valuePowerSmoother = fc.Filter_IntBuffer(
             ir=np.ones((smoothing_len)) / smoothing_len
         )
 
@@ -1385,9 +1384,9 @@ class saveTotalPower:
         )
         self.noisePower = np.zeros(tot_samples)
         if acousticPath is not None:
-            self.pathFilter = FilterSum(acousticPath)
+            self.pathFilter = fc.FilterSum(acousticPath)
         else:
-            self.pathFilter = FilterSum(np.ones((1, 1, 1)))
+            self.pathFilter = fc.FilterSum(np.ones((1, 1, 1)))
 
     def getOutput(self):
         return self.noisePower
@@ -1408,7 +1407,7 @@ class saveTotalPower:
 class RecordAudio:
     def __init__(self, acousticPath, samplerate, maxLength, tot_samples, sim_buffer,
                  sim_chunk_size, plot_begin=0, plot_frequency=1):
-        self.pathFilter = FilterSum(ir=acousticPath)
+        self.pathFilter = fc.FilterSum(ir=acousticPath)
         self.sim_buffer = sim_buffer
         self.sim_chunk_size = sim_chunk_size
         self.chunkIdx = 0

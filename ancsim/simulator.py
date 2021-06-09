@@ -106,6 +106,7 @@ class SimulatorSetup:
         # LOGGING AND DIAGNOSTICS
         sess.saveConfig(folderPath, self.config)
         self.arrays.plot(folderPath, self.config["plot_output"])
+        self.arrays.save_metadata(folderPath)
         return Simulator(sim_info, self.arrays, folderPath)
 
     def setupIR(self):

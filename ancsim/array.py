@@ -1,5 +1,6 @@
 import numpy as np
 import dill
+import json
 from abc import ABC
 import matplotlib.pyplot as plt
 
@@ -25,13 +26,31 @@ class ArrayCollection():
         return arrayName in self.arrays
 
     def save_metadata(self, filepath):
-        metadata = {"array_info" : {},
-                    "path_info" : {}}
-        for arName, ar in self.arrays.items():
-            metadata["array_info"]["type"] = ar.__class__.__name__
+        self._save_metadata_arrays(filepath)
+        self._save_metadata_paths(filepath)
+        self._save_readable_pos(filepath)
         
+    def _save_metadata_arrays(self, filepath):
+        array_info = {}
+        for arName, ar in self.arrays.items():
+            array_info[arName] = ar.metadata
+        with open(filepath.joinpath("metadata_arrays.json"), "w") as f:
+            json.dump(array_info, f, indent=4)
+
+    def _save_metadata_paths(self, filepath):
+        path_info = {}
         for src, mic in self.mic_src_combos():
-            metadata["path_info"][f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
+            path_info[f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
+        with open(filepath.joinpath("metadata_paths.json"), "w") as f:
+            json.dump(path_info, f, indent=4)
+
+    def _save_readable_pos(self, filepath):
+        pos = {}
+        for arName, ar in self.arrays.items():
+            pos[arName] = ar.pos.tolist()
+        with open(filepath.joinpath("array_pos.json"), "w") as f:
+            json.dump(pos, f, indent=4)
+
 
     @staticmethod
     def prototype_equals(prototype, initialized):
@@ -141,11 +160,64 @@ class ArrayCollection():
                 self.path_type[src_name][mic_name] = pt
 
 
+    def setupIR(self, samplerate, c, irLength):
+        """reverbExpeptions is a tuple of tuples, where each inner tuple is
+        formatted as (sourceName, micName, reverb-PARAMETER), where the options
+        for reverb-parameter are the same as for config['reverb']"""
+        print("Computing Room IR...")
+        metadata = {}
+
+        for src, mic in self.mic_src_combos():
+            reverb = self.path_type[src.name][mic.name]
+
+            print(f"{src.name}->{mic.name} has propagation type: {reverb}")
+
+            if reverb == "none": 
+                self.paths[src.name][mic.name] = np.zeros((src.num, mic.num, 1))
+            elif reverb == "identity":
+                self.paths[src.name][mic.name] = np.ones((src.num,mic.num, 1))
+            elif reverb == "isolated":
+                assert src.num == mic.num
+                self.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
+            elif reverb == "random":
+                self.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["max_room_ir_length"]))
+            elif reverb == "ism":
+                if self.config["spatial_dims"] == 3:
+                    self.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
+                                                        src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
+                                                        self.config["max_room_ir_length"], self.config["rt60"], 
+                                                        self.config["samplerate"], self.config["c"],
+                                                        calculateMetadata=True)
+                else:
+                    raise ValueError
+            elif reverb == "freespace":
+                if self.config["spatial_dims"] == 3:
+                    self.paths[src.name][mic.name] = rir.irPointSource3d(
+                    src.pos, mic.pos, self.config["samplerate"], self.config["c"])
+                elif self.config["spatial_dims"] == 2:
+                    self.paths[src.name][mic.name] = rir.irPointSource2d(
+                        src.pos, mic.pos, self.config["samplerate"], self.config["c"]
+                    )
+                else:
+                    raise ValueError
+            elif reverb == "modified":
+                pass
+            else:
+                raise ValueError
+        return metadata
+
+
+
+
     def plot(self, fig_folder, print_method):
         fig, ax = plt.subplots()
         for ar in self.arrays.values():
             ar.plot(ax)
         ax.legend()
+        ax.axis("equal")
+        ax.grid(True)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
         outputPlot(print_method, fig_folder, "array_pos")
 
 
@@ -201,6 +273,11 @@ class Array(ABC):
         assert pos.ndim == 2
         assert pos.shape[1] == 3
 
+        self.metadata = {
+            "type" : self.__class__.__name__,
+            "number" : self.num,
+        }
+
     def set_groups(self, group_idxs):
         """group_idxs is a list of lists or a list of 1D nd.arrays
             Each inner list is the indices of the array elements 
@@ -208,7 +285,6 @@ class Array(ABC):
         self.num_groups = len(group_idxs)
         self.group_idxs = group_idxs
         
-
     def plot(self, ax):
         ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
 
@@ -224,21 +300,25 @@ class RegionArray(MicArray):
             pos = region.equally_spaced_points()
         super().__init__(name, pos)
         self.region = region
+        self.metadata["region shape"] = self.region.__class__.__name__
 
     def plot(self, ax):
         self.region.plot(ax, self.name)
         
-
 class ControllableSourceArray(Array):
-    plot_symbol="o"
     is_source = True
+    plot_symbol="o"
+    def __init__(self, name, pos):
+        super().__init__(name, pos)
         
 class FreeSourceArray(Array):
-    plot_symbol = "s"
     is_source = True
+    plot_symbol = "s"
     def __init__(self, name, pos, source):
         super().__init__(name, pos)
         self.setSource(source)
+
+        self.metadata["source info"] = self.source.metadata
 
     def getSamples(self, numSamples):
         return self.source.getSamples(numSamples)

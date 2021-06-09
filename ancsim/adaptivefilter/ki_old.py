@@ -239,7 +239,7 @@ class FastBlockKIFxLMS(FastBlockFxLMS):
             self.samplerate,
             self.c,
         )
-        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        kiFilt,_ = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
         
 
         assert kiFilt.shape[-1] <= blockSize
@@ -384,7 +384,7 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
             angle,
             directionWeight
         )
-        kiFilt = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
+        kiFilt,_ = fd.firFromFreqsWindow(kiFilt, kiFiltLen)
         
 
         reducedSecPath, numSamplesRemoved = reduceIRLength(

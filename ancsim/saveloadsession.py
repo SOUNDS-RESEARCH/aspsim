@@ -54,7 +54,7 @@ def loadFromPath(sessionPathToLoad, newFolderPath):
 
 def copySimMetadata(fromFolder, toFolder):
     shutil.copy(
-        fromFolder.joinpath("simmetadata.json"), toFolder.joinpath("simmetadata.json")
+        fromFolder.joinpath("metadata_sim.json"), toFolder.joinpath("metadata_sim.json")
     )
 
 

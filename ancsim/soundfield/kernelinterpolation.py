@@ -147,7 +147,7 @@ def soundfieldInterpolationFIR(
     freqFilter = soundfieldInterpolation(
         toPoints, fromPoints, numFreq, regParam, spatialDims, samplerate, c
     )
-    kiFilter = fd.firFromFreqsWindow(freqFilter, irLen)
+    kiFilter,_ = fd.firFromFreqsWindow(freqFilter, irLen)
     return kiFilter
 
 def soundfieldInterpolation(
@@ -204,7 +204,7 @@ class ATFKernelInterpolator():
                             waveNum)
         kiTF = fd.insertNegativeFrequencies(kiTF, even=True)
         
-        kiIR = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
+        kiIR,_ = fd.firFromFreqsWindow(kiTF, self.kiFiltLen)
         kiIR = np.transpose(kiIR, (1,0,2))
         #kiIR = np.pad(kiIR, ((0,0),(0,0),(0,self.kiDly+100)))
         self.kiFilt = fc.createFilter(ir=kiIR)
@@ -251,16 +251,16 @@ class ATFKernelInterpolator():
         return ir_ip
 
 
-def kiFilter(kernelFunc, regParam, toPoints, fromPoints, numFreq, samplerate, c, *args):
-    """ Convenience function for calculating the frequency domain interpolation filter
-    from a set of points to a set of points. Uses any kernel, in contrast to soundfieldInterpolation
-    Returns frequency domain coefficients. Use with filterdesign.firFromFreqsWindow() for FIR filter"""
-    assert numFreq
-    freqs = fd.getFrequencyValues(numFreq, samplerate)#[:, None, None]
-    waveNum = 2 * np.pi * freqs / c
-    ipParams = getKRRParameters(kernelFunc, regParam, toPoints, fromPoints, waveNum, *args)
-    ipParams = fd.insertNegativeFrequencies(ipParams, even=True)
-    return ipParams
+# def kiFilter(kernelFunc, regParam, toPoints, fromPoints, numFreq, samplerate, c, *args):
+#     """ Convenience function for calculating the frequency domain interpolation filter
+#     from a set of points to a set of points. Uses any kernel, in contrast to soundfieldInterpolation
+#     Returns frequency domain coefficients. Use with filterdesign.firFromFreqsWindow() for FIR filter"""
+#     assert numFreq
+#     freqs = fd.getFrequencyValues(numFreq, samplerate)#[:, None, None]
+#     waveNum = 2 * np.pi * freqs / c
+#     ipParams = getKRRParameters(kernelFunc, regParam, toPoints, fromPoints, waveNum, *args)
+#     ipParams = fd.insertNegativeFrequencies(ipParams, even=True)
+#     return ipParams
 
 
 
