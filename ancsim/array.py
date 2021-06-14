@@ -5,6 +5,7 @@ from abc import ABC
 import matplotlib.pyplot as plt
 
 from ancsim.experiment.plotscripts import outputPlot
+import ancsim.soundfield.roomimpulseresponse as rir
 
 class ArrayCollection():
     def __init__(self):
@@ -14,6 +15,8 @@ class ArrayCollection():
         self.names_free_src = []
         self.paths = {}
         self.path_type = {}
+
+        self.path_info = {}
 
     def __getitem__(self, key):
         return self.arrays[key]
@@ -38,11 +41,11 @@ class ArrayCollection():
             json.dump(array_info, f, indent=4)
 
     def _save_metadata_paths(self, filepath):
-        path_info = {}
-        for src, mic in self.mic_src_combos():
-            path_info[f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
+        #path_info = {}
+        #for src, mic in self.mic_src_combos():
+        #    path_info[f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
         with open(filepath.joinpath("metadata_paths.json"), "w") as f:
-            json.dump(path_info, f, indent=4)
+            json.dump(self.path_info, f, indent=4)
 
     def _save_readable_pos(self, filepath):
         pos = {}
@@ -160,16 +163,18 @@ class ArrayCollection():
                 self.path_type[src_name][mic_name] = pt
 
 
-    def setupIR(self, samplerate, c, irLength):
-        """reverbExpeptions is a tuple of tuples, where each inner tuple is
-        formatted as (sourceName, micName, reverb-PARAMETER), where the options
-        for reverb-parameter are the same as for config['reverb']"""
+    def setupIR(self, sim_info):
+        """ """
         print("Computing Room IR...")
         metadata = {}
+        
+        #self.set_default_path_type(sim_info.reverb)
 
         for src, mic in self.mic_src_combos():
             reverb = self.path_type[src.name][mic.name]
 
+            self.path_info[f"{src.name}->{mic.name}"] = {}
+            self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
 
             if reverb == "none": 
@@ -180,23 +185,24 @@ class ArrayCollection():
                 assert src.num == mic.num
                 self.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
             elif reverb == "random":
-                self.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["max_room_ir_length"]))
+                self.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
             elif reverb == "ism":
-                if self.config["spatial_dims"] == 3:
-                    self.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
-                                                        src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
-                                                        self.config["max_room_ir_length"], self.config["rt60"], 
-                                                        self.config["samplerate"], self.config["c"],
+                if sim_info.spatial_dims == 3:
+                    self.paths[src.name][mic.name], ism_info = rir.irRoomImageSource3d(
+                                                        src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
+                                                        sim_info.max_room_ir_length, sim_info.rt60, 
+                                                        sim_info.samplerate, sim_info.c,
                                                         calculateMetadata=True)
+                    self.path_info[f"{src.name}->{mic.name}"]["ism_info"] = ism_info
                 else:
                     raise ValueError
             elif reverb == "freespace":
-                if self.config["spatial_dims"] == 3:
+                if sim_info.spatial_dims == 3:
                     self.paths[src.name][mic.name] = rir.irPointSource3d(
-                    src.pos, mic.pos, self.config["samplerate"], self.config["c"])
-                elif self.config["spatial_dims"] == 2:
+                    src.pos, mic.pos, sim_info.samplerate, sim_info.c)
+                elif sim_info.spatial_dims == 2:
                     self.paths[src.name][mic.name] = rir.irPointSource2d(
-                        src.pos, mic.pos, self.config["samplerate"], self.config["c"]
+                        src.pos, mic.pos, sim_info.samplerate, sim_info.c
                     )
                 else:
                     raise ValueError
@@ -204,7 +210,7 @@ class ArrayCollection():
                 pass
             else:
                 raise ValueError
-        return metadata
+        #return metadata
 
 
 
@@ -271,7 +277,7 @@ class Array(ABC):
         self.num_groups = 1
 
         assert pos.ndim == 2
-        assert pos.shape[1] == 3
+        #assert pos.shape[1] == 3
 
         self.metadata = {
             "type" : self.__class__.__name__,

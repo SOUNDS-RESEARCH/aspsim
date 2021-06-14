@@ -11,7 +11,6 @@ import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.soundfield.presets as preset
-import ancsim.soundfield.roomimpulseresponse as rir
 import ancsim.adaptivefilter.diagnostics as diag
 
 
@@ -85,7 +84,8 @@ class SimulatorSetup:
 
     def createSimulator(self):
         assert not self.arrays.empty()
-        self.arrays.set_default_path_type(self.config["reverb"])
+        sim_info = configutil.SimulatorInfo(self.config)
+        self.arrays.set_default_path_type(sim_info.reverb)
         
         folderPath = self.createFigFolder(self.baseFolderPath)
         print(f"Figure folder: {folderPath}")
@@ -95,13 +95,12 @@ class SimulatorSetup:
                 self.arrays = sess.loadSession(self.sessionFolder, folderPath, self.config, self.arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                irMetadata = self.setupIR()
+                irMetadata = self.arrays.setupIR(sim_info)
                 sess.saveSession(self.sessionFolder, self.config, self.arrays, simMetadata=irMetadata)
-                sess.addToSimMetadata(folderPath, irMetadata)
+                #sess.addToSimMetadata(folderPath, irMetadata)     
         else:
-            self.setupIR()
+            self.arrays.setupIR(sim_info)
 
-        sim_info = configutil.SimulatorInfo(self.config)
 
         # LOGGING AND DIAGNOSTICS
         sess.saveConfig(folderPath, self.config)
@@ -109,56 +108,56 @@ class SimulatorSetup:
         self.arrays.save_metadata(folderPath)
         return Simulator(sim_info, self.arrays, folderPath)
 
-    def setupIR(self):
-        """reverbExpeptions is a tuple of tuples, where each inner tuple is
-        formatted as (sourceName, micName, reverb-PARAMETER), where the options
-        for reverb-parameter are the same as for config['reverb']"""
-        print("Computing Room IR...")
-        metadata = {}
+    # def setupIR(self):
+    #     """reverbExpeptions is a tuple of tuples, where each inner tuple is
+    #     formatted as (sourceName, micName, reverb-PARAMETER), where the options
+    #     for reverb-parameter are the same as for config['reverb']"""
+    #     print("Computing Room IR...")
+    #     metadata = {}
 
-        for src, mic in self.arrays.mic_src_combos():
-            reverb = self.arrays.path_type[src.name][mic.name]
-            #if mic.name in self.arrays.paths[src.name]:
-                #if isinstance(self.arrays.paths[src.name][mic.name], np.ndarray):
-                #    continue
-                #elif isinstance(self.arrays.paths[src.name][mic.name], str):
-                #    reverb = self.arrays.paths[src.name][mic.name]
+    #     for src, mic in self.arrays.mic_src_combos():
+    #         reverb = self.arrays.path_type[src.name][mic.name]
+    #         #if mic.name in self.arrays.paths[src.name]:
+    #             #if isinstance(self.arrays.paths[src.name][mic.name], np.ndarray):
+    #             #    continue
+    #             #elif isinstance(self.arrays.paths[src.name][mic.name], str):
+    #             #    reverb = self.arrays.paths[src.name][mic.name]
 
-            print(f"{src.name}->{mic.name} has propagation type: {reverb}")
+    #         print(f"{src.name}->{mic.name} has propagation type: {reverb}")
 
-            if reverb == "none": 
-                self.arrays.paths[src.name][mic.name] = np.zeros((src.num, mic.num, 1))
-            elif reverb == "identity":
-                self.arrays.paths[src.name][mic.name] = np.ones((src.num,mic.num, 1))
-            elif reverb == "isolated":
-                assert src.num == mic.num
-                self.arrays.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
-            elif reverb == "random":
-                self.arrays.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["max_room_ir_length"]))
-            elif reverb == "ism":
-                if self.config["spatial_dims"] == 3:
-                    self.arrays.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
-                                                        src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
-                                                        self.config["max_room_ir_length"], self.config["rt60"], 
-                                                        self.config["samplerate"], self.config["c"],
-                                                        calculateMetadata=True)
-                else:
-                    raise ValueError
-            elif reverb == "freespace":
-                if self.config["spatial_dims"] == 3:
-                    self.arrays.paths[src.name][mic.name] = rir.irPointSource3d(
-                    src.pos, mic.pos, self.config["samplerate"], self.config["c"])
-                elif self.config["spatial_dims"] == 2:
-                    self.arrays.paths[src.name][mic.name] = rir.irPointSource2d(
-                        src.pos, mic.pos, self.config["samplerate"], self.config["c"]
-                    )
-                else:
-                    raise ValueError
-            elif reverb == "modified":
-                pass
-            else:
-                raise ValueError
-        return metadata
+    #         if reverb == "none": 
+    #             self.arrays.paths[src.name][mic.name] = np.zeros((src.num, mic.num, 1))
+    #         elif reverb == "identity":
+    #             self.arrays.paths[src.name][mic.name] = np.ones((src.num,mic.num, 1))
+    #         elif reverb == "isolated":
+    #             assert src.num == mic.num
+    #             self.arrays.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
+    #         elif reverb == "random":
+    #             self.arrays.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, self.config["max_room_ir_length"]))
+    #         elif reverb == "ism":
+    #             if self.config["spatial_dims"] == 3:
+    #                 self.arrays.paths[src.name][mic.name], metadata[src.name+"->"+mic.name+" ISM"] = rir.irRoomImageSource3d(
+    #                                                     src.pos, mic.pos, self.config["room_size"], self.config["room_center"], 
+    #                                                     self.config["max_room_ir_length"], self.config["rt60"], 
+    #                                                     self.config["samplerate"], self.config["c"],
+    #                                                     calculateMetadata=True)
+    #             else:
+    #                 raise ValueError
+    #         elif reverb == "freespace":
+    #             if self.config["spatial_dims"] == 3:
+    #                 self.arrays.paths[src.name][mic.name] = rir.irPointSource3d(
+    #                 src.pos, mic.pos, self.config["samplerate"], self.config["c"])
+    #             elif self.config["spatial_dims"] == 2:
+    #                 self.arrays.paths[src.name][mic.name] = rir.irPointSource2d(
+    #                     src.pos, mic.pos, self.config["samplerate"], self.config["c"]
+    #                 )
+    #             else:
+    #                 raise ValueError
+    #         elif reverb == "modified":
+    #             pass
+    #         else:
+    #             raise ValueError
+    #     return metadata
 
     def createFigFolder(self, folderForPlots, generateSubFolder=True, safeNaming=False):
         if self.config["plot_output"] != "none":

@@ -16,8 +16,8 @@ import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.adaptivefilter.base import ActiveNoiseControlProcessor
 
 class TDANCProcessor(ActiveNoiseControlProcessor):
-    def __init__(self, sim_info, arrays, blockSize, updateBlockSize, controlFiltLen):
-        super().__init__(sim_info, arrays, blockSize, updateBlockSize)
+    def __init__(self, sim_info, arrays, blockSize, updateBlockSize, controlFiltLen, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, updateBlockSize, **kwargs)
         self.filtLen = controlFiltLen
         #self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numRef, numOut=self.numSpeaker)
         self.controlFilter = FilterSum(np.zeros((self.numRef, self.numSpeaker, self.filtLen)))
@@ -34,8 +34,8 @@ class TDANCProcessor(ActiveNoiseControlProcessor):
 
 class BlockFxLMS(TDANCProcessor):
     """Fully block based operation. Is equivalent to FastBlockFxLMS"""
-    def __init__(self, config, arrays, blockSize, updateBlockSize, controlFiltLen, mu, beta, secPath):
-        super().__init__(config, arrays, blockSize, updateBlockSize, controlFiltLen)
+    def __init__(self, config, arrays, blockSize, updateBlockSize, controlFiltLen, mu, beta, secPath, **kwargs):
+        super().__init__(config, arrays, blockSize, updateBlockSize, controlFiltLen, **kwargs)
         self.name = "Block FxLMS"
         self.mu = mu
         self.beta = beta
@@ -84,8 +84,8 @@ class BlockFxLMS(TDANCProcessor):
 class FastBlockFxLMS(TDANCProcessor):
     """Fully block based operation using overlap save and FFT. 
         updateBlockSize is equal to the control filter length"""
-    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, secPath):
-        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen)
+    def __init__(self, config, arrays, blockSize, controlFiltLen, mu, beta, secPath, **kwargs):
+        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen, **kwargs)
         self.name = "Fast Block FxLMS"
         self.mu = mu
         self.beta = beta

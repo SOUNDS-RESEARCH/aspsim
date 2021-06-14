@@ -9,8 +9,8 @@ import ancsim.utilities as util
 
 def tfPointSource2d(fromPos, toPos, freq, c):
     assert (fromPos.shape[1] == 2) and (toPos.shape[1] == 2)
-    dist = distfuncs.cdist(fromPos, toPos)
-    k = 2 * np.pi * freq / c
+    dist = distfuncs.cdist(fromPos, toPos)[None, :, :]
+    k = 2 * np.pi * freq[:, None, None] / c
 
     tf = (1j / 4) * special.hankel2(0, k * dist)
     return np.transpose(tf, (0, 2, 1))

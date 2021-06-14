@@ -115,7 +115,8 @@ class Rectangle(Region):
         raise NotImplementedError
 
     def plot(self, ax, label=None):
-        raise NotImplementedError
+        rect = patches.Rectangle(self.low_lim, self.side_lengths[0], self.side_lengths[1], fill=True, alpha=0.3, label=label)
+        ax.add_patch(rect)
 
 
 class Cylinder(Region):
@@ -159,8 +160,6 @@ class Cylinder(Region):
     def plot(self, ax, label=None):
         circ = patches.Circle(self.center[:2], self.radius, fill=True, alpha=0.3, label=label)
         ax.add_patch(circ)
-
-
 
 
 

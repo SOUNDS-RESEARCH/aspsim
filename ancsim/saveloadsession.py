@@ -41,7 +41,7 @@ def loadSession(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
     # pos = loadPositions(sessionToLoad)
     # srcFilt = loadSourceFilters(sessionToLoad)
     # spkFilt = loadSpeakerFilters(sessionToLoad)
-    copySimMetadata(sessionToLoad, newFolderPath)
+    #copySimMetadata(sessionToLoad, newFolderPath)
     return loadedArrays
     
 def loadFromPath(sessionPathToLoad, newFolderPath):

@@ -35,9 +35,9 @@ class KIFxLMS(TDANCProcessor):
     normalization options is 'xf', 'xfApprox', and 'kixf'"""
     def __init__(self, config, arrays, blockSize, updateBlockSize, controlFiltLen, 
                     mu, beta, secPath, errorPos, kiFiltLen, kernelReg, targetRegion, 
-                    mcNumPoints, normalization="xf", delayRemovalTolerance=0):
+                    mcNumPoints, normalization="xf", delayRemovalTolerance=0, **kwargs):
 
-        super().__init__(config, arrays, blockSize, updateBlockSize, controlFiltLen)
+        super().__init__(config, arrays, blockSize, updateBlockSize, controlFiltLen, **kwargs)
         self.name = "KI-FxLMS"
         self.mu = mu
         self.beta = beta
@@ -185,8 +185,9 @@ class FastBlockKIFxLMS(TDANCProcessor):
         roi,
         mcNumPoints=100,
         delayRemovalTolerance=0,
+        **kwargs,
     ):
-        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen)
+        super().__init__(config, arrays, blockSize, controlFiltLen, controlFiltLen, **kwargs)
         self.mu = mu
         self.beta = beta
         self.name = "Fast Block KI-FxLMS"
@@ -319,8 +320,9 @@ class FastBlockDKIFxLMS(FastBlockFxLMS):
         roi,
         mcNumPoints,
         delayRemovalTolerance=0,
+        **kwargs, 
     ):
-        super().__init__(config, mu, beta, speakerRIR, blockSize)
+        super().__init__(config, mu, beta, speakerRIR, blockSize, **kwargs)
         self.name = "Fast Block Directional KIFxLMS"
         assert kiFiltLen % 1 == 0
         assert kiFiltLen <= blockSize

@@ -94,7 +94,7 @@ class ProcessorWrapper():
         
 
 class AudioProcessor(ABC):
-    def __init__(self, sim_info, arrays, blockSize):
+    def __init__(self, sim_info, arrays, blockSize, diagnostics={}):
         self.sim_info = sim_info
         self.blockSize = blockSize
 
@@ -106,6 +106,9 @@ class AudioProcessor(ABC):
         self.idx = 0
 
         self.sig = {}
+        
+        for diagName, diag in diagnostics.items():
+            self.diag.addNewDiagnostic(diagName, diag)
 
     def prepare(self):
         self.diag.prepare()
@@ -144,8 +147,8 @@ class AudioProcessor(ABC):
 
 
 class SubbandProcessor(AudioProcessor):
-    def __init__(self, sim_info, arrays, blockSize, numBands, samplingFactor):
-        super().__init__(sim_info, arrays, blockSize)
+    def __init__(self, sim_info, arrays, blockSize, numBands, samplingFactor, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.numBands = numBands
         self.samplingFactor = samplingFactor
 
@@ -155,8 +158,8 @@ class SubbandProcessor(AudioProcessor):
 
 
 class VolumeControl(AudioProcessor):
-    def __init__(self, config, arrays, blockSize, volumeFactor):
-        super().__init__(config, arrays, blockSize)
+    def __init__(self, config, arrays, blockSize, volumeFactor, **kwargs):
+        super().__init__(config, arrays, blockSize, **kwargs)
         self.name = "Volume Control"
         self.volumeFactor = volumeFactor
 
@@ -172,8 +175,8 @@ class VolumeControl(AudioProcessor):
 
 
 class ActiveNoiseControlProcessor(AudioProcessor):
-    def __init__(self, sim_info, arrays, blockSize, updateBlockSize):
-        super().__init__(sim_info, arrays, blockSize)
+    def __init__(self, sim_info, arrays, blockSize, updateBlockSize, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.updateBlockSize = updateBlockSize
         self.numRef = self.arrays["ref"].num
         self.numError = self.arrays["error"].num

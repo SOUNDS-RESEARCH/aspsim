@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.saveloadsession as sess
-from ancsim.experiment.plotscripts import outputPlot
+import ancsim.experiment.plotscripts as ps
 import ancsim.soundfield.roomimpulseresponse as rir
-from ancsim.simulatorsetup import setupSource
+#from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
 from ancsim.signal.filterclasses import FilterSum
 import ancsim.utilities as util
+import ancsim.array as ar
 
 
 def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
@@ -74,7 +75,7 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, numPixels, normalize=True
         ax.set_title(algoNames[i])
         ax.set_xlim(pointsToSim[:, 0].min(), pointsToSim[:, 0].max())
         ax.set_ylim(pointsToSim[:, 1].min(), pointsToSim[:, 1].max())
-    outputPlot("tikz", singleRunFolder, "soundfield")
+    ps.outputPlot("tikz", singleRunFolder, "soundfield")
 
 
 def soundSim(
@@ -206,6 +207,8 @@ def loadSession(singleRunFolder, sessionFolder, numPixels):
 
 
 def sortIntoGrid(pos, signals_to_sort, round_to_digits=4):
+    """use other sort function, as this requires square grid. 
+        This also differs in that it does not flip the y axis"""
     numPos = pos.shape[0]
     numEachSide = int(np.sqrt(numPos))
     assert numEachSide**2 == numPos
@@ -223,3 +226,99 @@ def sortIntoGrid(pos, signals_to_sort, round_to_digits=4):
     pos = pos[sortIndices,:]
     return pos, signals_to_sort
         
+
+
+
+
+
+
+
+
+
+
+def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}, ):
+    """single pos array of shape (numPoints, spatialDim)
+        sig and labels are lists of the same length, numAlgos
+        each entry in sig is an array of shape (numAxes, numPoints), 
+        so for example multiple frequencies can be plotted at the same time.
+        
+        The resulting plot is multiple axes, numAlgos rows high, and numAxes columns wide"""
+    #num_rows, num_cols = sfp.get_num_pixels(pos)
+    pos, sig = sort_for_imshow(pos, sig)
+    if sig.ndim == 2:
+        sig = sig[None,...]
+    if sig.ndim == 3:
+        sig = sig[None,...]
+
+    numAlgos = sig.shape[0]
+    numEachAlgo = sig.shape[1]
+
+    fig, axes = plt.subplots(numAlgos, numEachAlgo, figsize=(30, 7))
+    fig.tight_layout(pad=2.5)
+
+    for i, rows in enumerate(np.atleast_2d(axes)):
+        for j, ax in enumerate(rows):
+            sf_plot(ax, pos, sig[i,j,:,:], f"{algo_labels[i]}, {row_labels[j]}", arrays_to_plot)
+    
+    
+def sf_plot(ax, pos, sig, title="", arrays_to_plot = {}):
+    """takes a single ax, pos and sig and creates a decent looking soundfield plot
+        Assumes that pos and sig are already correctly sorted"""
+
+    ax.imshow(sig, interpolation="none", extent=(pos[...,0].min(), pos[...,0].max(), pos[...,1].min(), pos[...,1].max()))
+    
+    if isinstance(arrays_to_plot, ar.ArrayCollection):
+        for array in arrays_to_plot:
+            array.plot(ax)
+    elif isinstance(arrays_to_plot, dict):
+        for arName, array in arrays_to_plot.items():
+            ax.plot(array[:,0], array[:,1], "x", label=arName)
+    else:
+        raise ValueError
+
+    ax.legend()
+    ax.set_title(title)
+    ps.setBasicPlotLook(ax)
+    ax.axis("equal")
+    #plt.colorbar(ax=ax)
+
+def get_num_pixels(pos, pos_decimals=5):
+    pos_cols = np.unique(pos[:,0].round(pos_decimals))
+    pos_rows = np.unique(pos[:,1].round(pos_decimals))
+    num_rows = len(pos_rows)
+    num_cols = len(pos_cols)
+    return num_rows, num_cols
+
+
+def sort_for_imshow(pos, sig, pos_decimals=5):
+    """ pos must be of shape (numPos, spatialDims) placed on a rectangular grid, 
+        but can be in any order.
+        sig can be a single signal or a list of signals of shape (numPos, signalDim), where each
+        entry on first axis is the value for pos[0,:] """
+    if pos.shape[1] == 3:
+        assert np.allclose(pos[:,2], np.ones_like(pos[:,2])*pos[0,2])
+
+    num_rows, num_cols = get_num_pixels(pos, pos_decimals)
+    unique_x = np.unique(pos[:,0].round(pos_decimals))
+    unique_y = np.unique(pos[:,1].round(pos_decimals))
+
+    sortIndices = np.zeros((num_rows, num_cols), dtype=int)
+    for i, y in enumerate(unique_y):
+        rowIndices = np.where(np.abs(pos[:,1] - y) < 10**(-pos_decimals))[0]
+        rowPermutation = np.argsort(pos[rowIndices,0])
+        sortIndices[i,:] = rowIndices[rowPermutation]
+
+    pos = pos[sortIndices,:]
+
+    sig = np.moveaxis(np.atleast_3d(sig),1,2)
+    dims = sig.shape[:2]
+    sig_sorted = np.zeros((dims[0], dims[1], num_rows, num_cols))
+    for i in range(dims[0]):
+        for j in range(dims[1]):
+            single_sig = sig[i,j,:]
+            sig_sorted[i,j,:,:] = np.flip(single_sig[sortIndices],axis=0)
+    sig_sorted = np.squeeze(sig_sorted)
+    
+    #sig = [np.flip(s[sortIndices],axis=0) for s in sig]
+    
+    return pos, sig_sorted

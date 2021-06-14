@@ -15,8 +15,8 @@ import ancsim.soundfield.roomimpulseresponse as rir
 
 
 def kernelHelmholtz2d(points1, points2, waveNum):
-    """points1 is shape (numPoints1, 3)
-        points2 is shape (numPoints2, 3)
+    """points1 is shape (numPoints1, 2)
+        points2 is shape (numPoints2, 2)
         waveNum is shape (numFreqs)
 
         returns shape (numFreqs, numPoints1, numPoints2)

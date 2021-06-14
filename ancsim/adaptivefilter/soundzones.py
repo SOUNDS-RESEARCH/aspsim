@@ -15,8 +15,8 @@ import ancsim.integration.montecarlo as mc
 
 
 class SoundzoneFIR(base.AudioProcessor):
-    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen):
-        super().__init__(sim_info, arrays, blockSize)
+    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.name = "Abstract Soundzone Processor"
         self.src = src
         self.ctrlFiltLen = ctrlFiltLen
@@ -76,8 +76,8 @@ class SoundzoneFIR(base.AudioProcessor):
 
 
 class PressureMatchingWhiteNoise(SoundzoneFIR):
-    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen):
-        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen)
+    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs)
         self.name = "Pressure Matching White Noise"
         self.controlFilter = fc.createFilter(ir=self.calcControlFilter())
 
@@ -125,8 +125,8 @@ class PressureMatchingWhiteNoise(SoundzoneFIR):
 
 
 class PressureMatching(SoundzoneFIR):
-    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, corrAverageLen):
-        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen)
+    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, corrAverageLen, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs)
         self.name = "Pressure Matching"
         self.corrAverageLen = corrAverageLen
         
@@ -233,8 +233,8 @@ class PressureMatching(SoundzoneFIR):
 
 
 class VAST(SoundzoneFIR):
-    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, corrAverageLen, rank, mu, regRd):
-        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen)
+    def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, corrAverageLen, rank, mu, regRd, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs)
         self.name = "VAST"
         self.corrAverageLen = corrAverageLen
         self.rank = rank
@@ -316,8 +316,8 @@ class VAST(SoundzoneFIR):
 class KIVAST(SoundzoneFIR):
     def __init__(self, sim_info, arrays, blockSize, 
                 src, ctrlFiltLen, corrAverageLen, rank, mu, regRd,
-                brightRegion, darkRegion, kernelReg, kiFiltLen, integrationSamples):
-        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen)
+                brightRegion, darkRegion, kernelReg, kiFiltLen, integrationSamples, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs)
         self.name = "KI-VAST"
         self.corrAverageLen = corrAverageLen
         self.rank = rank
@@ -563,8 +563,8 @@ class KIVAST(SoundzoneFIR):
 
 class KI_like_VAST(SoundzoneFIR):
     def __init__(self, sim_info, arrays, blockSize, 
-                src, ctrlFiltLen, corrAverageLen, rank, mu, regRd):
-        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen)
+                src, ctrlFiltLen, corrAverageLen, rank, mu, regRd, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs)
         self.name = "KI-like-VAST"
         self.corrAverageLen = corrAverageLen
         self.rank = rank
