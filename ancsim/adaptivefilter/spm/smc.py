@@ -7,7 +7,7 @@ from ancsim.signal.adaptivefilter import NLMS, FastBlockNLMS
 from ancsim.signal.adaptivefilter import RLS
 from ancsim.signal.filterclasses import FilterSum, FilterMD_IntBuffer, FilterMD_Freqdomain
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
 from ancsim.utilities import measure
 
 
@@ -31,7 +31,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
         #self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf),dataDims=self.numRef)
         # self.diag.addNewDiagnostic(
         #     "filtered_reference_est",
-        #     dia.SignalEstimateNMSEBlock(
+        #     diacore.SignalEstimateNMSEBlock(
         #         self.sim_info.tot_samples,
         #         self.sim_info.sim_buffer,
         #         self.simChunkSize,
@@ -42,7 +42,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
                 self.sim_info.tot_samples,
                 self.sim_info.sim_buffer,
@@ -53,7 +53,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath_select_freq",
-            dia.ConstantEstimateNMSESelectedFrequencies(
+            diacore.ConstantEstimateNMSESelectedFrequencies(
                 self.secPathEstimate.tf,
                 100,
                 500,
@@ -67,7 +67,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath_phase_select_freq",
-            dia.ConstantEstimatePhaseDifferenceSelectedFrequencies(
+            diacore.ConstantEstimatePhaseDifferenceSelectedFrequencies(
                 self.secPathEstimate.tf,
                 100,
                 500,
@@ -81,7 +81,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath_phase_weighted_select_freq",
-            dia.ConstantEstimateWeightedPhaseDifference(
+            diacore.ConstantEstimateWeightedPhaseDifference(
                 self.secPathEstimate.tf,
                 100,
                 500,
@@ -95,7 +95,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "recorded_ir",
-            dia.RecordIR(
+            diacore.RecordIR(
                 np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
                 self.sim_info.tot_samples, 
                 self.sim_info.sim_buffer, 
@@ -107,7 +107,7 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         # self.diag.addNewDiagnostic(
         #     "secpath_combinations",
-        #     dia.ConstantEstimateNMSEAllCombinations(
+        #     diacore.ConstantEstimateNMSEAllCombinations(
         #         self.secPathEstimate.tf,
         #         self.sim_info.tot_samples,
         #         self.sim_info.sim_buffer,
@@ -120,17 +120,17 @@ class FastBlockFxLMSSMC(FastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
+            diacore.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                      plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "primary_error",
-            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
+            diacore.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
         self.diag.addNewDiagnostic(
             "secondary_error",
-            dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
+            diacore.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
 
@@ -223,7 +223,7 @@ class FxLMSSMC(AdaptiveFilterFF):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 speakerFilters["error"],
                 self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
@@ -231,7 +231,7 @@ class FxLMSSMC(AdaptiveFilterFF):
         )
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
+            diacore.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
         )
 
     def resetBuffers(self):
@@ -341,7 +341,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 speakerFilters["error"],
                 self.sim_info.tot_samples,
                 plotFrequency=self.plotFrequency,
@@ -349,7 +349,7 @@ class FxLMSSMC_RLS(AdaptiveFilterFF):
         )
         self.diag.addNewDiagnostic(
             "modelling_error",
-            dia.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
+            diacore.SignalEstimateNMSE(self.sim_info.tot_samples, plotFrequency=self.plotFrequency),
         )
 
     def resetBuffers(self):

@@ -13,7 +13,7 @@ from ancsim.signal.sources import WhiteNoiseSource, GoldSequenceSource
 from ancsim.signal.adaptivefilter import NLMS, NLMS_FREQ, FastBlockNLMS
 from ancsim.soundfield.kernelinterpolation import soundfieldInterpolation
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
 import ancsim.utilities as util
 
 # import matplotlib.pyplot as plt
@@ -51,7 +51,7 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
@@ -235,7 +235,7 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
@@ -357,13 +357,13 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
         self.diag.addNewDiagnostic(
             "secpathselectedfrequencies",
-            dia.ConstantEstimateNMSESelectedFrequencies(
+            diacore.ConstantEstimateNMSESelectedFrequencies(
                 self.G,
                 lowFreqLim,
                 highFreqLim,

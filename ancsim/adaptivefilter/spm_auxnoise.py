@@ -22,7 +22,7 @@ from ancsim.signal.adaptivefilter import (
     BlockNLMS,
 )
 import ancsim.signal.freqdomainfiltering as fdf
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
 import ancsim.utilities as util
 import ancsim.soundfield.kernelinterpolation as ki
 
@@ -45,7 +45,7 @@ class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
 
         true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)))
         true_secpath = fdf.fftWithTranspose(true_secpath, n=2*self.filtLen)
-        self.diag.addNewDiagnostic("secpath_estimate", dia.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
+        self.diag.addNewDiagnostic("secpath_estimate", diacore.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
 
         self.metadata["mu"] = self.mu
         self.metadata["beta"] = self.beta

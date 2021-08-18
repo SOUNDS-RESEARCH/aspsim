@@ -29,7 +29,7 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
         self.diag.addNewDiagnostic(
             "secpath",
-            dia.ConstantEstimateNMSE(
+            diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )

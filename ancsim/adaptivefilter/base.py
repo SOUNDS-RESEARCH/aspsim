@@ -11,7 +11,8 @@ from ancsim.signal.filterclasses import (
     FilterMD_Freqdomain
 )
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
+import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
 
 
@@ -100,7 +101,7 @@ class AudioProcessor(ABC):
 
         self.name = "Abstract Processor"
         self.arrays = arrays
-        self.diag = dia.DiagnosticHandler(self.sim_info, self.blockSize)
+        self.diag = diacore.DiagnosticHandler(self.sim_info, self.blockSize)
         self.rng = np.random.default_rng(1)
         self.metadata = {"block size" : self.blockSize}
         self.idx = 0

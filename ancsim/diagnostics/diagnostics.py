@@ -11,6 +11,7 @@ import ancsim.experiment.plotscripts as psc
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum
+import ancsim.diagnostics.core as diacore
 
 
 class SoundfieldPower():
@@ -79,7 +80,7 @@ class SoundfieldPower():
     def getOutput(self):
         return self.soundfield
 
-class SignalPowerRatio(SignalDiagnostic):
+class SignalPowerRatio(diacore.SignalDiagnostic):
     def __init__(
         self,
         sim_info, 
@@ -128,7 +129,7 @@ class SignalPowerRatio(SignalDiagnostic):
         else:
             return self.powerRatio
 
-class StateNMSE(StateDiagnostic):
+class StateNMSE(diacore.StateDiagnostic):
     def __init__(self,
                 sim_info, 
                 property_name,
@@ -151,7 +152,7 @@ class StateNMSE(StateDiagnostic):
         return self.nmse
 
 
-class SignalPower(SignalDiagnostic):
+class SignalPower(diacore.SignalDiagnostic):
     def __init__(self, 
                 sim_info, 
                 signal_name,
@@ -571,7 +572,7 @@ class RecordIR():
 
 
 
-class ConstantEstimateNMSE(PerBlockDiagnostic):
+class ConstantEstimateNMSE(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -602,7 +603,7 @@ class ConstantEstimateNMSE(PerBlockDiagnostic):
             np.sum(np.abs(self.true_value - currentEstimate) ** 2) / self.true_valuePower
         )
 
-class ConstantEstimateNMSEAllCombinations(PerBlockDiagnostic):
+class ConstantEstimateNMSEAllCombinations(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -646,7 +647,7 @@ class ConstantEstimateNMSEAllCombinations(PerBlockDiagnostic):
                 np.sum(np.abs(self.true_value - crntEst[:,:,ax2]) ** 2) / self.true_valuePower
             )
 
-class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
+class ConstantEstimateNMSESelectedFrequencies(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -694,7 +695,7 @@ class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
 
 
 
-class ConstantEstimatePhaseDifferenceSelectedFrequencies(PerBlockDiagnostic):
+class ConstantEstimatePhaseDifferenceSelectedFrequencies(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -737,7 +738,7 @@ class ConstantEstimatePhaseDifferenceSelectedFrequencies(PerBlockDiagnostic):
 
 
 
-class ConstantEstimateWeightedPhaseDifference(PerBlockDiagnostic):
+class ConstantEstimateWeightedPhaseDifference(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -782,7 +783,7 @@ class ConstantEstimateWeightedPhaseDifference(PerBlockDiagnostic):
         self.dataBuffer[totIdx] = np.mean(np.sum(self.weight * phaseDiff,axis=0))
         #self.dataBuffer[1, totIdx] = np.max(phaseDiff)
 
-class ConstantEstimateAmpDifference(PerBlockDiagnostic):
+class ConstantEstimateAmpDifference(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -816,7 +817,7 @@ class ConstantEstimateAmpDifference(PerBlockDiagnostic):
         )
 
 
-class ConstantEstimatePhaseDifference(PerBlockDiagnostic):
+class ConstantEstimatePhaseDifference(diacore.PerBlockDiagnostic):
     def __init__(
         self,
         true_value,

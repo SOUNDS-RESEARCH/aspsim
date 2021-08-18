@@ -7,7 +7,8 @@ from ancsim.signal.filterclasses import (
     FilterSum_Freqdomain,
     FilterMD_Freqdomain
 )
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
+import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
 from  ancsim.adaptivefilter.base import AudioProcessor
 
