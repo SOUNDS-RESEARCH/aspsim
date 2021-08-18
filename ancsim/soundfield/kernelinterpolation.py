@@ -22,7 +22,7 @@ def kernelHelmholtz2d(points1, points2, waveNum):
         returns shape (numFreqs, numPoints1, numPoints2)
     """
     distMat = distfuncs.cdist(points1, points2)
-    return special.jn(0, distMat[None,:,:] * waveNum[:,None,None])
+    return special.j0(distMat[None,:,:] * waveNum[:,None,None])
 
 def kernelHelmholtz3d(points1, points2, waveNum):
     """points1 is shape (numPoints1, 3)

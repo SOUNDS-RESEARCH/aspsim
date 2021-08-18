@@ -236,7 +236,7 @@ def sortIntoGrid(pos, signals_to_sort, round_to_digits=4):
 
 
 
-def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}, ):
+def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}):
     """single pos array of shape (numPoints, spatialDim)
         sig and labels are lists of the same length, numAlgos
         each entry in sig is an array of shape (numAxes, numPoints), 
@@ -252,25 +252,44 @@ def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}, ):
 
     numAlgos = sig.shape[0]
     numEachAlgo = sig.shape[1]
+    extent = size_of_2d_plot([pos] + list(arrays_to_plot.values()))
+    extent /= np.max(extent)
+    scaling = 5
 
-    fig, axes = plt.subplots(numAlgos, numEachAlgo, figsize=(30, 7))
+    fig, axes = plt.subplots(numAlgos, numEachAlgo, figsize=(numEachAlgo*extent[0]*scaling, numAlgos*extent[1]*scaling))
     fig.tight_layout(pad=2.5)
+
+    
+
 
     for i, rows in enumerate(np.atleast_2d(axes)):
         for j, ax in enumerate(rows):
             sf_plot(ax, pos, sig[i,j,:,:], f"{algo_labels[i]}, {row_labels[j]}", arrays_to_plot)
     
-    
+
+def size_of_2d_plot(array_pos):
+    """array_pos is a list/tuple of ndarrays of shape(any, spatialDim)
+        describing the positions of all objects to be plotted. First axis 
+        can be any value for the arrays, second axis must be 2 or more. Only
+        the first two are considered. 
+        
+        returns np.array([x_size, y_size])"""
+    array_pos = [ap[...,:2].reshape(-1,2) for ap in array_pos]
+    all_pos = np.concatenate(array_pos, axis=0)
+    extent = np.max(all_pos, axis=0) - np.min(all_pos, axis=0)  
+    return extent[:2]
+        
+
 def sf_plot(ax, pos, sig, title="", arrays_to_plot = {}):
     """takes a single ax, pos and sig and creates a decent looking soundfield plot
         Assumes that pos and sig are already correctly sorted"""
 
-    ax.imshow(sig, interpolation="none", extent=(pos[...,0].min(), pos[...,0].max(), pos[...,1].min(), pos[...,1].max()))
+    im = ax.imshow(sig, interpolation="none", extent=(pos[...,0].min(), pos[...,0].max(), pos[...,1].min(), pos[...,1].max()))
     
-    if isinstance(arrays_to_plot, ar.ArrayCollection):
-        for array in arrays_to_plot:
-            array.plot(ax)
-    elif isinstance(arrays_to_plot, dict):
+    # if isinstance(arrays_to_plot, ar.ArrayCollection):
+    #     for array in arrays_to_plot:
+    #         array.plot(ax)
+    if isinstance(arrays_to_plot, dict):
         for arName, array in arrays_to_plot.items():
             ax.plot(array[:,0], array[:,1], "x", label=arName)
     else:
@@ -280,6 +299,7 @@ def sf_plot(ax, pos, sig, title="", arrays_to_plot = {}):
     ax.set_title(title)
     ps.setBasicPlotLook(ax)
     ax.axis("equal")
+    plt.colorbar(im, ax=ax, orientation='vertical')
     #plt.colorbar(ax=ax)
 
 def get_num_pixels(pos, pos_decimals=5):

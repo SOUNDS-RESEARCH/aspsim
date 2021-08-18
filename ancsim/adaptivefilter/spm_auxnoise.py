@@ -22,7 +22,7 @@ from ancsim.signal.adaptivefilter import (
     BlockNLMS,
 )
 import ancsim.signal.freqdomainfiltering as fdf
-import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.diagnostics.core as dia
 import ancsim.utilities as util
 import ancsim.soundfield.kernelinterpolation as ki
 

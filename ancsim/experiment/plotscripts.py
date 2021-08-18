@@ -72,7 +72,8 @@ def outputPlot(printMethod, folder="", name="", keepOnlyLatestTikz=True):
             papertype=None,
             format="pdf",
             transparent=False,
-            bbox_inches=None,
+            #bbox_inches=None,
+            bbox_inches="tight",
             pad_inches=0.2,
         )
     elif printMethod == "none":

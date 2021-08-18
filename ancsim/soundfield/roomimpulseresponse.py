@@ -11,7 +11,6 @@ def tfPointSource2d(fromPos, toPos, freq, c):
     assert (fromPos.shape[1] == 2) and (toPos.shape[1] == 2)
     dist = distfuncs.cdist(fromPos, toPos)[None, :, :]
     k = 2 * np.pi * freq[:, None, None] / c
-
     tf = (1j / 4) * special.hankel2(0, k * dist)
     return np.transpose(tf, (0, 2, 1))
 
@@ -19,9 +18,9 @@ def tfPointSource2d(fromPos, toPos, freq, c):
 def tfPointSource3d(fromPos, toPos, freqs, c):
     assert (fromPos.shape[1] == 3) and (toPos.shape[1] == 3)
     dist = distfuncs.cdist(fromPos, toPos)[None, :, :]
-    k = freqs[:, None, None] * 2 * np.pi / c
+    k = 2 * np.pi * freqs[:, None, None] / c
     tf = np.exp(-1j * dist * k) / (4 * np.pi * dist)
-    return tf
+    return np.moveaxis(tf,1,2)
 
 
 def irPointSource3d(fromPos, toPos, samplerate, c, maxOrder=25):

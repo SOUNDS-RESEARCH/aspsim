@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.soundfield.roomimpulseresponse as rir
+import ancsim.soundfield.geometry as geo
 
 class ArrayCollection():
     def __init__(self):
@@ -268,20 +269,27 @@ class Array(ABC):
     def __init__(self, name, pos):
         self.name = name
 
-        if not isinstance(pos, np.ndarray):
-            pos = np.array(pos)
-        self.pos = pos
-        self.num = pos.shape[0]
+        if isinstance(pos, (list, tuple)):
+            assert all([isinstance(p, np.ndarray) for p in pos])
+            num_in_group = np.cumsum([0] + [p.shape[0] for p in pos])
+            self.group_idxs = [np.arange(num_in_group[i], num_in_group[i+1]) for i in range(len(num_in_group)-1)]
+            self.num_groups = len(pos)
+            self.pos = np.concatenate(pos, axis=0)
+            self.pos_segments = pos
+        else:
+            assert isinstance(pos, np.ndarray)
+            self.group_idxs = None
+            self.num_groups = 1
+            self.pos = pos
+            self.pos_segments = [pos]
 
-        self.group_idxs = None
-        self.num_groups = 1
-
-        assert pos.ndim == 2
-        #assert pos.shape[1] == 3
+        self.num = self.pos.shape[0]
+        assert self.pos.ndim == 2
 
         self.metadata = {
             "type" : self.__class__.__name__,
             "number" : self.num,
+            "number of groups" : self.num_groups,
         }
 
     def set_groups(self, group_idxs):
@@ -290,6 +298,7 @@ class Array(ABC):
             belonging to one group."""
         self.num_groups = len(group_idxs)
         self.group_idxs = group_idxs
+
         
     def plot(self, ax):
         ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
@@ -302,8 +311,18 @@ class MicArray(Array):
 
 class RegionArray(MicArray):
     def __init__(self, name, region, pos=None):
+        if isinstance(region, (list, tuple)):
+            if len(region) > 1:
+                self.region_segments = region
+                region = geo.CombinedRegion(region)
+            else:
+                self.region_segments = region
+                region = region[0]
+        else:
+            self.region_segments = [region]
+
         if pos is None:
-            pos = region.equally_spaced_points()
+            pos = [r.equally_spaced_points() for r in self.region_segments]
         super().__init__(name, pos)
         self.region = region
         self.metadata["region shape"] = self.region.__class__.__name__

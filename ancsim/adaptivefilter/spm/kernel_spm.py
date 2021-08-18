@@ -9,7 +9,7 @@ from ancsim.soundfield.kernelinterpolation import (
     soundfieldInterpolation,
     soundfieldInterpolationFIR,
 )
-import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.diagnostics.core as dia
 import ancsim.signal.freqdomainfiltering as fdf
 import ancsim.soundfield.kernelinterpolation as ki
 from ancsim.signal.filterclasses import (

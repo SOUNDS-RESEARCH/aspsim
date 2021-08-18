@@ -11,7 +11,7 @@ from ancsim.signal.filterclasses import (
     FilterMD_Freqdomain
 )
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
-import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.diagnostics.core as dia
 import ancsim.signal.freqdomainfiltering as fdf
 
 

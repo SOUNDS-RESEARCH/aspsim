@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 
 import ancsim.adaptivefilter.base as base
 import ancsim.signal.filterclasses as fc
-import ancsim.adaptivefilter.diagnostics as diag
+import ancsim.diagnostics.core as diag
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.signal.filterdesign as fd
 import ancsim.integration.montecarlo as mc
+
+
 
 
 class SoundzoneFIR(base.AudioProcessor):
@@ -73,6 +75,23 @@ class SoundzoneFIR(base.AudioProcessor):
             self.sig["reg_error_bright"][:,self.idx-self.blockSize:self.idx] = self.sig["region_bright"][:,self.idx-self.blockSize:self.idx] - \
                                                                                 self.sig["reg_desired"][:,self.idx-self.blockSize:self.idx]
             
+
+
+
+class SoundzoneFixedFIR(SoundzoneFIR):
+    def __init__(self, sim_info, arrays, blockSize, src, controlFilter, **kwargs):
+        self.controlFilter = fc.createFilter(ir=controlFilter)
+        super().__init__ (sim_info, arrays, blockSize, src, self.controlFilter.irLen, **kwargs)
+        self.name = "Fixed FIR sound zones"
+
+        assert self.controlFilter.numIn == 1
+        assert self.controlFilter.numOut == self.numSpeaker
+
+    def calcControlFilter(self):
+        pass
+
+
+
 
 
 class PressureMatchingWhiteNoise(SoundzoneFIR):

@@ -1,6 +1,6 @@
-from pathlib import Path
 import json
-import ancsim.utilities as util
+from pathlib import Path
+
 
 
 def addToSimMetadata(folderPath, dictToAdd):

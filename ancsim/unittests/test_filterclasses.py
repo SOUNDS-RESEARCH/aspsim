@@ -8,7 +8,7 @@ from ancsim.signal.filterclasses import (
     FilterMD_IntBuffer,
     FilterMD_Freqdomain,
 )
-import ancsim.soundfield.presets as preset
+import ancsim.presets as preset
 import pytest
 import ancsim.signal.filterclasses_new as fcn
 

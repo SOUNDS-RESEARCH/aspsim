@@ -1,4 +1,6 @@
 import numpy as np
+import json
+from pathlib import Path
 
 import ancsim.utilities as util
 import ancsim.configutil as configutil
@@ -10,8 +12,8 @@ from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
-import ancsim.soundfield.presets as preset
-import ancsim.adaptivefilter.diagnostics as diag
+import ancsim.presets as preset
+import ancsim.diagnostics.core as diag
 
 
 class SimulatorSetup:
@@ -359,6 +361,10 @@ def setUniqueFilterNames(filters):
         filt.name = newName
 
 
+
+
+
+
 # def plotAnyPos(pos, folderPath, config):
 #     print("Setup Positions")
 #     if config["spatial_dims"] == 3:
@@ -383,12 +389,6 @@ def setUniqueFilterNames(filters):
 #             raise NotImplementedError
 #     else:
 #         raise ValueError
-
-
-
-#class Buffer():
-#    def __init__(self):
-#        self.data = np.zeros(())
 
 
 

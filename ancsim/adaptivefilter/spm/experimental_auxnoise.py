@@ -13,7 +13,7 @@ from ancsim.signal.sources import WhiteNoiseSource, GoldSequenceSource
 from ancsim.signal.adaptivefilter import NLMS, NLMS_FREQ, FastBlockNLMS
 from ancsim.soundfield.kernelinterpolation import soundfieldInterpolation
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.diagnostics.core as dia
 import ancsim.utilities as util
 
 # import matplotlib.pyplot as plt

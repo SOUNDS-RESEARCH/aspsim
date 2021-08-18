@@ -55,6 +55,13 @@ def getSmallestCoprime(N):
         if np.gcd(i,N):
             return i
 
+def nextDivisible(divisor, minValue):
+    """Gives the smallest integer divisible by divisor, 
+        that is strictly larger than minValue"""
+    rem = (minValue + divisor) % divisor
+    return minValue + divisor - rem
+
+
 def db2mag(db):
     return 10 ** (db / 20)
 

@@ -40,7 +40,10 @@ def lagrangeInterpol(N, delta):
 def getFrequencyValues(numFreq, samplerate):
     """Get the frequency values of all positive frequency bins in Hz
     numFreq is the number of frequency bins INCLUDING negative frequencies
-    Ex: if numFreq == 10, this function will return 5 values"""
+    If numFreq is even, it will return (numFreq/2)+1 values
+    If numFreq is odd, it will return (numFreq+1)/2 values
+    use np.fft.fftfreq to double check values when implementing. 
+    """
     if numFreq % 2 == 0:
         return (samplerate / (numFreq)) * np.arange(numFreq // 2 + 1)
     elif numFreq % 2 == 1:
@@ -114,31 +117,31 @@ def truncateFilter(ir, irLen, twoSided):
 
     
 
-def firFromFreqsWindow_works(freqFilter, irLen, twoSided=True):
-    """Use this over the other window methods,
-    as they might be wrong. freqFilter is with both positive
-    and negative frequencies.
+# def firFromFreqsWindow_works(freqFilter, irLen, twoSided=True):
+#     """Use this over the other window methods,
+#     as they might be wrong. freqFilter is with both positive
+#     and negative frequencies.
 
-    Makes FIR filter from frequency values.
-    Works only for odd impulse response lengths
-    Uses hamming window"""
-    assert irLen % 1 == 0
-    if twoSided:
-        halfLen = irLen // 2
-        midPoint = freqFilter.shape[0] // 2
+#     Makes FIR filter from frequency values.
+#     Works only for odd impulse response lengths
+#     Uses hamming window"""
+#     assert irLen % 1 == 0
+#     if twoSided:
+#         halfLen = irLen // 2
+#         midPoint = freqFilter.shape[0] // 2
 
-        fullTimeFilter = np.real(fdf.ifftWithTranspose(freqFilter))
-        timeFilter = np.concatenate(
-            (fullTimeFilter[..., -halfLen:], fullTimeFilter[..., : halfLen + 1]), axis=-1
-        )
-        timeFilter = timeFilter * signal.windows.hamming(irLen).reshape(
-            (1,) * (timeFilter.ndim - 1) + timeFilter.shape[-1:]
-        )
+#         fullTimeFilter = np.real(fdf.ifftWithTranspose(freqFilter))
+#         timeFilter = np.concatenate(
+#             (fullTimeFilter[..., -halfLen:], fullTimeFilter[..., : halfLen + 1]), axis=-1
+#         )
+#         timeFilter = timeFilter * signal.windows.hamming(irLen).reshape(
+#             (1,) * (timeFilter.ndim - 1) + timeFilter.shape[-1:]
+#         )
         
-    else:
-        raise NotImplementedError
+#     else:
+#         raise NotImplementedError
 
-    return timeFilter, truncError
+#     return timeFilter, truncError
 
 
 def calcTruncationError(ir, irLen, twoSided=True):

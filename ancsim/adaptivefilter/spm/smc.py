@@ -7,7 +7,7 @@ from ancsim.signal.adaptivefilter import NLMS, FastBlockNLMS
 from ancsim.signal.adaptivefilter import RLS
 from ancsim.signal.filterclasses import FilterSum, FilterMD_IntBuffer, FilterMD_Freqdomain
 from ancsim.adaptivefilter.util import getWhiteNoiseAtSNR
-import ancsim.adaptivefilter.diagnostics as dia
+import ancsim.diagnostics.core as dia
 from ancsim.utilities import measure
 
 
