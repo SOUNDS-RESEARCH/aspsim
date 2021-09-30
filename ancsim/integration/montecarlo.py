@@ -1,5 +1,5 @@
 import numpy as np
-
+import ancsim.utilities as util
 import dill
 
 dill.settings["recurse"] = True
@@ -29,9 +29,25 @@ def integrateMp(
     integral = np.mean(np.stack(integral, axis=-1), axis=-1)
     return integral
 
+def integrate_fast(
+    func, pointGenerator, totNumSamples, totalVolume, *args, numPerIter=50,
+):
+    """identical to integrate, but is meant to be simpler."""
+    numBlocks = int(np.ceil(totNumSamples / numPerIter))
+    testVal = func(pointGenerator(1), *args)
+    outDims = np.squeeze(testVal, axis=-1).shape
+    integralVal = np.zeros(outDims, dtype=testVal.dtype)
+
+    for i in range(numBlocks):
+        fVals = func(pointGenerator(numPerIter), *args)
+        integralVal = (integralVal * i + np.mean(fVals, axis=-1)) / (i + 1)
+    integralVal *= totalVolume
+    return integralVal
+
+
 
 def integrate(
-    func, pointGenerator, totNumSamples, totalVolume, numPerIter=50, verbose=False
+    func, pointGenerator, totNumSamples, totalVolume, numPerIter=50, verbose=False, *args
 ):
     """pointGenerator should return np array, [numPoints, numSpatialDimensions]
     func should return np array [funcDims, numPoints],
@@ -39,12 +55,12 @@ def integrate(
     print("Starting MC Integration")
     samplesPerIter = numPerIter
     numBlocks = int(np.ceil(totNumSamples / samplesPerIter))
-    outDims = np.squeeze(func(pointGenerator(1)), axis=-1).shape
+    outDims = np.squeeze(func(pointGenerator(1), *args), axis=-1).shape
     integralVal = np.zeros(outDims)
 
     for i in range(numBlocks):
         points = pointGenerator(samplesPerIter)
-        fVals = func(points)
+        fVals = func(points, *args)
 
         newIntVal = (integralVal * i + np.mean(fVals, axis=-1)) / (i + 1)
         print("Block ", i)

@@ -254,7 +254,7 @@ class Simulator:
                         self.plotDispatcher.dispatch(
                             [p.processor for p in self.processors], n_tot, bufferIdx, self.folderPath
                         )
-                    if self.sim_info.save_raw_data and (
+                    if True and (
                         bufferIdx % self.sim_info.save_raw_data_freq == 0
                         or bufferIdx - 1 == 0
                     ):

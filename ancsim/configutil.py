@@ -10,7 +10,7 @@ class SimulatorInfo:
         self.tot_samples = config["tot_samples"]
         self.sim_buffer = config["sim_buffer"]
         self.sim_chunk_size = config["sim_chunk_size"]
-        self.mic_snr = config["mic_snr"]
+        self.save_source_contributions = config["save_source_contributions"]
         
         self.samplerate = config["samplerate"]
         self.c = config["c"]
@@ -31,7 +31,7 @@ class SimulatorInfo:
         self.auto_save_load = config["auto_save_load"]
 
 #SIMULATION PARAMETERS
-PARAM_CATEGORIES = {"simulation" : ["tot_samples", "sim_buffer", "sim_chunk_size", "mic_snr"],
+PARAM_CATEGORIES = {"simulation" : ["tot_samples", "sim_buffer", "sim_chunk_size", "save_source_contributions"],
                     "audio" : ["samplerate", "c", "spatial_dims", "reverb"],
                     "ism" : ["room_size", "room_center", "rt60", "max_room_ir_length"],
                     "misc" : ["save_raw_data", "save_raw_data_freq", "plot_begin", "plot_frequency", 

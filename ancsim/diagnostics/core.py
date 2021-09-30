@@ -58,11 +58,11 @@ class PlotDiagnosticDispatcher:
         for i, sumType in enumerate(funcInfo.summaryFunction):
             if sumType is not None:
                 if len(funcInfo.summaryFunction) == 1:
-                    outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
+                    outputs = {key: diag.getSummaryOutput(timeIdx) for key, diag in diagSet.items()}
                 elif len(funcInfo.summaryFunction) > 1:
-                    outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
-                summaryValues = sumType(outputs, timeIdx)
-                dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
+                    outputs = {key: diag.getSummaryOutput(timeIdx)[i] for key, diag in diagSet.items()}
+                #summaryValues = sumType(outputs, timeIdx)
+                dsum.addToSummary(diagName, outputs, timeIdx, folder)
             # if sumType == SUMMARYFUNCTION.none:
             #     return
             # elif sumType == SUMMARYFUNCTION.lastValue:
@@ -293,6 +293,7 @@ class DiagnosticOverTime(Diagnostic):
 class SignalDiagnostic(DiagnosticOverTime):
     def __init__(self, sim_info, **kwargs):
         super().__init__(sim_info, **kwargs)
+        self.summaryMeanLength = 30000
 
 
 class StateDiagnostic(DiagnosticOverTime):

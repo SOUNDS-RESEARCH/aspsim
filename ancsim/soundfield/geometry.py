@@ -60,7 +60,7 @@ class CombinedRegion(Region):
         test_val = self.rng.uniform(0,1,num_points)
         sample_result = test_val[None,:] < sample_limit[:,None]
         reg_idx = np.sum(sample_result, axis=0) - 1
-        unique, counts = numpy.unique(reg_idx, return_counts=True)
+        unique, counts = np.unique(reg_idx, return_counts=True)
         sampled_points = np.concatenate([self.regions[idx].sample_points(num) 
                         for idx, num in zip(unique, counts)])
         assert sampled_points.shape[0] == num_points
@@ -81,15 +81,13 @@ class Cuboid(Region):
         self.volume = np.prod(side_lengths)
         self.point_spacing = point_spacing
 
-    def is_in_region(self, coordinate):
-        return all(
-            [
-                low_lim <= coord <= high_lim
-                for low_lim, high_lim, coord in zip(
-                    self.low_lim, self.high_lim, coordinate
-                )
-            ]
-        )
+    def is_in_region(self, coordinates, padding=[[0,0,0]]):
+        is_in_coord_wise = np.logical_and(coordinates >= self.low_lim[None,:]-padding,
+                                        coordinates <= self.high_lim[None,:]+padding)
+        is_in = np.logical_and(np.logical_and(is_in_coord_wise[:,0], 
+                                                is_in_coord_wise[:,1]),
+                                                is_in_coord_wise[:,2])
+        return is_in
 
     def equally_spaced_points(self, point_dist=None):
         if point_dist is None:

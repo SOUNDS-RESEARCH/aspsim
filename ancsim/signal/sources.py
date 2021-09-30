@@ -62,6 +62,37 @@ class SineSource(Source):
         self.phase = (self.phase + numSamples * self.phasePerSample) % (2 * np.pi)
         return noise
 
+class MultiSineSource(Source):
+    def __init__(self, numChannels, power, freq, samplerate):
+        super().__init__(numChannels, power)
+        if numChannels > 1:
+            raise NotImplementedError
+        if isinstance(power, (list, tuple, np.ndarray)):
+            raise NotImplementedError
+        if isinstance(freq, (list, tuple)):
+            freq = np.array(freq)
+        assert freq.ndim == 1
+        self.freq = freq
+        self.samplerate = samplerate
+        self.numSines = len(freq)
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=self.numSines)
+        self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
+        self.amplitude = np.sqrt(2 * self.power / self.numSines)
+
+    def getSamples(self, numSamples):
+        noise = np.zeros((1, numSamples))
+        for i in range(self.numSines):
+            noise += (
+                self.amplitude
+                * np.cos(
+                    np.arange(numSamples) * self.phasePerSample[i] + self.phase[i]
+                )[None, :]
+            )
+            self.phase[i] = (self.phase[i] + numSamples * self.phasePerSample[i]) % (
+                2 * np.pi
+            )
+        return noise
+
 
 
 class WhiteNoiseSource(Source):
@@ -172,29 +203,7 @@ class BandlimitedNoiseSource(Source):
 #         return noise
 
 
-class MultiSineSource:
-    def __init__(self, amplitude, freq, samplerate):
-        self.amp = amplitude
-        self.freq = freq
-        self.samplerate = samplerate
-        self.numSines = freq.shape[-1]
-        rng = np.random.RandomState(1)
-        self.phase = rng.uniform(low=0, high=2 * np.pi, size=self.numSines)
-        self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
 
-    def getSamples(self, numSamples):
-        noise = np.zeros((1, numSamples))
-        for i in range(self.numSines):
-            noise += (
-                self.amp
-                * np.cos(
-                    np.arange(numSamples) * self.phasePerSample[i] + self.phase[i]
-                )[None, :]
-            )
-            self.phase[i] = (self.phase[i] + numSamples * self.phasePerSample[i]) % (
-                2 * np.pi
-            )
-        return noise
 
 
 class LinearChirpSource:
