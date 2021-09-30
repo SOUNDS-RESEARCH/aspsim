@@ -32,14 +32,17 @@ class PlotDiagnosticDispatcher:
             (bufferIdx+1) % funcInfo.plot_frequency == 0 or bufferIdx == 0
         )
 
-    def dispatch(self, filters, timeIdx, bufferIdx, folder):
+    def dispatch(self):
+        raise NotImplementedError
+
+    def dispatch_old(self, filters, timeIdx, bufferIdx, folder):
         for diagName, funcInfo in self.funcInfo.items():
             if self.plotThisBuffer(bufferIdx, funcInfo):
                 diagSet = self.getDiagnosticSet(diagName, filters)
                 self.dispatchPlot(funcInfo, diagName, diagSet, timeIdx, folder)
                 self.dispatchSummary(funcInfo, diagName, diagSet, timeIdx, folder)
 
-    def dispatchPlot(self, funcInfo, diagName, diagSet, timeIdx, folder):
+    def dispatchPlot_old(self, funcInfo, diagName, diagSet, timeIdx, folder):
         if not isinstance(funcInfo.outputFunction, (list, tuple)):
             funcInfo.outputFunction = [funcInfo.outputFunction]
 
@@ -51,18 +54,18 @@ class PlotDiagnosticDispatcher:
             plot_data = diagSet[list(diagSet.keys())[0]].plot_data
             outType(diagName, outputs, plot_data, timeIdx, folder, self.outputFormat)
 
-    def dispatchSummary(self, funcInfo, diagName, diagSet, timeIdx, folder):
+    def dispatchSummary_old(self, funcInfo, diagName, diagSet, timeIdx, folder):
         if not isinstance(funcInfo.summaryFunction, (list, tuple)):
             funcInfo.summaryFunction = [funcInfo.summaryFunction]
 
         for i, sumType in enumerate(funcInfo.summaryFunction):
             if sumType is not None:
                 if len(funcInfo.summaryFunction) == 1:
-                    outputs = {key: diag.getSummaryOutput(timeIdx) for key, diag in diagSet.items()}
+                    outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
                 elif len(funcInfo.summaryFunction) > 1:
-                    outputs = {key: diag.getSummaryOutput(timeIdx)[i] for key, diag in diagSet.items()}
-                #summaryValues = sumType(outputs, timeIdx)
-                dsum.addToSummary(diagName, outputs, timeIdx, folder)
+                    outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
+                summaryValues = sumType(outputs, timeIdx)
+                dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
             # if sumType == SUMMARYFUNCTION.none:
             #     return
             # elif sumType == SUMMARYFUNCTION.lastValue:
@@ -143,10 +146,10 @@ class DiagnosticHandler:
 
                 diag.saveData(processor, sig, self.lastSaveIdx[diagName], idx, self.lastGlobalSaveIdx[diagName], globalIdx)
 
-                # if globalIdx >= self.exportAfterSample[diagName]:
-                #     self.toBeExported.append(diagName)
-                #     self.exportAfterSample[diagname] = util.nextDivisible(self.sim_info.plot_frequency*self.sim_info.sim_chunk_size, 
-                #                                                             self.exportAfterSample[diagname])
+                if globalIdx >= self.exportAfterSample[diagName]:
+                    self.toBeExported.append(diagName)
+                    self.exportAfterSample[diagname] = util.nextDivisible(self.sim_info.plot_frequency*self.sim_info.sim_chunk_size, 
+                                                                            self.exportAfterSample[diagname])
 
                 self.samplesUntilSave[diagName] += diag.save_frequency - numSamples
                 self.lastSaveIdx[diagName] += numSamples
@@ -154,26 +157,26 @@ class DiagnosticHandler:
 
 
 
-# class SignalDiagnostic():
-#     def __init__(self):
-#         pass
+class SignalDiagnostic():
+    def __init__(self):
+        pass
 
-#     def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
-#         pass
+    def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
+        pass
 
-#     def getOutput(self):
-#         pass
+    def getOutput(self):
+        pass
 
-#     def getRawData(self):
-#         pass
+    def getRawData(self):
+        pass
 
-# class StateDiagnostic():
-#     def __init__(self):
-#         pass
+class StateDiagnostic():
+    def __init__(self):
+        pass
 
-# class InstantDiagnostic():
-#     def __init__(self):
-#         pass
+class InstantDiagnostic():
+    def __init__(self):
+        pass
 
 
 
@@ -280,20 +283,16 @@ class DiagnosticOverTime(Diagnostic):
             self.plot_frequency,
         )
 
-        self.plot_data = {
-            "title" : "",
-            "xlabel" : "Samples",
-            "ylabel" : "",
-        }
+        self.plot_data["xlabel"] = "Samples"
+        
     
         
 
 
 
-class SignalDiagnostic(DiagnosticOverTime):
+class SignalDiagnostic_(DiagnosticOverTime):
     def __init__(self, sim_info, **kwargs):
         super().__init__(sim_info, **kwargs)
-        self.summaryMeanLength = 30000
 
 
 class StateDiagnostic(DiagnosticOverTime):

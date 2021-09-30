@@ -11,7 +11,6 @@ import ancsim.experiment.plotscripts as psc
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum
-import ancsim.diagnostics.core as diacore
 
 
 class SoundfieldPower():
@@ -80,7 +79,7 @@ class SoundfieldPower():
     def getOutput(self):
         return self.soundfield
 
-class SignalPowerRatio(diacore.SignalDiagnostic):
+class SignalPowerRatio(SignalDiagnostic):
     def __init__(
         self,
         sim_info, 
@@ -89,8 +88,6 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         **kwargs
     ):
         super().__init__(sim_info, **kwargs)
-        #self.info.outputFunction.append(dplot.spectrumPlot)
-        #self.info.summaryFunction = [self.info.summaryFunction, None]
         self.numeratorName = numeratorName
         self.denominatorName = denominatorName
         
@@ -102,8 +99,6 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
 
         self.plot_data["title"] = "Power Ratio: " + self.numeratorName + " / " + self.denominatorName
         self.plot_data["ylabel"] = "Ratio (dB)"
-        self.plot_data["samplerate"] = sim_info.samplerate
-        self.plot_data["scaling"] = "dbpow"
         
 
     def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
@@ -115,7 +110,9 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         numPowerSmooth = self.numSmoother.process(numPower)
         denomPowerSmooth = self.denomSmoother.process(denomPower)
 
-        self.powerRatio[globIdxStart:globIdxEnd] = numPowerSmooth / denomPowerSmooth
+        self.powerRatio[globIdxStart:globIdxEnd] = util.pow2db(
+            numPowerSmooth / denomPowerSmooth
+        )
         self.numPower[globIdxStart:globIdxEnd] = numPower
         self.denomPower[globIdxStart:globIdxEnd] = denomPower
 
@@ -131,86 +128,7 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         else:
             return self.powerRatio
 
-    def getSummaryOutput(self, globEndIdx):
-        num = self.numPower[globEndIdx-self.summaryMeanLength:globEndIdx]
-        denom = self.denomPower[globEndIdx-self.summaryMeanLength:globEndIdx]
-        numFilt = np.logical_not(np.isnan(num))
-        denomFilt = np.logical_not(np.isnan(denom))
-        assert np.allclose(numFilt, denomFilt)
-        print(f"number of averaged samples for SignalPowerRatio is {num[numFilt].shape}")
-        
-        return 10*np.log10(np.mean(num[numFilt]) / np.mean(denom[numFilt]))
-
-
-
-class SignalSpectrumRatio(diacore.SignalDiagnostic):
-    def __init__(
-        self,
-        sim_info, 
-        numeratorName,
-        numeratorChannels,
-        denominatorName,
-        denominatorChannels,
-        **kwargs
-    ):
-        super().__init__(sim_info, **kwargs)
-        self.info.outputFunction = dplot.spectrumRatioPlot
-        self.info.summaryFunction = None
-        self.numeratorName = numeratorName
-        self.denominatorName = denominatorName
-        
-        self.num = np.full((numeratorChannels, self.sim_info.tot_samples), np.nan)
-        self.denom = np.full((denominatorChannels, self.sim_info.tot_samples), np.nan)
-
-        self.plot_data["title"] = "Spectrum Ratio: " + self.numeratorName + " / " + self.denominatorName
-        self.plot_data["ylabel"] = "Ratio (dB)"
-        self.plot_data["samplerate"] = sim_info.samplerate
-        self.plot_data["scaling"] = "dbpow"
-        
-
-    def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
-        self.num[:, globIdxStart:globIdxEnd] = sig[self.numeratorName][..., chunkIdxStart:chunkIdxEnd]
-        self.denom[:, globIdxStart:globIdxEnd] = sig[self.denominatorName][..., chunkIdxStart:chunkIdxEnd]
-
-    def getOutput(self):
-        return [self.num, self.denom]
-
-    def getSummaryOutput(self, globEndIdx):
-        return None
-
-
-class SignalSpectrum(diacore.SignalDiagnostic):
-    def __init__(
-        self,
-        sim_info, 
-        signalName,
-        signalChannels,
-        **kwargs
-    ):
-        super().__init__(sim_info, **kwargs)
-        self.info.outputFunction = dplot.spectrumPlot
-        self.info.summaryFunction = None
-        self.signalName = signalName
-        
-        self.signal = np.zeros((signalChannels, self.sim_info.tot_samples))
-
-        self.plot_data["title"] = "Spectrum: " + self.signalName
-        self.plot_data["ylabel"] = "Ratio (dB)"
-        self.plot_data["samplerate"] = sim_info.samplerate
-        self.plot_data["scaling"] = "dbpow"
-        
-
-    def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
-        self.signal[:, globIdxStart:globIdxEnd] = sig[self.signalName][..., chunkIdxStart:chunkIdxEnd]
-
-    def getOutput(self):
-        return self.signal
-
-    def getSummaryOutput(self, globEndIdx):
-        return None
-
-
-class StateNMSE(diacore.StateDiagnostic):
+class StateNMSE(StateDiagnostic):
     def __init__(self,
                 sim_info, 
                 property_name,
@@ -225,52 +143,37 @@ class StateNMSE(diacore.StateDiagnostic):
 
         self.plot_data["ylabel"] = "NMSE (dB)"
         self.plot_data["title"] = "NMSE"
-        self.plot_data["scaling"] = "dbpow"
 
     def saveData(self, processor, _sig, _unusedIdx1, _unusedIdx2, _unusedIdx3, globalIdx):
-        self.nmse[globalIdx] = np.mean(np.abs(self.true_value - self.get_property(processor))**2) / self.true_power
+        self.nmse[globalIdx] = util.pow2db((np.mean(np.abs(self.true_value - self.get_property(processor))**2) / self.true_power))
 
     def getOutput(self):
         return self.nmse
 
 
-class SignalPower(diacore.SignalDiagnostic):
+class SignalPower(SignalDiagnostic):
     def __init__(self, 
                 sim_info, 
                 signal_name,
                 **kwargs):
         super().__init__(sim_info, **kwargs)
-        #self.info.summaryFunction = [self.info.summaryFunction, None]
         self.signal_name = signal_name
-        self.signal_power_raw = np.full(self.sim_info.tot_samples, np.nan)
         self.signal_power = np.full(self.sim_info.tot_samples, np.nan)
         self.signal_smoother = fc.Filter_IntBuffer(ir=np.ones((self.smoothing_len))/self.smoothing_len, numIn=1)
 
         self.plot_data["title"] = "Signal power"
         self.plot_data["ylabel"] = "Power (dB)"
-        self.plot_data["scaling"] = "dbpow"
 
         if self.save_raw_data:
             raise NotImplementedError
     
     def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
         #print(chunkIdxStart, chunkIdxEnd)
-        self.signal_power_raw[globIdxStart:globIdxEnd] = np.mean(
-            sig[self.signal_name][:, chunkIdxStart:chunkIdxEnd] ** 2, axis=0)
-
-        self.signal_power[globIdxStart:globIdxEnd] = self.signal_smoother.process(self.signal_power_raw[None,globIdxStart:globIdxEnd])
+        signal_power = np.mean(sig[self.signal_name][:, chunkIdxStart:chunkIdxEnd] ** 2, axis=0, keepdims=True)
+        self.signal_power[globIdxStart:globIdxEnd] = util.pow2db(self.signal_smoother.process(signal_power))
 
     def getOutput(self):
         return self.signal_power
-
-    def getSummaryOutput(self, globEndIdx):
-        selected_chunk = self.signal_power_raw[globEndIdx-self.summaryMeanLength:globEndIdx]
-        filterArray = np.logical_not(np.isnan(selected_chunk))
-        return 10*np.log10(np.mean(selected_chunk[filterArray]))
-        #return [10*np.log10(np.mean(selected_chunk[filterArray])), None]
-        #filterArray = np.logical_not(np.isnan(val))
-
-        #return np.mean()
 
 
 
@@ -668,7 +571,7 @@ class RecordIR():
 
 
 
-class ConstantEstimateNMSE(diacore.PerBlockDiagnostic):
+class ConstantEstimateNMSE(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -699,7 +602,7 @@ class ConstantEstimateNMSE(diacore.PerBlockDiagnostic):
             np.sum(np.abs(self.true_value - currentEstimate) ** 2) / self.true_valuePower
         )
 
-class ConstantEstimateNMSEAllCombinations(diacore.PerBlockDiagnostic):
+class ConstantEstimateNMSEAllCombinations(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -743,7 +646,7 @@ class ConstantEstimateNMSEAllCombinations(diacore.PerBlockDiagnostic):
                 np.sum(np.abs(self.true_value - crntEst[:,:,ax2]) ** 2) / self.true_valuePower
             )
 
-class ConstantEstimateNMSESelectedFrequencies(diacore.PerBlockDiagnostic):
+class ConstantEstimateNMSESelectedFrequencies(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -791,7 +694,7 @@ class ConstantEstimateNMSESelectedFrequencies(diacore.PerBlockDiagnostic):
 
 
 
-class ConstantEstimatePhaseDifferenceSelectedFrequencies(diacore.PerBlockDiagnostic):
+class ConstantEstimatePhaseDifferenceSelectedFrequencies(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -834,7 +737,7 @@ class ConstantEstimatePhaseDifferenceSelectedFrequencies(diacore.PerBlockDiagnos
 
 
 
-class ConstantEstimateWeightedPhaseDifference(diacore.PerBlockDiagnostic):
+class ConstantEstimateWeightedPhaseDifference(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -879,7 +782,7 @@ class ConstantEstimateWeightedPhaseDifference(diacore.PerBlockDiagnostic):
         self.dataBuffer[totIdx] = np.mean(np.sum(self.weight * phaseDiff,axis=0))
         #self.dataBuffer[1, totIdx] = np.max(phaseDiff)
 
-class ConstantEstimateAmpDifference(diacore.PerBlockDiagnostic):
+class ConstantEstimateAmpDifference(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
@@ -913,7 +816,7 @@ class ConstantEstimateAmpDifference(diacore.PerBlockDiagnostic):
         )
 
 
-class ConstantEstimatePhaseDifference(diacore.PerBlockDiagnostic):
+class ConstantEstimatePhaseDifference(PerBlockDiagnostic):
     def __init__(
         self,
         true_value,
