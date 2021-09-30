@@ -4,7 +4,6 @@ import numba as nb
 
 
 
-#@nb.jit
 def block_diag(arrays):
     """Creates a block diagonal matrix
         - arrays is a list of ndarrays
