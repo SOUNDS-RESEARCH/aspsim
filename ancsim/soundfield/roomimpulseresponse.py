@@ -156,8 +156,12 @@ def irRoomImageSource3d(
         metadata["Max Normalized Truncation Error (dB)"] = maxTruncError
         metadata["Max Normalized Truncated Value (dB)"] = maxTruncValue
         if rt60 > 0:
-            metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
-            metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+            try:
+                metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
+                metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+            except ValueError:
+                metadata["Measured RT60 (min)"] = "failed"
+                metadata["Measured RT60 (max)"] = "failed"
         else:
             metadata["Measured RT60 (min)"] = 0
             metadata["Measured RT60 (max)"] = 0

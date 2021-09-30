@@ -13,7 +13,7 @@ import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.presets as preset
-import ancsim.diagnostics.core as diag
+import ancsim.diagnostics.core as diacore
 
 
 class SimulatorSetup:
@@ -201,7 +201,7 @@ class Simulator:
         setUniqueFilterNames(self.processors)
         writeFilterMetadata(self.processors, self.folderPath)
 
-        self.plotDispatcher = diag.PlotDiagnosticDispatcher(
+        self.plotDispatcher = diacore.PlotDiagnosticDispatcher(
             self.processors, self.sim_info.plot_output
         )
 
@@ -254,7 +254,7 @@ class Simulator:
                         self.plotDispatcher.dispatch(
                             [p.processor for p in self.processors], n_tot, bufferIdx, self.folderPath
                         )
-                    if self.sim_info.save_raw_data and (
+                    if True and (
                         bufferIdx % self.sim_info.save_raw_data_freq == 0
                         or bufferIdx - 1 == 0
                     ):

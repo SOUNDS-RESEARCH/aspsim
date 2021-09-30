@@ -172,9 +172,13 @@ class ArrayCollection():
         #self.set_default_path_type(sim_info.reverb)
 
         for src, mic in self.mic_src_combos():
-            reverb = self.path_type[src.name][mic.name]
-
             self.path_info[f"{src.name}->{mic.name}"] = {}
+
+            if src.num == 0 or mic.num == 0:
+                reverb = "none"
+            else:
+                reverb = self.path_type[src.name][mic.name]
+
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
 

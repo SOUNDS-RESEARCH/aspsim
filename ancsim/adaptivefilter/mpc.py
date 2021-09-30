@@ -11,7 +11,7 @@ from ancsim.signal.filterclasses import (
 )
 import ancsim.signal.filterclasses as fc
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
 import ancsim.signal.freqdomainfiltering as fdf
 from ancsim.adaptivefilter.base import ActiveNoiseControlProcessor
 

@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 
 import ancsim.adaptivefilter.base as base
 import ancsim.signal.filterclasses as fc
-import ancsim.diagnostics.core as diag
+import ancsim.diagnostics.core as diacore
+import ancsim.diagnostics.diagnostics as dia
 import ancsim.soundfield.kernelinterpolation as ki
 import ancsim.signal.filterdesign as fd
 import ancsim.integration.montecarlo as mc
@@ -35,23 +36,37 @@ class SoundzoneFIR(base.AudioProcessor):
         self.createNewBuffer("error_bright", self.numMicBright)
         self.createNewBuffer("desired", self.numMicBright)
 
-        self.diag.addNewDiagnostic("bright_zone_power", diag.SignalPower(self.sim_info, "mic_bright", blockSize=self.blockSize))
-        self.diag.addNewDiagnostic("dark_zone_power", diag.SignalPower(self.sim_info, "mic_dark", blockSize=self.blockSize))
-        self.diag.addNewDiagnostic("acoustic_contrast", diag.SignalPowerRatio(self.sim_info, "mic_bright", "mic_dark", blockSize=self.blockSize))
-        self.diag.addNewDiagnostic("bright_zone_error", diag.SignalPowerRatio(self.sim_info, "error_bright", "desired", blockSize=self.blockSize))
+        self.diag.addNewDiagnostic("bright_mic_power", dia.SignalPower(self.sim_info, "mic_bright", blockSize=self.blockSize))
+        self.diag.addNewDiagnostic("dark_mic_power", dia.SignalPower(self.sim_info, "mic_dark", blockSize=self.blockSize))
+        self.diag.addNewDiagnostic("acoustic_contrast_mic", dia.SignalPowerRatio(self.sim_info, "mic_bright", "mic_dark", blockSize=self.blockSize))
+        self.diag.addNewDiagnostic("bright_mic_error", dia.SignalPowerRatio(self.sim_info, "error_bright", "desired", blockSize=self.blockSize))
 
-        if "region_bright" in self.arrays:
-            self.createNewBuffer("reg_error_bright", self.arrays["region_bright"].num)
-            self.createNewBuffer("reg_desired", self.arrays["region_bright"].num)
-            self.desiredFilterSpatial = fc.createFilter(ir=self.arrays.paths["speaker"]["region_bright"], broadcastDim=1, sumOverInput=False)
-            self.diag.addNewDiagnostic("spatial_bright_zone_power", diag.SignalPower(self.sim_info, "region_bright", blockSize=self.blockSize))
-            self.diag.addNewDiagnostic("spatial_bright_zone_error", diag.SignalPowerRatio(self.sim_info, "reg_error_bright", "reg_desired", blockSize=self.blockSize))
-            if "region_dark" in self.arrays:
-                self.diag.addNewDiagnostic("spatial_acoustic_contrast", diag.SignalPowerRatio(self.sim_info, "region_bright", "region_dark", blockSize=self.blockSize))
-                self.diag.addNewDiagnostic("spatial_dark_zone_power", diag.SignalPower(self.sim_info, "region_dark", blockSize=self.blockSize))
+        desired_dly = self.ctrlFiltLen // 2
+        self.desiredFilter = fc.createFilter(ir=np.pad(self.arrays.paths["virtual_source"]["mic_bright"], 
+                                                ((0,0),(0,0),(desired_dly,0))), 
+                                                broadcastDim=1, 
+                                                sumOverInput=False)
+
+        if "zone_bright" in self.arrays:
+            self.createNewBuffer("reg_error_bright", self.arrays["zone_bright"].num)
+            self.createNewBuffer("reg_desired", self.arrays["zone_bright"].num)
+            self.desiredFilterSpatial = fc.createFilter(ir=np.pad(self.arrays.paths["virtual_source"]["zone_bright"],
+                                                            ((0,0),(0,0),(desired_dly,0))), 
+                                                            broadcastDim=1, sumOverInput=False)
+            self.diag.addNewDiagnostic("bright_zone_power", dia.SignalPower(self.sim_info, "zone_bright", blockSize=self.blockSize))
+            self.diag.addNewDiagnostic("bright_zone_error", dia.SignalPowerRatio(self.sim_info, "reg_error_bright", "reg_desired", blockSize=self.blockSize))
+            self.diag.addNewDiagnostic("bright_zone_error_spec", dia.SignalSpectrumRatio(self.sim_info, "reg_error_bright", self.sig["reg_error_bright"].shape[0], 
+                                                                                                        "reg_desired", self.sig["reg_desired"].shape[0], 
+                                                                                                        blockSize=self.blockSize))
+            if "zone_dark" in self.arrays:
+                self.diag.addNewDiagnostic("acoustic_contrast_spatial", dia.SignalPowerRatio(self.sim_info, "zone_bright", "zone_dark", blockSize=self.blockSize))
+                self.diag.addNewDiagnostic("acoustic_contrast_spatial_spec", dia.SignalSpectrumRatio(self.sim_info, "zone_bright", self.arrays["zone_bright"].num, 
+                                                                                                                    "zone_dark", self.arrays["zone_dark"].num, 
+                                                                                                                    blockSize=self.blockSize))
+                self.diag.addNewDiagnostic("dark_zone_power", dia.SignalPower(self.sim_info, "zone_dark", blockSize=self.blockSize))
                 
-        self.desiredFilter = fc.createFilter(ir=self.pathsBright, broadcastDim=1, sumOverInput=False)
-
+        #delay_desired = 55 // 2
+        #desiredPath = np.sum(np.pad(self.pathsBright,((0,0),(0,0),(delay_desired,0))),axis=0, keepdims=True)
         self.metadata["source type"] = self.src.__class__.__name__
         self.metadata["source"] = self.src.metadata
         self.metadata["control filter length"] = self.ctrlFiltLen
@@ -65,14 +80,13 @@ class SoundzoneFIR(base.AudioProcessor):
         self.sig["orig_sig"][:,self.idx:self.idx+self.blockSize] = x
         self.sig["speaker"][:,self.idx:self.idx+self.blockSize] = self.controlFilter.process(x)
 
-
         self.sig["desired"][:,self.idx:self.idx+self.blockSize] = np.squeeze(self.desiredFilter.process(x), axis=-2)[0,...]
         self.sig["error_bright"][:,self.idx-self.blockSize:self.idx] = self.sig["mic_bright"][:,self.idx-self.blockSize:self.idx] - \
                                                                         self.sig["desired"][:,self.idx-self.blockSize:self.idx]
 
-        if "region_bright" in self.arrays:
+        if "zone_bright" in self.arrays:
             self.sig["reg_desired"][:,self.idx:self.idx+self.blockSize] = np.squeeze(self.desiredFilterSpatial.process(x), axis=-2)[0,...]
-            self.sig["reg_error_bright"][:,self.idx-self.blockSize:self.idx] = self.sig["region_bright"][:,self.idx-self.blockSize:self.idx] - \
+            self.sig["reg_error_bright"][:,self.idx-self.blockSize:self.idx] = self.sig["zone_bright"][:,self.idx-self.blockSize:self.idx] - \
                                                                                 self.sig["reg_desired"][:,self.idx-self.blockSize:self.idx]
             
 

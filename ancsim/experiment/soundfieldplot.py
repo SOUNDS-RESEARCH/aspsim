@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import dill
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -8,10 +9,13 @@ import ancsim.experiment.multiexperimentutils as meu
 import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as ps
 import ancsim.soundfield.roomimpulseresponse as rir
+import ancsim.soundfield.geometry as geo
 #from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
 from ancsim.signal.filterclasses import FilterSum
+import ancsim.signal.filterclasses as fc
 import ancsim.utilities as util
+import ancsim.configutil as configutil
 import ancsim.array as ar
 
 
@@ -20,31 +24,34 @@ def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
         makeSoundfieldPlot(singleSetFolder + singleRunFolder, sessionFolder)
 
 
-def makeSoundfieldPlot(singleRunFolder, sessionFolder, numPixels, normalize=True):
-    config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(
-        singleRunFolder, sessionFolder, numPixels
-    )
-    pointsToSim = pos["target"]
+def makeSoundfieldPlot(singleRunFolder, sessionFolder, arrays_sim, normalize=True):
+    sim_info, proc_info, arrays, filterCoeffs, source = setupSession(singleRunFolder, sessionFolder, arrays_sim)
+    
+    # config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(
+    #     singleRunFolder, sessionFolder, numPixels
+    # )
+
+    pointsToSim = arrays["image"].pos
 
     avgSoundfields = soundSim(
-        config,
-        pos["target"],
-        source,
+        sim_info,
+        proc_info, 
+        arrays,
         filterCoeffs,
-        sourceRIR["ref"],
-        sourceRIR["target"],
-        speakerRIR["target"],
+        source,
     )
 
     zeroValue = np.mean(util.db2pow(avgSoundfields[0]))
     avgSoundfields = [util.pow2db(util.db2pow(sf) / zeroValue) for sf in avgSoundfields]
     maxVal = np.max([np.max(sf) for sf in avgSoundfields])
     minVal = np.min([np.min(sf) for sf in avgSoundfields])
-    algoNames = ["Without ANC"] + [key for key in filterCoeffs.keys()]
+    algoNames = [key for key in filterCoeffs.keys()]
 
-    fig, axes = plt.subplots(1, len(filterCoeffs) + 1, figsize=(30, 7))
+    fig, axes = plt.subplots(1, len(filterCoeffs), figsize=(30, 7))
     fig.tight_layout(pad=2.5)
 
+    if len(filterCoeffs) == 1:
+        axes = [axes]
     #imAxisLen = int(np.sqrt(pointsToSim.shape[0]))
     pointsToSim, avgSoundfields = sortIntoGrid(pointsToSim, avgSoundfields)
     for i, ax in enumerate(axes):
@@ -68,33 +75,38 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, numPixels, normalize=True
         )
         fig.colorbar(clr, ax=ax)
 
-        ax.plot(pos["speaker"][:, 0], pos["speaker"][:, 1], "o")
-        ax.plot(pos["source"][:, 0], pos["source"][:, 1], "o", color="m")
-        ax.plot(pos["error"][:, 0], pos["error"][:, 1], "x", color="y")
+        ax.plot(arrays_sim["speaker"].pos[:, 0], arrays_sim["speaker"].pos[:, 1], "o", label="speaker")
+        ax.plot(arrays_sim["mic_bright"].pos[:, 0], arrays_sim["mic_bright"].pos[:, 1], "x", label="bright")
+        ax.plot(arrays_sim["mic_dark"].pos[:, 0], arrays_sim["mic_dark"].pos[:, 1], "x", label="dark")
+        ax.plot(arrays_sim["virtual_source"].pos[:, 0], arrays_sim["virtual_source"].pos[:, 1], "o", label="virtual source")
+        #ax.plot(pos["source"][:, 0], pos["source"][:, 1], "o", color="m")
+        #ax.plot(pos["error"][:, 0], pos["error"][:, 1], "x", color="y")
+        ax.legend()
         ax.axis("equal")
         ax.set_title(algoNames[i])
         ax.set_xlim(pointsToSim[:, 0].min(), pointsToSim[:, 0].max())
         ax.set_ylim(pointsToSim[:, 1].min(), pointsToSim[:, 1].max())
     ps.outputPlot("tikz", singleRunFolder, "soundfield")
 
+    np.savez(singleRunFolder.joinpath("sf_raw"), **{algoName:sf for algoName, sf in zip(algoNames, avgSoundfields)})
+    np.save(singleRunFolder.joinpath("sf_pos"), pointsToSim)
+
 
 def soundSim(
-    config,
-    pointsToSim,
-    source,
+    sim_info,
+    proc_info,
+    arrays,
     filterCoeffs,
-    sourceToRef,
-    sourceToPoints,
-    speakerToPoints,
+    source,
 ):
     minSamplesToAverage = 10000
-    numTotPoints = pointsToSim.shape[0]
-    refFiltLen = sourceToRef.ir.shape[-1]
+    numTotPoints = arrays["image"].num
+    #refFiltLen = sourceToRef.ir.shape[-1]
     # blockSize = np.max([np.max(coefs.shape) for coefs in filterCoeffs])
-    maxBlockSize = np.max(config["BLOCKSIZE"])
+    maxBlockSize = np.max(proc_info["block_size"])
     startBuffer = maxBlockSize * int(
         np.ceil(
-            (refFiltLen + sourceToPoints.ir.shape[-1] + maxBlockSize) / maxBlockSize
+            (arrays.paths["speaker"]["image"].shape[-1] + maxBlockSize) / maxBlockSize
         )
     )
     samplesToAverage = maxBlockSize * int(np.ceil(minSamplesToAverage / maxBlockSize))
@@ -102,33 +114,17 @@ def soundSim(
 
     # sourceToRefFilt = FilterSum(sourceToRef)
     sourceSig = source.getSamples(totNumSamples)
+    #refSig = sourceToRef.process(sourceSig)[:, refFiltLen:]
 
-    refSig = sourceToRef.process(sourceSig)[:, refFiltLen:]
     speakerSigs = genSpeakerSignals(
-        maxBlockSize, totNumSamples, refSig, filterCoeffs, refFiltLen
+        maxBlockSize, totNumSamples, filterCoeffs, sourceSig,
     )
 
     maxPointsInIter = 500
     avgSoundfield = []
 
     # Empty soundfield
-    soundfield = np.zeros((numTotPoints))
-    i = 0
-    while i < numTotPoints:
-        print(i)
-        numPoints = np.min((maxPointsInIter, numTotPoints - i))
-        sourceToPointsFilt = FilterSum(
-            sourceToPoints.ir[:, i : i + numPoints, :]
-        )
-        pointNoise = sourceToPointsFilt.process(sourceSig)[:, startBuffer:]
-        soundfield[i : i + numPoints] = 10 * np.log10(
-            np.mean((pointNoise) ** 2, axis=-1)
-        )
-        i += numPoints
-    avgSoundfield.append(soundfield)
-
-    # Soundfield for each set of filtercoefficients
-    for speakerSig in speakerSigs:
+    if "source" in arrays:
         soundfield = np.zeros((numTotPoints))
         i = 0
         while i < numTotPoints:
@@ -137,15 +133,32 @@ def soundSim(
             sourceToPointsFilt = FilterSum(
                 sourceToPoints.ir[:, i : i + numPoints, :]
             )
+            pointNoise = sourceToPointsFilt.process(sourceSig)[:, startBuffer:]
+            soundfield[i : i + numPoints] = 10 * np.log10(
+                np.mean((pointNoise) ** 2, axis=-1)
+            )
+            i += numPoints
+        avgSoundfield.append(soundfield)
+
+    # Soundfield for each set of filtercoefficients
+    for speakerSig in speakerSigs:
+        soundfield = np.zeros((numTotPoints))
+        i = 0
+        while i < numTotPoints:
+            print(i)
+            numPoints = np.min((maxPointsInIter, numTotPoints - i))
+            #sourceToPointsFilt = FilterSum(
+            #    sourceToPoints.ir[:, i : i + numPoints, :]
+            #)
             speakerToPointsFilt = FilterSum(
-                speakerToPoints[:, i : i + numPoints, :]
+                arrays.paths["speaker"]["image"][:, i : i + numPoints, :]
             )
             pointSig = speakerToPointsFilt.process(speakerSig)[:, -samplesToAverage:]
-            pointNoise = sourceToPointsFilt.process(sourceSig)[
-                :, -samplesToAverage - maxBlockSize : -maxBlockSize
-            ]
+            #pointNoise = sourceToPointsFilt.process(sourceSig)[
+            #    :, -samplesToAverage - maxBlockSize : -maxBlockSize
+            #]
             soundfield[i : i + numPoints] = 10 * np.log10(
-                np.mean((pointSig + pointNoise) ** 2, axis=-1)
+                np.mean((pointSig) ** 2, axis=-1)
             )
             i += numPoints
         avgSoundfield.append(soundfield)
@@ -153,13 +166,13 @@ def soundSim(
 
 
 def genSpeakerSignals(
-    blockSize, totNumSamples, refSig, filterCoeffs, sourceToRefFiltLen
+    blockSize, totNumSamples, filterCoeffs, sourceSig
 ):
     outputs = []
     for ir in filterCoeffs.values():
         if ir.dtype == np.float64:
             filt = FilterSum(ir)
-            outputs.append(filt.process(refSig[:, :-blockSize])[:, ir.shape[-1] :])
+            outputs.append(filt.process(sourceSig[:, :-blockSize])[:, ir.shape[-1] :])
         elif ir.dtype == np.complex128:
             idx = blockSize
             numSamples = totNumSamples - sourceToRefFiltLen
@@ -179,11 +192,60 @@ def genSpeakerSignals(
     return outputs
 
 
+
+def setupSession(singleRunFolder, sessionFolder, arrays):
+    #config, arrays = sess.loadFromPath(singleRunFolder)
+    config = sess.loadConfig(singleRunFolder)
+    
+    newArrays = ar.ArrayCollection()
+    for src in arrays.sources():
+        newArrays.add_array(src)
+    
+    region_image = geo.Rectangle((2, 2), (0, 0, 0), (0.02, 0.02), spatial_dim=3)
+    newArrays.add_array(ar.RegionArray("image", region_image))
+    
+    sim_info = configutil.SimulatorInfo(config)
+    newArrays.set_default_path_type(sim_info.reverb)
+    if config["auto_save_load"]:
+        try:
+            newArrays = sess.loadSession(sessionFolder, None, config, newArrays)
+        except sess.MatchingSessionNotFoundError:
+            irMetadata = newArrays.setupIR(sim_info)
+            sess.saveSession(sessionFolder, config, newArrays, simMetadata=irMetadata)
+            #sess.addToSimMetadata(folderPath, irMetadata)     
+    else:
+        newArrays.setupIR(sim_info)
+
+    controlFilterPath = meu.getHighestNumberedFile(
+        singleRunFolder, "controlFilter_", ".npz"
+    )
+    if controlFilterPath is None:
+        raise ValueError
+    filterCoeffs = np.load(controlFilterPath)
+    filterCoeffs = {key:val for key, val in filterCoeffs.items()}
+
+    with open(singleRunFolder.joinpath("metadata_processor.json")) as f:
+        proc_info_raw = json.load(f)
+    
+    proc_info = {
+        "block_size" : proc_info_raw[list(proc_info_raw.keys())[0]]["block size"],
+        "filt_len" : proc_info_raw[list(proc_info_raw.keys())[0]]["control filter length"],
+    }
+
+    for algo_name, algo_info in proc_info_raw.items():
+        assert algo_info["block size"] == proc_info["block_size"]
+        assert algo_info["control filter length"] == proc_info["filt_len"]
+
+    with open(singleRunFolder.joinpath("input_source.pickle"), "rb") as f:
+        source = dill.load(f)    
+
+    return sim_info, proc_info, newArrays, filterCoeffs, source
+
+
 def loadSession(singleRunFolder, sessionFolder, numPixels):
     config = sess.loadConfig(singleRunFolder)
     config["TARGETPOINTSPLACEMENT"] = "image"
     config["NUMTARGET"] = numPixels
-    # config["NUMEVALS"] = 128**2
 
     if config["LOADSESSION"]:
         pos, sourceRIR, speakerRIR = sess.loadSession(

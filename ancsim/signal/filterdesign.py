@@ -91,9 +91,13 @@ def firFromFreqsWindow(freqFilter, irLen, twoSided=True):
         # timeFilter = np.concatenate(
         #     (fullTimeFilter[..., -halfLen:], fullTimeFilter[..., : halfLen + 1]), axis=-1
         # )
-        truncFilter = truncFilter * signal.windows.hamming(irLen).reshape(
-            (1,) * (truncFilter.ndim - 1) + truncFilter.shape[-1:]
-        )
+
+
+        # ONLY TEMPORARILY COMMENTED. THE WINDOW CODE HERE REALLY WORKS. 
+        # ADD A BOOLEAN ARGUMENT INSTEAD
+        #truncFilter = truncFilter * signal.windows.hamming(irLen).reshape(
+        #    (1,) * (truncFilter.ndim - 1) + truncFilter.shape[-1:]
+        #)
         
     else:
         raise NotImplementedError

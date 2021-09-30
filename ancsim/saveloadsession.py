@@ -44,12 +44,13 @@ def loadSession(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
     #copySimMetadata(sessionToLoad, newFolderPath)
     return loadedArrays
     
-def loadFromPath(sessionPathToLoad, newFolderPath):
+def loadFromPath(sessionPathToLoad, newFolderPath=None):
     loadedArrays = loadArrays(sessionPathToLoad)
     loadedConfig = loadConfig(sessionPathToLoad)
 
-    copySimMetadata(sessionPathToLoad, newFolderPath)
-    saveConfig(newFolderPath, loadedConfig)
+    if newFolderPath is not None:
+        copySimMetadata(sessionPathToLoad, newFolderPath)
+        saveConfig(newFolderPath, loadedConfig)
     return loadedConfig, loadedArrays
 
 def copySimMetadata(fromFolder, toFolder):
@@ -77,12 +78,14 @@ def searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays):
 def saveRawData(filters, timeIdx, folderPath):
     controlFiltDict = {}
     for filt in filters:
-        controlFiltDict[filt.name] = filt.outputRawData()
+        controlFiltDict[filt.processor.name] = filt.processor.controlFilter.ir
 
     np.savez_compressed(
         file=folderPath.joinpath("controlFilter_" + str(timeIdx)), **controlFiltDict
     )
 
+    with open(folderPath.joinpath("input_source.pickle"), "wb") as f:
+        dill.dump(filters[0].processor.src, f)
 
 
 def loadControlFilter(sessionPath):

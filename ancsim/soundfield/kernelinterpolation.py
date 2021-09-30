@@ -3,6 +3,7 @@ import scipy.spatial.distance as distfuncs
 import scipy.special as special
 import scipy.signal as sig
 import quadpy as qp
+import numba as nb
 
 from pathos.helpers import freeze_support
 
@@ -46,6 +47,40 @@ def kernelDirectional3d(points1, points2, waveNum, angle, beta):
     angleFactor = beta * util.spherical2cart(np.ones((1,1)), np.array(angle)[None,:])[None,None,...]
     posFactor = 1j * waveNum[:,None,None,None] * rDiff[None,...]
     return special.spherical_jn(0, 1j*np.sqrt(np.sum((angleFactor + posFactor)**2, axis=-1)))
+
+@nb.njit
+def kernelDirectionalVec3d(points1, points2, waveNum, directionVec, beta):
+    """points1 is shape (numPoints1, 3)
+        points2 is shape (numPoints2, 3)
+        waveNum is shape (numFreqs)
+        directionVec is shape (numAngles, 3), where each (1,3) is a unit vector
+        
+        returns shape (numFreqs, numAngles, numPoints1, numPoints2)
+    
+        Identical to kernelDirectional3d, but accepts the direction
+        in the form of a unit vector instead of angles. 
+    """
+    angleTerm = 1j * beta * directionVec.reshape((1,-1,1,1,directionVec.shape[-1]))
+    posTerm = waveNum.reshape((-1,1,1,1,1)) * (points1.reshape((1,1,-1,1,points1.shape[-1])) - points2.reshape((1,1,1,-1,points2.shape[-1])))
+    return np.sinc(np.sqrt(np.sum((angleTerm - posTerm)**2, axis=-1)) / np.pi)
+
+
+# def kernelDirectionalVec3d(points1, points2, waveNum, directionVec, beta):
+#     """points1 is shape (numPoints1, 3)
+#         points2 is shape (numPoints2, 3)
+#         waveNum is shape (numFreqs)
+#         directionVec is shape (numAngles, 3), where each (1,3) is a unit vector
+        
+#         returns shape (numFreqs, numAngles, numPoints1, numPoints2)
+    
+#         Identical to kernelDirectional3d, but accepts the direction
+#         in the form of a unit vector instead of angles. 
+#     """
+#     #angleFactor = beta * util.spherical2cart(np.ones((1,1)), np.array(angle)[None,:])[None,None,...]
+#     angleTerm = 1j * beta * directionVec[None, :,None, None, :]
+#     posTerm = waveNum[:,None,None,None,None] * (points1[None,None,:,None,:] - points2[None,None,None,:,:])
+#     return special.spherical_jn(0, np.sqrt(np.sum((angleTerm - posTerm)**2, axis=-1)))
+
 
 
 def kernelReciprocal3d(points1, points2, waveNum):

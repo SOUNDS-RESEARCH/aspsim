@@ -11,7 +11,8 @@ from ancsim.signal.filterclasses import (
     FilterMD_Freqdomain
 )
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
-import ancsim.diagnostics.core as dia
+import ancsim.diagnostics.core as diacore
+import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
 
 
@@ -21,6 +22,7 @@ class ProcessorWrapper():
     def __init__(self, processor, arrays):
         self.processor = processor
         self.arrays = arrays
+        self.sim_info = processor.sim_info
         self.blockSize = processor.blockSize
 
         self.path_filters = {}
@@ -33,19 +35,21 @@ class ProcessorWrapper():
             self.processor.createNewBuffer(mic.name, mic.num)
         for src in self.arrays.sources():
             self.processor.createNewBuffer(src.name, src.num)
-        for src, mic in self.arrays.mic_src_combos():
-            self.processor.createNewBuffer(src.name+"~"+mic.name, mic.num)
+        if self.sim_info.save_source_contributions:
+            for src, mic in self.arrays.mic_src_combos():
+                self.processor.createNewBuffer(src.name+"~"+mic.name, mic.num)
         #self.ctrlSources = list(arrays.of_type(ar.ArrayType.CTRLSOURCE))
 
     def prepare(self):
         for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer] = src.getSamples(self.processor.sim_info.sim_buffer)
+            self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.getSamples(self.sim_info.sim_buffer)
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.processor.sig[src.name][:,:self.processor.sim_info.sim_buffer])
-            self.processor.sig[src.name+"~"+mic.name][:,:self.processor.sim_info.sim_buffer] = propagated_signal
-            self.processor.sig[mic.name][:,:self.processor.sim_info.sim_buffer] += propagated_signal
-        self.processor.idx = self.processor.sim_info.sim_buffer
+                    self.processor.sig[src.name][:,:self.sim_info.sim_buffer])
+            self.processor.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
+            if self.sim_info.save_source_contributions:
+                self.processor.sig[src.name+"~"+mic.name][:,:self.sim_info.sim_buffer] = propagated_signal
+        self.processor.idx = self.sim_info.sim_buffer
         self.processor.prepare()
 
     def reset(self):
@@ -55,12 +59,12 @@ class ProcessorWrapper():
         for sigName, sig in self.processor.sig.items():
             self.processor.sig[sigName] = np.concatenate(
                 (
-                    sig[..., -self.processor.sim_info.sim_buffer :],
-                    np.zeros(sig.shape[:-1] + (self.processor.sim_info.sim_chunk_size,)),
+                    sig[..., -self.sim_info.sim_buffer :],
+                    np.zeros(sig.shape[:-1] + (self.sim_info.sim_chunk_size,)),
                 ),
                 axis=-1,
             )
-        self.processor.idx -= self.processor.sim_info.sim_chunk_size
+        self.processor.idx -= self.sim_info.sim_chunk_size
         self.processor.resetBuffer()
 
     def propagate(self, globalIdx):
@@ -79,8 +83,9 @@ class ProcessorWrapper():
         for src, mic in self.arrays.mic_src_combos():
                 propagated_signal = self.path_filters[src.name][mic.name].process(
                         self.processor.sig[src.name][:,i:i+self.blockSize])
-                self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
                 self.processor.sig[mic.name][:,i:i+self.blockSize] += propagated_signal
+                if self.sim_info.save_source_contributions:
+                    self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
         self.processor.idx += self.blockSize
 
     def process(self, globalIdx):
@@ -100,7 +105,7 @@ class AudioProcessor(ABC):
 
         self.name = "Abstract Processor"
         self.arrays = arrays
-        self.diag = dia.DiagnosticHandler(self.sim_info, self.blockSize)
+        self.diag = diacore.DiagnosticHandler(self.sim_info, self.blockSize)
         self.rng = np.random.default_rng(1)
         self.metadata = {"block size" : self.blockSize}
         self.idx = 0

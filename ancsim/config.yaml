@@ -3,6 +3,8 @@ tot_samples : 1801000
 sim_buffer : 5000
 sim_chunk_size : 10000
 
+save_source_contributions : True
+
 #AUDIO PARAMETERS
 samplerate : 2000
 c : 343.0
@@ -14,9 +16,6 @@ room_size : [7, 5, 2.5]
 room_center : [-1, 0, 0]
 rt60 : 0.45
 max_room_ir_length : 1900
-
-# ADAPTIVE FILTER PARAMETERS
-mic_snr : 200
 
 # PLOTS AND MISC
 save_raw_data : false
