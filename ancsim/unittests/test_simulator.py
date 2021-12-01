@@ -134,7 +134,7 @@ def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
     sim = sim_setup.createSimulator()
 
     
-    save_at = (1,)
+    save_at = (bs,)
     save_intervals = ((1,2), (3,4), (5,6))
     diag_name = "filt"
     sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
