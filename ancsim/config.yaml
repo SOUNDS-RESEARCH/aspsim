@@ -3,7 +3,7 @@ tot_samples : 1801000
 sim_buffer : 5000
 sim_chunk_size : 10000
 
-save_source_contributions : True
+save_source_contributions : False
 
 #AUDIO PARAMETERS
 samplerate : 2000
@@ -18,10 +18,8 @@ rt60 : 0.45
 max_room_ir_length : 1900
 
 # PLOTS AND MISC
-save_raw_data : false
-save_raw_data_freq : 50
 plot_begin : 0
-plot_frequency : 10
+chunk_per_export : 10
 plot_output : pdf
 
 output_smoothing : 16536

@@ -103,8 +103,9 @@ def loadControlFilter(sessionPath):
 #         conf = json.load(f)
 #     return conf
 def saveConfig(pathToSave, config):
-    with open(pathToSave.joinpath("config.yaml"), "w") as f:
-        yaml.dump(config, f, sort_keys=False)
+    if pathToSave is not None:
+        with open(pathToSave.joinpath("config.yaml"), "w") as f:
+            yaml.dump(config, f, sort_keys=False)
 
 def loadConfig(sessionPath):
     with open(sessionPath.joinpath("config.yaml")) as f:
@@ -119,8 +120,9 @@ def loadArrays(sessionPath):
 
 
 def saveArrays(pathToSave, arrays):
-    with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
-        dill.dump(arrays, f)
+    if pathToSave is not None:
+        with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
+            dill.dump(arrays, f)
 
 def saveSpeakerFilters(folderPath, speakerFilters):
     np.savez(folderPath.joinpath("speakerfilters.npz"), **speakerFilters)

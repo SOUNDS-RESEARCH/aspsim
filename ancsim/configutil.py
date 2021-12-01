@@ -22,10 +22,8 @@ class SimulatorInfo:
         self.rt60 = config["rt60"]
         self.max_room_ir_length = config["max_room_ir_length"]
 
-        self.save_raw_data = config["save_raw_data"]
-        self.save_raw_data_freq = config["save_raw_data_freq"]
         self.plot_begin = config["plot_begin"]
-        self.plot_frequency = config["plot_frequency"]
+        self.chunk_per_export = config["chunk_per_export"]
         self.plot_output = config["plot_output"]
         self.output_smoothing = config["output_smoothing"]
         self.auto_save_load = config["auto_save_load"]
@@ -34,7 +32,7 @@ class SimulatorInfo:
 PARAM_CATEGORIES = {"simulation" : ["tot_samples", "sim_buffer", "sim_chunk_size", "save_source_contributions"],
                     "audio" : ["samplerate", "c", "spatial_dims", "reverb"],
                     "ism" : ["room_size", "room_center", "rt60", "max_room_ir_length"],
-                    "misc" : ["save_raw_data", "save_raw_data_freq", "plot_begin", "plot_frequency", 
+                    "misc" : ["plot_begin", "chunk_per_export", 
                                 "plot_output", "output_smoothing", 
                                 "auto_save_load"]}
 

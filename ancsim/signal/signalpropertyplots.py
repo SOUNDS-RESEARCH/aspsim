@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 def linearAndCircCorrelation(signal):
     if signal.ndim == 1:
         signal = signal[None, :]
-    numChannels = signal.shape[0]
+    num_channels = signal.shape[0]
     numSamples = signal.shape[-1]
     spectrum = np.fft.fft(signal, axis=-1)
 
-    fig, axes = plt.subplots(numChannels, 2)
+    fig, axes = plt.subplots(num_channels, 2)
     fig.tight_layout(pad=2)
     if not isinstance(axes[0], (list, np.ndarray)):
         axes = [axes]
@@ -36,8 +36,8 @@ def linearAndCircCorrelation(signal):
 
 
 def interChannelCorrelation(signal):
-    numChannels = np.min((signal.shape[0], 6))
-    fig, axes = plt.subplots(numChannels, numChannels)
+    num_channels = np.min((signal.shape[0], 6))
+    fig, axes = plt.subplots(num_channels, num_channels)
     fig.tight_layout()
     plt.suptitle("Linear Correlation", fontsize=16)
 
@@ -57,9 +57,9 @@ def interChannelCorrelation(signal):
 
 
 def interChannelCircCorrelation(signal):
-    numChannels = np.min((signal.shape[0], 6))
+    num_channels = np.min((signal.shape[0], 6))
     numSamples = signal.shape[1]
-    fig, axes = plt.subplots(numChannels, numChannels)
+    fig, axes = plt.subplots(num_channels, num_channels)
 
     plt.suptitle("Circular Correlation", fontsize=16)
     fig.tight_layout()

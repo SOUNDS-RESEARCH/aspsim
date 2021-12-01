@@ -122,7 +122,7 @@ class DiagnosticHandler:
     def getFuncInfo(self, name):
         return self.diagnostics[name].info
 
-    def addNewDiagnostic(self, name, diagnostic):
+    def add_diagnostic(self, name, diagnostic):
         # if diagnostic.info.type == DIAGNOSTICTYPE.perSimBuffer:
         #     self.perSimBufferDiagnostics.append(name)
         # elif diagnostic.info.type == DIAGNOSTICTYPE.perBlock:

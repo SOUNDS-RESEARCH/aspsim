@@ -2,6 +2,7 @@ import numpy as np
 import dill
 import json
 from abc import ABC
+import copy
 import matplotlib.pyplot as plt
 
 from ancsim.experiment.plotscripts import outputPlot
@@ -30,9 +31,10 @@ class ArrayCollection():
         return arrayName in self.arrays
 
     def save_metadata(self, filepath):
-        self._save_metadata_arrays(filepath)
-        self._save_metadata_paths(filepath)
-        self._save_readable_pos(filepath)
+        if filepath is not None:
+            self._save_metadata_arrays(filepath)
+            self._save_metadata_paths(filepath)
+            self._save_readable_pos(filepath)
         
     def _save_metadata_arrays(self, filepath):
         array_info = {}
@@ -348,12 +350,16 @@ class FreeSourceArray(Array):
         self.setSource(source)
 
         self.metadata["source info"] = self.source.metadata
+    
+    def reset_state(self):
+        self.source = copy.deepcopy(self.source)
+        self.source.reset()
 
     def getSamples(self, numSamples):
         return self.source.getSamples(numSamples)
 
     def setSource(self, source):
-        assert source.numChannels == self.num
+        assert source.num_channels == self.num
         self.source = source
 
 

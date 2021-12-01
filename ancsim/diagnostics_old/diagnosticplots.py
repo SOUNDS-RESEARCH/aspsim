@@ -40,7 +40,7 @@ def functionOfTimePlot(name, outputs, metadata, timeIdx, folder, printMethod="pd
         else:
             raise NotImplementedError
 
-        numChannels = output.shape[0]
+        num_channels = output.shape[0]
 
         filterArray = np.logical_not(np.isnan(output))
         assert np.isclose(filterArray, filterArray[0, :]).all()
@@ -53,9 +53,9 @@ def functionOfTimePlot(name, outputs, metadata, timeIdx, folder, printMethod="pd
 
         if "label_suffix_channel" in metadata:
             labels = ["_".join((algoName, suf)) for suf in metadata["label_suffix_channel"]]
-            assert len(labels) == numChannels
+            assert len(labels) == num_channels
         else:
-            labels = [algoName for _ in range(numChannels)]
+            labels = [algoName for _ in range(num_channels)]
         ax = plotMultipleChannels(ax, xVals, out, labels)
 
     ax.spines["right"].set_visible(False)
@@ -81,7 +81,7 @@ def spectrumPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
         else:
             raise NotImplementedError
 
-        numChannels = output.shape[0]
+        num_channels = output.shape[0]
 
         filterArray = np.logical_not(np.isnan(output))
         assert np.isclose(filterArray, filterArray[0, :]).all()
@@ -169,7 +169,7 @@ def spectrumRatioPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf
 #         else:
 #             raise NotImplementedError
 
-#         numChannels = output.shape[0]
+#         num_channels = output.shape[0]
 
 #         filterArray = np.logical_not(np.isnan(output))
 #         assert np.isclose(filterArray, filterArray[0, :]).all()
@@ -177,11 +177,11 @@ def spectrumRatioPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf
 
 #         # if "label_suffix_channel" in metadata:
 #         #     labels = ["_".join((algoName, suf)) for suf in metadata["label_suffix_channel"]]
-#         #     assert len(labels) == numChannels
+#         #     assert len(labels) == num_channels
 #         # else:
-#         #     labels = [algoName for _ in range(numChannels)]
+#         #     labels = [algoName for _ in range(num_channels)]
 
-#         if numChannels > 1:
+#         if num_channels > 1:
 #             raise NotImplementedError
 
 #         skip_initial = 1024

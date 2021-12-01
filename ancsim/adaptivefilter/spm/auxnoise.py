@@ -43,12 +43,12 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             self.secPathFilt.ir, np.zeros((*self.secPathFilt.ir.shape[:2], blockSize-self.secPathFilt.ir.shape[2]))),axis=-1)))
 
         self.auxNoiseSource = WhiteNoiseSource(
-            power=auxNoisePower, numChannels=self.numSpeaker
+            power=auxNoisePower, num_channels=self.numSpeaker
         )
 
 
         self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf), dataDims=self.numRef)
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "filtered_reference_est",
         #     diacore.SignalEstimateNMSEBlock(
         #         self.sim_info.tot_samples,
@@ -59,7 +59,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
         #     )
         # )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
@@ -70,7 +70,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             ),
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath_select_freq",
             diacore.ConstantEstimateNMSESelectedFrequencies(
                 self.secPathEstimate.tf,
@@ -84,7 +84,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             ),
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath_phase_select_freq",
             diacore.ConstantEstimatePhaseDifferenceSelectedFrequencies(
                 self.secPathEstimate.tf,
@@ -98,7 +98,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             ),
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath_phase_weighted_select_freq",
             diacore.ConstantEstimateWeightedPhaseDifference(
                 self.secPathEstimate.tf,
@@ -112,7 +112,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
             ),
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "recorded_ir",
             diacore.RecordIR(
                 np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
@@ -126,23 +126,23 @@ class FastBlockAuxNoise(FastBlockFxLMS):
 
         self.secPathEstimate.tf[...] = np.zeros_like(self.secPathEstimate.tf)
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "power_auxnoise",
             diacore.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "power_auxnoise_filtered",
         #     diacore.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         # )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "power_loudspeaker",
             diacore.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "power_loudspeaker_filtered",
         #     diacore.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         # )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "power_error",
             diacore.RecordScalar(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize,plotFrequency=self.plotFrequency)
         )
@@ -326,7 +326,7 @@ class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
         self.Peps = MovingAverage(0.9, (self.numSpeaker, self.numError))
         self.Pv = MovingAverage(0.9, (self.numSpeaker,))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "mu_spm",
             diacore.RecordVectorSummary(
                 self.sim_info.tot_samples,
@@ -335,7 +335,7 @@ class FastBlockFxLMSSPMYuxue(FastBlockAuxNoise):
                 plotFrequency=self.plotFrequency,
             ),
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "variable_auxnoise_power",
             diacore.RecordVector(
                 self.numSpeaker, self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, plotFrequency=self.plotFrequency
@@ -429,9 +429,9 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
         self.spmLen = secPathEstimateLen
 
         self.auxNoiseSource = WhiteNoiseSource(
-            power=auxNoisePower, numChannels=self.numSpeaker
+            power=auxNoisePower, num_channels=self.numSpeaker
         )
-        # self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = GoldSequenceSource(11, power=10, num_channels=self.numSpeaker)
         self.secPathEstimateMD = FilterMD_IntBuffer(
             dataDims=self.numRef,
             irLen=secPathEstimateLen,
@@ -458,7 +458,7 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
             (self.numError, self.simChunkSize + s.sim_buffer)
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 speakerRIR["error"], self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -526,7 +526,7 @@ class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
         super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain"
         self.muSPM = muSPM
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
@@ -534,8 +534,8 @@ class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
                 plotFrequency=self.plotFrequency,
             ),
         )
-        # self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
-        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = GoldSequenceSource(11, power=10, num_channels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=auxNoisePower, num_channels=self.numSpeaker)
 
         self.secPathEstimate = FilterSum_Freqdomain(
             numIn=self.numSpeaker, numOut=self.numError, irLen=blockSize
@@ -628,7 +628,7 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
         self.secPathEstLen = secPathEstimateLen
         self.auxNoisePower = 3
         self.auxNoiseSource = WhiteNoiseSource(
-            power=self.auxNoisePower, numChannels=self.numSpeaker
+            power=self.auxNoisePower, num_channels=self.numSpeaker
         )
 
         self.secPathEstimate = FilterSum(
@@ -654,7 +654,7 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
             )
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.secPathFilt.ir, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -720,7 +720,7 @@ class FastBlockFxLMSSPMTuningless_old(FastBlockFxLMS):
         super().__init__(config, mu, self.beta, speakerRIR, blockSize)
         self.name = "SPM Aux Noise Freq Domain Wiener"
         self.auxNoiseSource = WhiteNoiseSource(
-            power=self.auxNoisePower, numChannels=self.numSpeaker
+            power=self.auxNoisePower, num_channels=self.numSpeaker
         )
 
         self.G = np.transpose(self.G, (0, 2, 1))
@@ -739,7 +739,7 @@ class FastBlockFxLMSSPMTuningless_old(FastBlockFxLMS):
         self.buffers["v"] = np.zeros((self.numSpeaker, self.sim_info.sim_buffer + self.simChunkSize))
         self.buffers["f"] = np.zeros((self.numError, self.sim_info.sim_buffer + self.simChunkSize))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -821,9 +821,9 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
         self.spmLen = secPathEstimateLen
 
         self.auxNoiseSource = WhiteNoiseSource(
-            power=auxNoisePower, numChannels=self.numSpeaker
+            power=auxNoisePower, num_channels=self.numSpeaker
         )
-        # self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = GoldSequenceSource(11, power=10, num_channels=self.numSpeaker)
         self.secPathEstimateMD = FilterMD_IntBuffer(
             dataDims=self.numRef,
             irLen=secPathEstimateLen,
@@ -851,7 +851,7 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
             (self.numError, self.simChunkSize + s.sim_buffer)
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 speakerRIR["error"], self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -921,7 +921,7 @@ class FxLMSSPMEriksson_Gold(FxLMSSPMEriksson):
         )
         self.name = "FxLMS SPM Eriksson Gold Code"
         self.auxNoiseSource = GoldSequenceSource(
-            11, power=auxNoisePower, numChannels=self.numSpeaker
+            11, power=auxNoisePower, num_channels=self.numSpeaker
         )
 
 
@@ -941,7 +941,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
         self.spmLen = secPathEstimateLen
 
         self.auxNoiseSource = GoldSequenceSource(
-            11, power=1, numChannels=self.numSpeaker
+            11, power=1, num_channels=self.numSpeaker
         )
 
         self.secPathEstimateMD = FilterMD_IntBuffer(
@@ -985,7 +985,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
         self.Peps = SinglePoleLowPass(0.9, (self.numSpeaker, self.numError))
         self.Pv = SinglePoleLowPass(0.9, (self.numSpeaker,))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 speakerFilters["error"],
@@ -993,7 +993,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
                 plotFrequency=self.plotFrequency,
             ),
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "mu_spm",
             diacore.RecordVector(
                 self.numSpeaker * self.numError,
@@ -1001,7 +1001,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
                 plotFrequency=self.plotFrequency,
             ),
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "aux_noise_power",
             diacore.RecordVector(
                 self.numSpeaker, self.sim_info.tot_samples, plotFrequency=self.plotFrequency

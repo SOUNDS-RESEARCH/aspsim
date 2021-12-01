@@ -33,7 +33,7 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
         self.name = "SPM Aux Noise Freq Domain Wiener"
         self.auxNoisePower = 3
         self.auxNoiseSource = WhiteNoiseSource(
-            power=self.auxNoisePower, numChannels=self.numSpeaker
+            power=self.auxNoisePower, num_channels=self.numSpeaker
         )
 
         self.secPathEstimate = np.zeros(
@@ -49,7 +49,7 @@ class WienerAuxNoiseFreqFxLMS(ConstrainedFastBlockFxLMS):
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         # self.buffers["f"] = np.zeros((self.numError, s.sim_buffer+self.simChunkSize))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -208,9 +208,9 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.name = "SPM Aux Noise Freq Domain - Kernel Inteproaltion"
         self.muSPM = muSPM
         self.auxNoiseSource = GoldSequenceSource(
-            11, power=1, numChannels=self.numSpeaker
+            11, power=1, num_channels=self.numSpeaker
         )
-        # self.auxNoiseSource = WhiteNoiseSource(1, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = WhiteNoiseSource(1, num_channels=self.numSpeaker)
 
         self.secPathEstimate = FastBlockNLMS(
             blockSize=blockSize,
@@ -233,7 +233,7 @@ class KIFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -337,8 +337,8 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.name = "SPM Aux Noise Freq Domain - KI penalized"
         self.muSPM = muSPM
         self.eta = 100
-        # self.auxNoiseSource = GoldSequenceSource(11, power=10, numChannels=self.numSpeaker)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = GoldSequenceSource(11, power=10, num_channels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, num_channels=self.numSpeaker)
 
         self.secPathEstimate = FastBlockNLMS(
             blockSize=blockSize,
@@ -355,13 +355,13 @@ class KIPenalizedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         kernelRegParam = 1e-4
         self.kiParams = self.constructInterpolation(errorPos, kernelRegParam)
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
             ),
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpathselectedfrequencies",
             diacore.ConstantEstimateNMSESelectedFrequencies(
                 self.G,

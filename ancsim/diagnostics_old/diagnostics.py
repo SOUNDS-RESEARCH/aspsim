@@ -723,9 +723,9 @@ class ConstantEstimateNMSEAllCombinations(diacore.PerBlockDiagnostic):
 
 
         assert self.true_value.ndim == 3
-        numChannels = np.math.factorial(self.true_value.shape[1]) * \
+        num_channels = np.math.factorial(self.true_value.shape[1]) * \
                         np.math.factorial(self.true_value.shape[2])
-        self.dataBuffer = np.full((numChannels, tot_samples), np.nan)
+        self.dataBuffer = np.full((num_channels, tot_samples), np.nan)
 
         
         
@@ -956,7 +956,7 @@ class SignalEstimateNMSE:
         plot_frequency=1,
         **kwargs
     ):
-        """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
+        """Assumes the signal to be estimated is of the form (num_channels, numSamples)"""
         self.sim_buffer = sim_buffer
         self.sim_chunk_size = sim_chunk_size
         self.info = DiagnosticInfo(
@@ -1012,7 +1012,7 @@ class SignalEstimateNMSEBlock:
         plot_frequency=1,
         **kwargs
     ):
-        """Assumes the signal to be estimated is of the form (numChannels, numSamples)"""
+        """Assumes the signal to be estimated is of the form (num_channels, numSamples)"""
         self.sim_buffer = sim_buffer
         self.sim_chunk_size = sim_chunk_size
         self.info = DiagnosticInfo(

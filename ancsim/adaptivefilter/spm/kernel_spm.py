@@ -584,7 +584,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         self.name = "Kernel IP Freq ANC with Eriksson SPM"
         self.A = kernFilt
 
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, num_channels=self.numSpeaker)
         self.secPathEstimate = FastBlockNLMS(
             blockSize=blockSize,
             numIn=self.numSpeaker,
@@ -597,7 +597,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
         self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.G = np.transpose(self.G, (0, 2, 1))
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -702,7 +702,7 @@ class FDKIFxLMSErikssonInterpolatedF(FDKIFxLMSEriksson):
             stepSize=muSPM,
             freqIndepNorm=False,
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "weightedsecpath",
             diacore.ConstantEstimateNMSE(
                 self.A @ self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -726,7 +726,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
             errorPos, errorPos, 2 * self.blockSize, kernelReg
         )
 
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, num_channels=self.numSpeaker)
         self.secPathEstimate = FastBlockWeightedNLMS(
             blockSize=blockSize,
             numIn=self.numSpeaker,
@@ -740,7 +740,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
         self.buffers["f"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
 
         self.G = np.transpose(self.G, (0, 2, 1))
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -830,7 +830,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.name = "FxLMS SPM Eriksson"
 #         self.muSPM = muSPM
 #         self.spmLen = secPathEstimateLen
-#         self.auxNoiseSource = GoldSequenceSource(11, numChannels=self.numSpeaker)
+#         self.auxNoiseSource = GoldSequenceSource(11, num_channels=self.numSpeaker)
 
 #         self.kernelParams = soundfieldInterpolation(errorPos, errorPos, 2*blockSize, 1e-2)
 
@@ -848,7 +848,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize+s.sim_buffer))
 #         self.buffers["vEst"] = np.zeros((self.numError, self.simChunkSize+s.sim_buffer))
 
-#         self.diag.addNewDiagnostic("secpath", diacore.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=self.plotFrequency))
+#         self.diag.add_diagnostic("secpath", diacore.ConstantEstimateNMSE(speakerFilters["error"], plotFrequency=self.plotFrequency))
 
 #     def updateSPM(self):
 #         self.buffers["vEst"][:,self.updateIdx:self.idx] = self.secPathEstimateSum.process(
@@ -1269,7 +1269,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
         self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
         # self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.secPathFilt.ir, self.sim_info.tot_samples, plotFrequency=self.plotFrequency
@@ -1753,7 +1753,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         #self.primPathNLMS.filt.setIR(self.rng.standard_normal(size=(self.numSpeaker, self.numError, blockSize)) * 1e-14)
         
         #self.secPathTrueMD = FilterMD_Freqdomain(tf=np.copy(self.secPathEstimate.tf),dataDims=self.numRef)
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "filtered_reference_est",
         #     diacore.SignalEstimateNMSEBlock(
         #         self.sim_info.tot_samples,
@@ -1765,7 +1765,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         # )
 
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.secPathEstimate.tf,
@@ -1776,7 +1776,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
             ),
         )
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath_select_freq",
             diacore.ConstantEstimateNMSESelectedFrequencies(
                 self.secPathEstimate.tf,
@@ -1791,7 +1791,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         )
 
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath_phase_weighted_select_freq",
             diacore.ConstantEstimateWeightedPhaseDifference(
                 self.secPathEstimate.tf,
@@ -1805,7 +1805,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
             ),
         )
 
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "recorded_ir",
         #     diacore.RecordIR(
         #         np.real(fdf.ifftWithTranspose(self.secPathEstimate.tf)[...,:self.blockSize]),
@@ -1817,7 +1817,7 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
         #     ),
         # )
 
-        # self.diag.addNewDiagnostic(
+        # self.diag.add_diagnostic(
         #     "secpath_combinations",
         #     diacore.ConstantEstimateNMSEAllCombinations(
         #         self.secPathEstimate.tf,
@@ -1830,17 +1830,17 @@ class FastBlockFxLMSSMCKIRestricted(FastBlockFxLMS):
 
         self.secPathEstimate.tf[...] = np.zeros_like(self.secPathEstimate.tf)
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "modelling_error",
             dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                      plotFrequency=self.plotFrequency)
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "primary_error",
             dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)
         )
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secondary_error",
             dia.SignalEstimateNMSEBlock(self.sim_info.tot_samples, self.sim_info.sim_buffer, self.simChunkSize, 
                                     plotFrequency=self.plotFrequency)

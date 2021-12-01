@@ -39,13 +39,13 @@ class FastBlockFxLMSAuxnoiseSPM(mpc.TDANCProcessor):
         self.createNewBuffer("f", self.numError)
         self.createNewBuffer("xf", (self.numRef, self.numSpeaker, self.numError))
 
-        self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numSpeaker, power=auxNoisePower)
+        self.auxNoiseSource = src.WhiteNoiseSource(num_channels=self.numSpeaker, power=auxNoisePower)
 
         self.secPathFilt = FilterMD_Freqdomain(dataDims=self.numRef, filtDim=(self.numSpeaker, self.numError), irLen=self.filtLen)
 
         true_secpath = np.pad(arrays.paths["speaker"]["error"], ((0,0),(0,0),(self.blockSize,0)))
         true_secpath = fdf.fftWithTranspose(true_secpath, n=2*self.filtLen)
-        self.diag.addNewDiagnostic("secpath_estimate", diacore.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
+        self.diag.add_diagnostic("secpath_estimate", diacore.StateNMSE(self.sim_info, "secPathFilt.tf", true_secpath, 128))
 
         self.metadata["mu"] = self.mu
         self.metadata["beta"] = self.beta
@@ -157,7 +157,7 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
         # kiIR = np.transpose(fd.firFromFreqsWindow(kiTF, self.kiFiltLen), (1,0,2))
         # self.kiFilt = FilterSum_Freqdomain(ir=np.concatenate((kiIR, np.zeros(kiIR.shape[:-1]+(self.blockSize-kiIR.shape[-1],))),axis=-1))
 
-        self.auxNoiseSource = src.WhiteNoiseSource(numChannels=self.numKeep, power=auxNoisePower)
+        self.auxNoiseSource = src.WhiteNoiseSource(num_channels=self.numKeep, power=auxNoisePower)
         self.secPathNLMS = FastBlockNLMS(self.filtLen, self.numKeep, self.numError, self.muSec,self.beta)
 
         freqDirectComponent = np.moveaxis(fdf.fftWithTranspose(self.atfkiFilt.directCompFrom, n=2*self.filtLen), 1,2)

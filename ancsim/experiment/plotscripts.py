@@ -33,49 +33,51 @@ def deleteEarlierTikzPlot(folder, name):
             except PermissionError:
                 pass
 
-def outputPlot(printMethod, folder="", name="", keepOnlyLatestTikz=True):
+def outputPlot(printMethod, folder, name="", keepOnlyLatestTikz=True):
     if printMethod == "show":
         plt.show()
     elif printMethod == "tikz":
-        nestedFolder = folder.joinpath(name)
-        try:
-            nestedFolder.mkdir()
-        except FileExistsError:
-            pass
-        tikzplotlib.save(
-            str(nestedFolder.joinpath(name + ".tex")),
-            externalize_tables=True,
-            tex_relative_path_to_data="../figs/" + name + "/",
-            float_format=".8g",
-        )
-        plt.savefig(
-            str(nestedFolder.joinpath(name + ".pdf")),
-            dpi=300,
-            facecolor="w",
-            edgecolor="w",
-            orientation="portrait",
-            papertype=None,
-            format="pdf",
-            transparent=False,
-            bbox_inches=None,
-            pad_inches=0.2,
-        )
-        if keepOnlyLatestTikz:
-            deleteEarlierTikzPlot(folder, name)
+        if folder is not None:
+            nestedFolder = folder.joinpath(name)
+            try:
+                nestedFolder.mkdir()
+            except FileExistsError:
+                pass
+            tikzplotlib.save(
+                str(nestedFolder.joinpath(name + ".tex")),
+                externalize_tables=True,
+                tex_relative_path_to_data="../figs/" + name + "/",
+                float_format=".8g",
+            )
+            plt.savefig(
+                str(nestedFolder.joinpath(name + ".pdf")),
+                dpi=300,
+                facecolor="w",
+                edgecolor="w",
+                orientation="portrait",
+                papertype=None,
+                format="pdf",
+                transparent=False,
+                bbox_inches=None,
+                pad_inches=0.2,
+            )
+            if keepOnlyLatestTikz:
+                deleteEarlierTikzPlot(folder, name)
     elif printMethod == "pdf":
-        plt.savefig(
-            str(folder.joinpath(name + ".pdf")),
-            dpi=300,
-            facecolor="w",
-            edgecolor="w",
-            orientation="portrait",
-            papertype=None,
-            format="pdf",
-            transparent=False,
-            #bbox_inches=None,
-            bbox_inches="tight",
-            pad_inches=0.2,
-        )
+        if folder is not None:
+            plt.savefig(
+                str(folder.joinpath(name + ".pdf")),
+                dpi=300,
+                facecolor="w",
+                edgecolor="w",
+                orientation="portrait",
+                papertype=None,
+                format="pdf",
+                transparent=False,
+                #bbox_inches=None,
+                bbox_inches="tight",
+                pad_inches=0.2,
+            )
     elif printMethod == "none":
         pass
     else:

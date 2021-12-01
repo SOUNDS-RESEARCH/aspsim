@@ -15,6 +15,9 @@ def addToSimMetadata(folderPath, dictToAdd):
 
 
 def writeFilterMetadata(filters, folderPath):
+    if folderPath is None:
+        return
+        
     fileName = "metadata_processor.json"
     totMetadata = {}
     for filt in filters:

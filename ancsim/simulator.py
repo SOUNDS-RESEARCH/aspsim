@@ -1,6 +1,7 @@
 import numpy as np
 import json
 from pathlib import Path
+import copy
 
 import ancsim.utilities as util
 import ancsim.configutil as configutil
@@ -19,7 +20,7 @@ import ancsim.diagnostics.core as diacore
 class SimulatorSetup:
     def __init__(
         self,
-        baseFolderPath,
+        baseFolderPath=None,
         sessionFolder=None
         ):
         self.arrays = ArrayCollection()
@@ -78,37 +79,41 @@ class SimulatorSetup:
             "audio_processing" : preset.audioProcessing,
             "signal_estimation" : preset.signalEstimation,
             "anc_mpc" : preset.ancMultiPoint,
+            "debug" : preset.debug,
         }
 
         arrays, chosenPropPaths = presetFunctions[presetName](self.config, **kwargs)
         self.addArrays(arrays)
         self.arrays.set_path_types(chosenPropPaths)
+        
 
     def createSimulator(self):
         assert not self.arrays.empty()
         sim_info = configutil.SimulatorInfo(self.config)
-        self.arrays.set_default_path_type(sim_info.reverb)
+        finished_arrays = copy.deepcopy(self.arrays)
+        finished_arrays.set_default_path_type(sim_info.reverb)
         
         folderPath = self.createFigFolder(self.baseFolderPath)
         print(f"Figure folder: {folderPath}")
 
         if self.config["auto_save_load"] and self.sessionFolder is not None:
             try:
-                self.arrays = sess.loadSession(self.sessionFolder, folderPath, self.config, self.arrays)
+                finished_arrays = sess.loadSession(self.sessionFolder, folderPath, self.config, finished_arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                irMetadata = self.arrays.setupIR(sim_info)
-                sess.saveSession(self.sessionFolder, self.config, self.arrays, simMetadata=irMetadata)
+                irMetadata = finished_arrays.setupIR(sim_info)
+                sess.saveSession(self.sessionFolder, self.config, finished_arrays, simMetadata=irMetadata)
                 #sess.addToSimMetadata(folderPath, irMetadata)     
         else:
-            self.arrays.setupIR(sim_info)
+            finished_arrays.setupIR(sim_info)
 
+        
 
         # LOGGING AND DIAGNOSTICS
         sess.saveConfig(folderPath, self.config)
-        self.arrays.plot(folderPath, self.config["plot_output"])
-        self.arrays.save_metadata(folderPath)
-        return Simulator(sim_info, self.arrays, folderPath)
+        finished_arrays.plot(folderPath, self.config["plot_output"])
+        finished_arrays.save_metadata(folderPath)
+        return Simulator(sim_info, finished_arrays, folderPath)
 
     # def setupIR(self):
     #     """reverbExpeptions is a tuple of tuples, where each inner tuple is
@@ -162,16 +167,16 @@ class SimulatorSetup:
     #     return metadata
 
     def createFigFolder(self, folderForPlots, generateSubFolder=True, safeNaming=False):
-        if self.config["plot_output"] != "none":
-            if generateSubFolder:
-                folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
-                folderName.mkdir()
-            else:
-                folderName = folderForPlots
-                if not folderName.exists():
-                    folderName.mkdir()
+        if self.config["plot_output"] == "none" or folderForPlots is None:
+            return None
+
+        if generateSubFolder:
+            folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
+            folderName.mkdir()
         else:
-            folderName = ""
+            folderName = folderForPlots
+            if not folderName.exists():
+                folderName.mkdir()
         return folderName
 
 
@@ -201,8 +206,8 @@ class Simulator:
         setUniqueFilterNames(self.processors)
         writeFilterMetadata(self.processors, self.folderPath)
 
-        self.plotDispatcher = diacore.PlotDiagnosticDispatcher(
-            self.processors, self.sim_info.plot_output
+        self.plot_exporter = diacore.DiagnosticExporter(
+            self.sim_info, self.processors
         )
 
         self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
@@ -217,51 +222,56 @@ class Simulator:
         maxBlockSize = np.max(blockSizes)
 
         print("SIM START")
-        n_tot = 1
-        bufferIdx = -1
-        while n_tot < self.sim_info.tot_samples - maxBlockSize:
-            bufferIdx += 1
+        self.n_tot = 1
+        bufferIdx = 0
+        while self.n_tot <= self.sim_info.tot_samples+maxBlockSize:
             for n in range(
                 self.sim_info.sim_buffer,
                 self.sim_info.sim_buffer
-                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples - n_tot),
+                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + 1+maxBlockSize - self.n_tot),
             ):
-                # Write progress
-                if n_tot % 1000 == 0:
-                    print("Timestep: ", n_tot)#, end="\r")
+                
 
                 #Break if simulation is finished
-                if self.sim_info.tot_samples - maxBlockSize < n_tot:
-                    break
-
-                #Generate and propagate noise from free sources
-                # if n_tot % np.max(self.config["BLOCKSIZE"]) == 0:
-                #     self.freeSrcProp.process(np.max(self.config["BLOCKSIZE"]))
+                #if self.sim_info.tot_samples - maxBlockSize < self.n_tot:
+                #    break
 
                 #Generate and propagate noise from controllable sources
                 for i, proc in enumerate(self.processors):
-                    if n_tot % proc.blockSize == 0:
-                        #noise = {mic.name : self.freeSrcProp.sig[mic.name] for mic in self.arrays.mics()}
-                        proc.propagate(n_tot)
-                        proc.process(n_tot)
-                        #print("n_tot", n_tot)
+                    if self.n_tot % proc.blockSize == 0:
+                        proc.process(self.n_tot)
+                        proc.propagate(self.n_tot)
+                        
+                        #print("self.n_tot", self.n_tot)
                         #print("proc idx", proc.processor.idx)
                         #noiseIndices[i] += proc.blockSize
 
-                # Generate plots and diagnostics
-                if n_tot % self.sim_info.sim_chunk_size == 0 and n_tot > 0:
-                    if self.sim_info.plot_output != "none":
-                        self.plotDispatcher.dispatch(
-                            [p.processor for p in self.processors], n_tot, bufferIdx, self.folderPath
-                        )
-                    if True and (
-                        bufferIdx % self.sim_info.save_raw_data_freq == 0
-                        or bufferIdx - 1 == 0
-                    ):
-                        sess.saveRawData(self.processors, n_tot, self.folderPath)
+                
 
-                n_tot += 1
-        print(n_tot)
+                # Generate plots and diagnostics
+                if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
+                    if self.sim_info.plot_output != "none":
+                        self.plot_exporter.dispatch(
+                            [p.processor for p in self.processors], self.n_tot, self.folderPath
+                        )
+
+                # Write progress
+                if self.n_tot % 1000 == 0:
+                    print("Timestep: ", self.n_tot)#, end="\r")
+                    #f True and (
+                     #   bufferIdx % self.sim_info.save_raw_data_freq == 0
+                     #   or bufferIdx - 1 == 0
+                    #):
+                    #    sess.saveRawData(self.processors, self.n_tot, self.folderPath)
+
+                self.n_tot += 1
+            bufferIdx += 1
+        if self.sim_info.plot_output != "none":
+            self.plot_exporter.dispatch(
+                [p.processor for p in self.processors], self.n_tot, self.folderPath
+            )
+
+        print(self.n_tot)
 
 
     # def _updateNoises(self):

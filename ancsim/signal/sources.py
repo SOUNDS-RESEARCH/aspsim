@@ -24,30 +24,33 @@ class SourceArray:
 
 
 class Source(ABC):
-    def __init__(self, numChannels, power):
-        self.numChannels = numChannels
+    def __init__(self, num_channels, power, rng=None):
+        self.num_channels = num_channels
         self.power = power
 
-        self.rng = np.random.default_rng(1)
+        if rng is None:
+            self.rng = np.random.default_rng(1)
+        else:
+            self.rng = rng
 
         self.metadata = {}
-        self.metadata["number of channels"] = self.numChannels
+        self.metadata["number of channels"] = self.num_channels
         self.metadata["power"] = self.power
     
     @abstractmethod
     def getSamples(self, numSamples):
-        return np.zeros((self.numChannels, numSamples))
+        return np.zeros((self.num_channels, numSamples))
 
 class SineSource(Source):
-    def __init__(self, numChannels, power, freq, samplerate):
-        super().__init__(numChannels, power)
+    def __init__(self, num_channels, power, freq, samplerate):
+        super().__init__(num_channels, power)
         self.amplitude = np.sqrt(2 * self.power)
         # p = a^2 / 2
         # 2p = a^2
         # sqrt(2p) = a
         self.freq = freq
         self.samplerate = samplerate
-        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.numChannels,1))
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.num_channels,1))
 
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
 
@@ -63,9 +66,9 @@ class SineSource(Source):
         return noise
 
 class MultiSineSource(Source):
-    def __init__(self, numChannels, power, freq, samplerate):
-        super().__init__(numChannels, power)
-        if numChannels > 1:
+    def __init__(self, num_channels, power, freq, samplerate):
+        super().__init__(num_channels, power)
+        if num_channels > 1:
             raise NotImplementedError
         if isinstance(power, (list, tuple, np.ndarray)):
             raise NotImplementedError
@@ -96,13 +99,13 @@ class MultiSineSource(Source):
 
 
 class WhiteNoiseSource(Source):
-    def __init__(self, numChannels, power):
-        super().__init__(numChannels, power)
+    def __init__(self, num_channels, power):
+        super().__init__(num_channels, power)
         self.setPower(power)
 
     def getSamples(self, numSamples):
         return self.rng.normal(
-            loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+            loc=0, scale=self.stdDev, size=(numSamples, self.num_channels)
         ).T
     
     def setPower(self, newPower):
@@ -111,32 +114,32 @@ class WhiteNoiseSource(Source):
 
         if isinstance(self.power, np.ndarray):
             assert self.power.ndim == 1
-            assert self.power.shape[0] == self.numChannels or \
+            assert self.power.shape[0] == self.num_channels or \
                     self.power.shape[0] == 1
 
 
 class BandlimitedNoiseSource(Source):
-    def __init__(self, numChannels, power, freqLim, samplerate):
-        super().__init__(numChannels, power)
+    def __init__(self, num_channels, power, freqLim, samplerate):
+        super().__init__(num_channels, power)
         assert len(freqLim) == 2
         assert freqLim[0] < freqLim[1]
-        #if numChannels > 1:
+        #if num_channels > 1:
         #    raise NotImplementedError
-        self.numChannels = numChannels
+        self.num_channels = num_channels
 
         wp = [freq for freq in freqLim]
         self.filtCoef = spsig.butter(16, wp, btype="bandpass", output="sos", fs=samplerate)
-        testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=(self.numChannels,10000)))
+        testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=(self.num_channels,10000)))
         self.testSigPow = np.mean(testSig ** 2)
         self.zi = spsig.sosfilt_zi(self.filtCoef)
-        self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.numChannels,1))
+        self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.num_channels,1))
 
         self.setPower(power)
         
         self.metadata["frequency span"] = freqLim
 
     def getSamples(self, numSamples):
-        noise = self.amplitude * self.rng.normal(size=(self.numChannels, numSamples))
+        noise = self.amplitude * self.rng.normal(size=(self.num_channels, numSamples))
         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
         return filtNoise
 
@@ -146,13 +149,21 @@ class BandlimitedNoiseSource(Source):
 
         # if isinstance(self.power, np.ndarray):
         #     assert self.power.ndim == 1
-        #     assert self.power.shape[0] == self.numChannels or \
+        #     assert self.power.shape[0] == self.num_channels or \
         #             self.power.shape[0] == 1
 
 
+class Counter(Source):
+    def __init__(self, num_channels, start_number=0):
+        super().__init__(num_channels, np.nan)
+        if num_channels > 1:
+            raise NotImplementedError
+        self.current_number = start_number
 
-
-
+    def getSamples(self, num_samples):
+        values = np.arange(self.current_number, self.current_number+num_samples)
+        self.current_number += num_samples
+        return values
 
 
 
@@ -162,7 +173,7 @@ class BandlimitedNoiseSource(Source):
 #         assert len(freqLim) == 2
 #         assert freqLim[0] < freqLim[1]
 #         self.amplitude = amplitude
-#         self.numChannels = 1
+#         self.num_channels = 1
 #         self.rng = np.random.default_rng(1)
 
 #         wp = [freq for freq in freqLim]
@@ -186,7 +197,7 @@ class BandlimitedNoiseSource(Source):
 
 # class SineSource(Source):
 #     def __init__(self, amplitude, freq, samplerate):
-#         #super().__init__(numChannels, power)
+#         #super().__init__(num_channels, power)
 #         self.amp = amplitude
 #         self.freq = freq
 #         self.samplerate = samplerate
@@ -316,9 +327,9 @@ class GoldSequenceSource:
         11: [[9], [3, 6, 9]],
     }
 
-    def __init__(self, order, power=np.ones((1, 1)), numChannels=1):
-        assert numChannels <= 2 ** order - 1
-        self.numChannels = numChannels
+    def __init__(self, order, power=np.ones((1, 1)), num_channels=1):
+        assert num_channels <= 2 ** order - 1
+        self.num_channels = num_channels
         self.seqLength = 2 ** order - 1
         self.idx = 0
         self.setPower(power)
@@ -339,14 +350,14 @@ class GoldSequenceSource:
             
 
 
-        self.sequences = np.zeros((numChannels, self.seqLength))
-        for i in range(numChannels):
+        self.sequences = np.zeros((num_channels, self.seqLength))
+        for i in range(num_channels):
             self.sequences[i, :] = np.negative(
                 seq1 * np.roll(seq2, i)
             )  # XOR with integer shifts
 
     def getSamples(self, numSamples):
-        outSignal = np.zeros((self.numChannels, numSamples))
+        outSignal = np.zeros((self.num_channels, numSamples))
         blockLengths = util.calcBlockSizes(numSamples, self.idx, self.seqLength)
         outIdx = 0
         for blockLen in blockLengths:
@@ -371,14 +382,14 @@ class GoldSequenceSource:
         
 
 # class WhiteNoiseSource:
-#     def __init__(self, power, numChannels=1):
-#         self.numChannels = numChannels
+#     def __init__(self, power, num_channels=1):
+#         self.num_channels = num_channels
 #         self.setPower(power)
 #         self.rng = np.random.default_rng(1)
 
 #     def getSamples(self, numSamples):
 #         return self.rng.normal(
-#             loc=0, scale=self.stdDev, size=(numSamples, self.numChannels)
+#             loc=0, scale=self.stdDev, size=(numSamples, self.num_channels)
 #         ).T
     
 #     def setPower(self, newPower):
@@ -387,19 +398,19 @@ class GoldSequenceSource:
 
 #         if isinstance(self.power, np.ndarray):
 #             assert self.power.ndim == 1
-#             assert self.power.shape[0] == self.numChannels or \
+#             assert self.power.shape[0] == self.num_channels or \
 #                     self.power.shape[0] == 1
 
 # class WhiteNoiseSource_old:
-#     def __init__(self, power, numChannels=1):
-#         self.numChannels = numChannels
+#     def __init__(self, power, num_channels=1):
+#         self.num_channels = num_channels
 #         self.power = power
 #         self.stdDev = np.sqrt(power)
 #         self.rng = np.random.RandomState(1)
 
 #     def getSamples(self, numSamples):
 #         return self.rng.normal(
-#             loc=0, scale=self.stdDev, size=(self.numChannels, numSamples)
+#             loc=0, scale=self.stdDev, size=(self.num_channels, numSamples)
 #     )
     
 #     def setPower(newPower):

@@ -1,9 +1,7 @@
 import numpy as np
-from copy import deepcopy
 from abc import ABC, abstractmethod
-from functools import partial
 import itertools as it
-from operator import attrgetter
+import operator as op
 
 import ancsim.array as ar
 import ancsim.utilities as util
@@ -13,336 +11,434 @@ import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum
 
 
-class PlotDiagnosticDispatcher:
-    def __init__(self, filters, outputFormat):
-        self.outputFormat = outputFormat
-        self.funcInfo = self.getUniqueFuncInfo(filters)
-        self.checkDiagnosticDefinitions(filters)
+class DiagnosticExporter:
+    def __init__(self, sim_info, processors):
+        self.sim_info = sim_info
+        
+        self.upcoming_export = 0
+        self.update_next_export(processors)
 
-    def checkDiagnosticDefinitions(self, filters):
-        """Check that all diagnostics with the same identifier
-        has the same functionality defined"""
-        for diagName, info in self.funcInfo.items():
-            for filt in filters:
-                if diagName in filt.diag:
-                    assert info == filt.diag.diagnostics[diagName].info
+    def update_next_export(self, processors):
+        try:
+            self.upcoming_export = np.amin([dg.next_export() for proc in processors 
+                                            for dg in proc.diag])
+        except ValueError:
+            self.upcoming_export = np.inf
 
-    def plotThisBuffer(self, bufferIdx, funcInfo):
-        return bufferIdx >= funcInfo.plot_begin and (
-            (bufferIdx+1) % funcInfo.plot_frequency == 0 or bufferIdx == 0
-        )
+        #self.upcoming_export = int(np.amin(np.array([dg.next_export() for proc in processors 
+        #                                    for dg in proc.diag], dtype=np.float64), initial=np.inf))
 
-    def dispatch(self):
-        raise NotImplementedError
-
-    def dispatch_old(self, filters, timeIdx, bufferIdx, folder):
-        for diagName, funcInfo in self.funcInfo.items():
-            if self.plotThisBuffer(bufferIdx, funcInfo):
-                diagSet = self.getDiagnosticSet(diagName, filters)
-                self.dispatchPlot(funcInfo, diagName, diagSet, timeIdx, folder)
-                self.dispatchSummary(funcInfo, diagName, diagSet, timeIdx, folder)
-
-    def dispatchPlot_old(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if not isinstance(funcInfo.outputFunction, (list, tuple)):
-            funcInfo.outputFunction = [funcInfo.outputFunction]
-
-        for i, outType in enumerate(funcInfo.outputFunction):
-            if len(funcInfo.outputFunction) == 1:
-                outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
-            elif len(funcInfo.outputFunction) > 1:
-                outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
-            plot_data = diagSet[list(diagSet.keys())[0]].plot_data
-            outType(diagName, outputs, plot_data, timeIdx, folder, self.outputFormat)
-
-    def dispatchSummary_old(self, funcInfo, diagName, diagSet, timeIdx, folder):
-        if not isinstance(funcInfo.summaryFunction, (list, tuple)):
-            funcInfo.summaryFunction = [funcInfo.summaryFunction]
-
-        for i, sumType in enumerate(funcInfo.summaryFunction):
-            if sumType is not None:
-                if len(funcInfo.summaryFunction) == 1:
-                    outputs = {key: diag.getOutput() for key, diag in diagSet.items()}
-                elif len(funcInfo.summaryFunction) > 1:
-                    outputs = {key: diag.getOutput()[i] for key, diag in diagSet.items()}
-                summaryValues = sumType(outputs, timeIdx)
-                dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
-            # if sumType == SUMMARYFUNCTION.none:
-            #     return
-            # elif sumType == SUMMARYFUNCTION.lastValue:
-            #     summaryValues = dsum.lastValue(outputs, timeIdx)
-            # elif sumType == SUMMARYFUNCTION.meanNearTimeIdx:
-            #     summaryValues = dsum.meanNearTimeIdx(outputs, timeIdx)
-            # else:
-            #     raise NotImplementedError
-            # dsum.addToSummary(diagName, summaryValues, timeIdx, folder)
-
-    def getDiagnosticSet(self, diagnosticName, processors):
-        diagnostic = {}
+    def ready_for_export(self, processors):
         for proc in processors:
-            if diagnosticName in proc.diag:
-                diagnostic[proc.name] = proc.diag.diagnostics[diagnosticName]
-        return diagnostic
+            for _, dg in proc.diag.items():
+                start, end = dg.save_at.upcoming()
+                if start <= self.upcoming_export:
+                    return False
+        return True
 
-    def getUniqueFuncInfo(self, filters):
-        funcInfo = {}
-        for filt in filters:
-            for key in filt.diag.diagnostics.keys():
-                if key not in funcInfo:
-                    funcInfo[key] = filt.diag.getFuncInfo(key)
-        return funcInfo
+    def next_export(self):
+        return self.upcoming_export
+        
+    def export_this_idx(self, processors, idx_to_check):
+        diag_names = []
+        for proc in processors:
+            for dg_name, dg in proc.diag.items():
+                if dg.next_export() <= idx_to_check:
+                    if dg_name not in diag_names:
+                        diag_names.append(dg_name)
+        return diag_names
+                
+    def verify_same_export_settings(self, diag_dict):
+        first_diag = diag_dict[list(diag_dict.keys())[0]]
+        for dg in diag_dict.values():
+            assert first_diag.export_function == dg.export_function
+            assert first_diag.next_export() == dg.next_export()
+            assert first_diag.keep_only_last_export == dg.keep_only_last_export
+
+
+    def export_single_diag(self, diag_name, processors, fldr):
+        diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
+        self.verify_same_export_settings(diag_dict)
+
+        exp_funcs = processors[0].diag[diag_name].export_function
+        export_time_idx = processors[0].diag[diag_name].next_export()
+        for exp_func in exp_funcs:
+            exp_func(diag_name, diag_dict, export_time_idx, fldr)
+
+        for proc in processors:
+            proc.diag[diag_name].progress_export()
+
+
+    def dispatch(self, processors, time_idx, fldr):
+        """
+        processors is list of the processor objects
+        time_idx is the global time index
+        fldr is Path to figure folder
+        """
+        #if time_idx == self.next_export():
+        for diag_name in self.export_this_idx(processors, time_idx):
+            self.export_single_diag(diag_name, processors, fldr)
+        self.update_next_export(processors)
 
 
 class DiagnosticHandler:
     def __init__(self, sim_info, block_size):
         self.sim_info = sim_info
-        self.block_size = block_size
+        #self.block_size = block_size
         self.diagnostics = {}
 
-        #To keep track of which samples of data to save to each diagnostics object
-        self.lastGlobalSaveIdx = {}
-        self.lastSaveIdx = {}
-        self.samplesUntilSave = {}
-
         #To keep track of when each diagnostics are available to be exported
-        self.exportAfterSample = {}
-        self.toBeExported = []
+        #self.exportAfterSample = {}
+        #self.toBeExported = []
 
     def prepare(self):
-        for diagName, diag in self.diagnostics.items():
-            self.lastGlobalSaveIdx[diagName] = 0
-            self.lastSaveIdx[diagName] = self.sim_info.sim_buffer
-            self.samplesUntilSave[diagName] = self.sim_info.sim_buffer
-            self.exportAfterSample[diagName] = self.sim_info.sim_chunk_size 
-            diag.prepare()
+        pass
+        #for diagName, diag in self.diagnostics.items():
+        #    diag.prepare()
+        #    self.exportAfterSample[diagName] = self.sim_info.sim_chunk_size
+            
 
-    def __contains__(self, diagName):
-        return diagName in self.diagnostics
+    def __contains__(self, key):
+        return key in self.diagnostics
+
+    def __iter__(self):
+        for diag_obj in self.diagnostics.values():
+            yield diag_obj
+
+    def items(self):
+        for diag_name, diag_obj in self.diagnostics.items():
+            yield diag_name, diag_obj
+
+    def __getitem__(self, key):
+        return self.diagnostics[key]
+
+    def __setitem__(self, name, diagnostic):
+        self.add_diagnostic(name, diagnostic)
+    
+    def add_diagnostic(self, name, diagnostic):
+        assert name not in self.diagnostics
+        self.diagnostics[name] = diagnostic
 
     def reset(self):
+        raise NotImplementedError
         for diag in self.diagnostics.values():
             diag.reset()
 
-    def getFuncInfo(self, name):
-        return self.diagnostics[name].info
+    #def add_diagnostic(self, name, diagnostic):
+    #    self.diagnostics[name] = diagnostic
 
-    def addNewDiagnostic(self, name, diagnostic):
-        # if diagnostic.info.type == DIAGNOSTICTYPE.perSimBuffer:
-        #     self.perSimBufferDiagnostics.append(name)
-        # elif diagnostic.info.type == DIAGNOSTICTYPE.perBlock:
-        #     self.perBlockDiagnostics.append(name)
-        # elif diagnostic.info.type == DIAGNOSTICTYPE.perSample:
-        #     self.perSampleDiagnostics.append(name)
-        # else:
-        #     raise ValueError
-        self.diagnostics[name] = diagnostic
-
-    def saveData(self, processor, sig, idx, globalIdx):
+    def saveData(self, processor, idx, globalIdx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
-            if globalIdx >= self.lastGlobalSaveIdx[diagName] + self.samplesUntilSave[diagName]:
+            start, end = diag.next_save()
+
+            if globalIdx >= end:
+                end_lcl = idx - (globalIdx - end)
+                start_lcl = end_lcl - (end-start)
+                diag.save(processor, (start_lcl, end_lcl), (start, end))
+                diag.progress_save(end)
+            elif last_block_on_chunk and globalIdx >= start:
+                start_lcl = idx - (globalIdx-start)
+                diag.save(processor, (start_lcl, idx), (start, globalIdx))
+                diag.progress_save(globalIdx)
+
+
+    # def saveData(self, processor, idx, globalIdx):
+    #     for diagName, diag in self.diagnostics.items():
+    #         if globalIdx >= self.lastGlobalSaveIdx[diagName] + self.samplesUntilSave[diagName]:
                 
-                if idx < self.lastSaveIdx[diagName]:
-                    self.lastSaveIdx[diagName] -= self.sim_info.sim_chunk_size
-                numSamples = idx - self.lastSaveIdx[diagName]
+    #             if idx < self.lastSaveIdx[diagName]:
+    #                 self.lastSaveIdx[diagName] -= self.sim_info.sim_chunk_size
+    #             numSamples = idx - self.lastSaveIdx[diagName]
 
-                diag.saveData(processor, sig, self.lastSaveIdx[diagName], idx, self.lastGlobalSaveIdx[diagName], globalIdx)
+    #             diag.saveData(processor, self.lastSaveIdx[diagName], idx, self.lastGlobalSaveIdx[diagName], globalIdx)
 
-                if globalIdx >= self.exportAfterSample[diagName]:
-                    self.toBeExported.append(diagName)
-                    self.exportAfterSample[diagname] = util.nextDivisible(self.sim_info.plot_frequency*self.sim_info.sim_chunk_size, 
-                                                                            self.exportAfterSample[diagname])
+    #             if globalIdx >= self.exportAfterSample[diagName]:
+    #                 self.toBeExported.append(diagName)
+    #                 self.exportAfterSample[diagname] = util.nextDivisible(self.sim_info.plot_frequency*self.sim_info.sim_chunk_size, 
+    #                                                                         self.exportAfterSample[diagname])
 
-                self.samplesUntilSave[diagName] += diag.save_frequency - numSamples
-                self.lastSaveIdx[diagName] += numSamples
-                self.lastGlobalSaveIdx[diagName] += numSamples
-
-
-
-class SignalDiagnostic():
-    def __init__(self):
-        pass
-
-    def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
-        pass
-
-    def getOutput(self):
-        pass
-
-    def getRawData(self):
-        pass
-
-class StateDiagnostic():
-    def __init__(self):
-        pass
-
-class InstantDiagnostic():
-    def __init__(self):
-        pass
+    #             self.samplesUntilSave[diagName] += diag.save_frequency - numSamples
+    #             self.lastSaveIdx[diagName] += numSamples
+    #             self.lastGlobalSaveIdx[diagName] += numSamples
 
 
+class IntervalCounter:
+    def __init__(self, intervals):
+        """
+        intervals is an iterable or iterator where each entry is a tuple or list 
+        of length 2, with start (inclusive) and end (exclusive) points of each interval
+        np.ndarray of shape (num_intervals, 2) is also valid
+
+        It is assumed that the intervals are strictly increasing, with no overlap. 
+        meaning that ivs[i+1][0]>ivs[i][1] for all i. 
+        """
+        # try: #if is iterable
+        #     self.intervals = iter(intervals)
+        #     self.num_values = np.sum([iv[1]-iv[0] for iv in intervals])
+        # except TypeError: #else is iterator
+        #     self.intervals = intervals
+        #     self.num_values = num_values
+        #     assert num_values is not None
+        if isinstance(intervals, (list, tuple, np.ndarray)):
+            if isinstance(intervals[0], (list, tuple, np.ndarray)):
+                self.num_values = np.sum([iv[1]-iv[0] for iv in intervals])
+            else: 
+                self.num_values = len(intervals)
+                intervals = [[idx-1, idx] for idx in intervals]
+            self.intervals = iter(intervals)
+
+        self.start, self.end = next(self.intervals)
+
+    @classmethod
+    def from_frequency(cls, frequency, max_value):
+        num_values = int(np.ceil(max_value / frequency))
+        return cls(zip(range(0, max_value, frequency), range(1, max_value+1, frequency)), num_values)
+
+    # @classmethod
+    # def from_list(cls, lst):
+    #     """
+    #     If you want freely chosen discrete times instead of intervals,
+    #     supply a list as [time_1, time_2, time_3, ...]
+    #     """
+    #     num_values = len(lst)
+    #     interval_lst = [[idx, idx+1] for idx in lst]
+    #     return cls(interval_lst, num_values)
+
+    def upcoming(self):
+        return self.start, self.end
+
+    def progress(self, progress_until):
+        self.start = progress_until
+        assert self.end >= self.start
+        if self.start == self.end:
+            self.start, self.end = next(self.intervals, (np.inf, np.inf))
 
 
 
 
+class IndexCounter():
+    def __init__(self, idx_selection):
+        """
+        idx_selection is either an iterable of indices, or a single number
+                        which is the interval between adjacent desired indices. 
+        
+        """
+        try:
+            self.orig_iterable = idx_selection
+            self.idx_selection = iter(idx_selection)
+        except TypeError:
+            self.interval = idx_selection
+            self.idx_selection = it.count(idx_selection-1, idx_selection)
+        self.upcoming_idx = next(self.idx_selection, np.inf)
+        #self.progress()
+
+    # @classmethod
+    # def from_intervals(cls, intervals, max_spacing):
+    #     """
+    #         Intervals is a list of lists or list of tuples, 
+    #         where len(intervals[i]) == 2, and the intervals 
+    #         are sorted according to end value. 
+    #         numpy array is also fine, with the shape (num_intervals, 2)
+    #     """
+
+    #     assert all([intervals[i,1] < intervals[i+1,1] for i in range(len(intervals)-1)])
+
+    def progress(self):
+        self.upcoming_idx = next(self.idx_selection, np.inf)
+
+    def upcoming (self):
+        return self.upcoming_idx
+
+    def num_idx_until(self, until_value):
+        raise ValueError
+        #TODO check that this one works as expected
+        try:
+            return int(np.ceil(until_value / self.interval))
+        except NameError:
+            for i, idx in self.orig_iterable:
+                if idx > until_value:
+                    return i
+
+        
 
 
-
-class DiagnosticInfo:
+class Diagnostic:
+    export_functions = {}
     def __init__(
+        self, 
+        sim_info, 
+        block_size, 
+        export_at,
+        save_at,
+        export_func,
+        keep_only_last_export, 
+        ):
+        """
+        save_at_idx is an iterable which gives all indices for which to save data. 
+                    Must be an integer multiple of the block size. (maybe change to 
+                    must be equal or larger than the block size) 
+        """
+
+        assert isinstance(save_at, IntervalCounter)
+        self.save_at = save_at
+
+        if export_at is None:
+            export_at = sim_info.sim_chunk_size * sim_info.chunk_per_export
+        if not isinstance(export_at, (list, tuple, np.ndarray)):
+            assert export_at >= block_size
+        self.export_at = IndexCounter(export_at)
+
+        if isinstance(export_func, str):
+            export_func = [export_func]
+        self.export_function = [type(self).export_functions[func_choice] for func_choice in export_func]
+
+        self.keep_only_last_export = keep_only_last_export
+
+    def next_export(self):
+        return self.export_at.upcoming()
+
+    def next_save(self):
+        return self.save_at.upcoming()
+
+    def progress_save(self, progress_until):
+        self.save_at.progress(progress_until)
+
+    def progress_export(self):
+        self.export_at.progress()
+
+
+    @abstractmethod
+    def save(self, processor, chunkInterval, globInterval):
+        pass
+        # self.get_property = op.attrgetter(property_name)
+        # prop = self.get_property(processor)
+
+        # signal = processor.sig[signal_name]
+
+    @abstractmethod
+    def get_output(self):
+        self.export_at.progress()
+
+
+class SignalDiagnostic(Diagnostic):
+    export_functions = {
+        "plot" : dplot.functionOfTimePlot,
+        "npz" : dplot.savenpz,
+    }
+    def __init__ (
         self,
-        outputFunction,
-        summaryFunction=None,
-        plot_begin=0,
-        plot_frequency=1,
+        sim_info,
+        block_size,
+        export_at=None,
+        save_at = None, 
+        export_func = "plot",
     ):
-        self.outputFunction = outputFunction 
-        self.summaryFunction = summaryFunction 
-        self.plot_begin = plot_begin
-        self.plot_frequency = plot_frequency  # Unit is number of simulator-buffers
+        if save_at is None:
+            save_at = IntervalCounter(((0,sim_info.tot_samples),))
+            keep_only_last_export = True
+        else:
+            keep_only_last_export = False
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export)
 
-    def __eq__(self, other):
-        return (self.outputFunction == other.outputFunction
-            and self.summaryFunction == other.summaryFunction
-            and self.plot_begin == other.plot_begin
-            and self.plot_frequency == other.plot_frequency
-        )
-
-class Diagnostic(ABC):
-    def __init__(self,
-                sim_info,
-                save_frequency, 
-                plot_begin=None, 
-                plot_frequency=None
+class StateDiagnostic(Diagnostic):
+    export_functions = {
+        "plot" : dplot.functionOfTimePlot,
+        "npz" : dplot.savenpz,
+    }
+    def __init__ (
+        self,
+        sim_info,
+        block_size,
+        export_at,
+        save_frequency,
     ):
-        self.save_at = np.arange(sim_info.tot_samples) * plot_frequency
+        raise NotImplementedError
+        super().__init__(sim_info, block_size, save_at_idx, export_at_idx, 
+                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples))
 
-        self.info = DiagnosticInfo(
-            outputFunc,
-            dsum.meanNearTimeIdx,
-            self.plot_begin,
-            self.plot_frequency,
-        )
+
+class InstantDiagnostic(Diagnostic):
+    export_functions = {
+        "plot" : dplot.plotIR,
+        "npz" : dplot.savenpz,
+    }
+    def __init__ (
+        self,
+        sim_info,
+        block_size,
+        save_at = None, 
+        export_func = "plot",
+        keep_only_last_export = False,
+    ):
+        if save_at is None:
+            save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
+            save_at = IntervalCounter((save_freq, save_freq))
+            export_at = IndexCounter(save_freq)
+            keep_only_last_export = True
+        else:
+            # Only a single list, or a scalar
+            if isinstance(save_at, (tuple, list, np.ndarray)):
+                assert not isinstance(save_at[0], (tuple, list, np.ndarray))
+            save_at_counter = IntervalCounter(save_at)
+        super().__init__(sim_info, block_size, save_at, save_at_counter, export_func, keep_only_last_export)
+
+
+
+
+class StatePower(Diagnostic):
+    def __init__(self, prop_name, 
+                        sim_info, 
+                        block_size, 
+                        export_at=None,
+                        save_frequency=None, ):
+        super().__init__(sim_info, block_size, export_at, save_frequency)
+        
+        self.power = np.full((self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan)
+
+        self.get_prop = op.attrgetter(prop_name)
+        self.diag_idx = 0
         
 
-        self.plot_data = {
-            "title" : "",
-            "xlabel" : "",
-            "ylabel" : "",
-        }
+    def save(self, processor, chunkInterval, globInterval):
+        prop_val = self.get_prop(processor)
+        self.power[self.diag_idx] = np.mean(np.abs(prop_val)**2)
+        self.time_indices[self.diag_idx] = globInterval[1]
 
-    def prepare(self):
-        pass
+        self.diag_idx += 1
 
-    @abstractmethod
-    def saveData(self, processor, sig, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
-        pass
-
-    @abstractmethod
-    def getOutput(self):
-        pass
-        
-class DiagnosticOverTime(Diagnostic):
-    def __init__(self, sim_info,
-                        blockSize=None,
-                        smoothing_len=None,
-                        save_frequency=None, 
-                        save_raw_data=None, 
-                        plot_begin=None, 
-                        plot_frequency=None):
-
-        self.sim_info = sim_info
-        self.blockSize = blockSize
-        self.smoothing_len = smoothing_len
-        self.save_frequency = save_frequency
-        self.save_raw_data = save_raw_data
-        self.plot_begin = plot_begin
-        self.plot_frequency = plot_frequency
-
-        if self.smoothing_len is None:
-            self.smoothing_len = sim_info.output_smoothing
-        if self.save_raw_data is None:
-            self.save_raw_data = sim_info.save_raw_data
-        if self.plot_begin is None:
-            self.plot_begin = sim_info.plot_begin
-        if self.plot_frequency is None:
-            self.plot_frequency = sim_info.plot_frequency
-        if self.save_frequency is None:
-            if self.blockSize is None:
-                raise ValueError
-            #hacky solution, works if simbuffer is large enough 
-            self.save_frequency = 1024#max(min(self.sim_info.sim_buffer, self.sim_info.sim_chunk_size) - self.blockSize, self.blockSize)
-            #assert self.save_frequency > 0
-
-        outputFunc = [dplot.functionOfTimePlot]
-        if save_raw_data:
-            outputFunc.append(dplot.savenpz)
-
-        self.info = DiagnosticInfo(
-            outputFunc,
-            dsum.meanNearTimeIdx,
-            self.plot_begin,
-            self.plot_frequency,
-        )
-
-        self.plot_data["xlabel"] = "Samples"
-        
-    
-        
+    def get_output(self):
+        return self.power, self.time_indices
 
 
 
-class SignalDiagnostic_(DiagnosticOverTime):
-    def __init__(self, sim_info, **kwargs):
-        super().__init__(sim_info, **kwargs)
-
-
-class StateDiagnostic(DiagnosticOverTime):
-    def __init__(self, sim_info, property_name, save_frequency, **kwargs):
-        super().__init__(sim_info, save_frequency=save_frequency, **kwargs)
-        self.property_name = property_name
-        self.get_property = attrgetter(property_name)
-
-    @abstractmethod
-    def saveData(self, processor, sig, _unusedIdx1, _unusedIdx2, _unusedIdx3, globalIdx):
-        prop = self.get_property(processor)
 
 
 
-class PerBlockDiagnostic(ABC):
+class SoundfieldPower(Diagnostic):
     def __init__(
-        self,
-        tot_samples,
-        sim_buffer,
-        sim_chunk_size,
-        plot_begin=0,
-        plot_frequency=1,
-        **kwargs
-    ):
-        self.sim_buffer = sim_buffer
-        self.sim_chunk_size = sim_chunk_size
-        self.info = DiagnosticInfo(
-            DIAGNOSTICTYPE.perBlock,
-            dplot.functionOfTimePlot,
-            dsum.meanNearTimeIdx,
-            plot_begin=plot_begin,
-            plot_frequency=plot_frequency,
-        )
+        self, 
+        source_names,
+        arrays, 
+        num_avg,
+        sim_info, 
+        block_size, 
+        export_at_idx
+        ):
 
-        self.dataBuffer = np.full((tot_samples), np.nan)
-        self.bufferIdx = 0
+        save_at_idx = [exp_idx - num_avg]
+        super().__init__(sim_info, block_size, export_at_idx)
+        
 
-        self.metadata = {"title": "", "xlabel": "Samples", "ylabel": ""}
-        for key, value in kwargs.items():
-            self.metadata[key] = value
+        self.num_avg = num_avg
 
-    def getOutput(self):
-        return self.dataBuffer
+        src_sig = {src_name : np.full((self.num_avg, arrays[src_name].num), np.nan) for src_name in source_names}
 
-    def saveDiagnostics(self, chunkIdxStart, chunkIdxEnd, globIdxStart, globIdxEnd):
+    def save(self, processor, chunkInterval, globInterval):
         pass
 
-    def resetBuffers(self):
-        self.bufferIdx += 1
+    def get_output(self):
+        #... actually get output
 
-    @abstractmethod
-    def saveBlockData(self, idx):
-        pass
+        self.reset()
+        

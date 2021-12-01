@@ -3,13 +3,8 @@ from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
 import ancsim.array as ar
-from ancsim.signal.filterclasses import (
-    Filter_IntBuffer,
-    FilterSum,
-    FilterMD_IntBuffer,
-    FilterSum_Freqdomain,
-    FilterMD_Freqdomain
-)
+import ancsim.signal.filterclasses as fc
+
 from ancsim.adaptivefilter.util import blockProcessUntilIndex, calcBlockSizes, getWhiteNoiseAtSNR
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
@@ -29,7 +24,7 @@ class ProcessorWrapper():
         for src, mic, path in arrays.iter_paths():
             if src.name not in self.path_filters:
                 self.path_filters[src.name] = {}
-            self.path_filters[src.name][mic.name] = FilterSum(path)
+            self.path_filters[src.name][mic.name] = fc.FilterSum(path)
 
         for mic in self.arrays.mics():
             self.processor.createNewBuffer(mic.name, mic.num)
@@ -68,7 +63,7 @@ class ProcessorWrapper():
         self.processor.resetBuffer()
 
     def propagate(self, globalIdx):
-        """ propagated audio from  all sources.
+        """ propagated audio from all sources.
             The mic_signals are calculated for the indices
             self.processor.idx to self.processor.idx+numSamples
 
@@ -88,13 +83,19 @@ class ProcessorWrapper():
                     self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
         self.processor.idx += self.blockSize
 
+        last_block = self.last_block_on_buffer()
+        self.processor.diag.saveData(self.processor, self.processor.idx, globalIdx, last_block)
+        if last_block:
+            self.resetBuffers(globalIdx)
+
     def process(self, globalIdx):
         self.processor.process(self.blockSize)
         #if self.processor.diag.shouldSaveData(globalIdx):
-        self.processor.diag.saveData(self.processor, self.processor.sig, self.processor.idx, globalIdx)
-        if self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer:
-            self.resetBuffers(globalIdx)
+        
 
+    def last_block_on_buffer(self):
+        return self.processor.idx+self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
+        #return self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
         
         
 
@@ -113,7 +114,7 @@ class AudioProcessor(ABC):
         self.sig = {}
         
         for diagName, diag in diagnostics.items():
-            self.diag.addNewDiagnostic(diagName, diag)
+            self.diag.add_diagnostic(diagName, diag)
 
     def prepare(self):
         self.diag.prepare()
@@ -151,11 +152,30 @@ class AudioProcessor(ABC):
         pass
 
 
+
+class DebugProcessor(AudioProcessor):
+    def __init__(self, sim_info, arrays, blockSize, **kwargs):
+        super().__init__(sim_info, arrays, blockSize, **kwargs)
+        self.name = "Debug Processor"
+        self.processed_samples = 0
+        self.filt = fc.createFilter(numIn=3, numOut=4, irLen=5)
+
+    def process(self, numSamples):
+        assert numSamples == self.blockSize
+        self.processed_samples += numSamples
+        self.filt.ir += numSamples
+        self.sig["loudspeaker"][:,self.idx:self.idx+self.blockSize] = \
+            self.sig["mic"][:,self.idx-self.blockSize:self.idx]
+
+
+
+
 class SubbandProcessor(AudioProcessor):
     def __init__(self, sim_info, arrays, blockSize, numBands, samplingFactor, **kwargs):
         super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.numBands = numBands
         self.samplingFactor = samplingFactor
+        
 
     def process(self, numSamples):
         pass
@@ -168,8 +188,8 @@ class VolumeControl(AudioProcessor):
         self.name = "Volume Control"
         self.volumeFactor = volumeFactor
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
-        self.diag.addNewDiagnostic("outputPower", dia.SignalPower("output", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.add_diagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.add_diagnostic("outputPower", dia.SignalPower("output", self.sim_info.tot_samples, self.outputSmoothing))
 
         self.metadata["volume factor"] = self.volumeFactor
 
@@ -187,9 +207,9 @@ class ActiveNoiseControlProcessor(AudioProcessor):
         self.numError = self.arrays["error"].num
         self.numSpeaker = self.arrays["speaker"].num
         
-        self.diag.addNewDiagnostic("noise_reduction", dia.SignalPowerRatio(self.sim_info, "error", "source~error"))
+        self.diag.add_diagnostic("noise_reduction", dia.SignalPowerRatio(self.sim_info, "error", "source~error"))
         if "target" in self.arrays:
-            self.diag.addNewDiagnostic("spatial_noise_reduction", 
+            self.diag.add_diagnostic("spatial_noise_reduction", 
                 dia.SignalPowerRatio(self.sim_info, "target", "source~target", 1024, False))
 
         self.updateIdx = self.sim_info.sim_buffer

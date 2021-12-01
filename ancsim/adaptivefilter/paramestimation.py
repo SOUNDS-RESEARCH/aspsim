@@ -31,9 +31,9 @@ class BlockLeastMeanSquares(AudioProcessor):
         self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
-        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower("desired", self.sim_info.tot_samples, self.outputSmoothing))
-        self.diag.addNewDiagnostic("errorPower", dia.SignalPower("error", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.add_diagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.add_diagnostic("desiredPower", dia.SignalPower("desired", self.sim_info.tot_samples, self.outputSmoothing))
+        self.diag.add_diagnostic("errorPower", dia.SignalPower("error", self.sim_info.tot_samples, self.outputSmoothing))
         
 
     def process(self, numSamples):
@@ -75,10 +75,10 @@ class LeastMeanSquares(AudioProcessor):
         self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
-        self.diag.addNewDiagnostic("inputPower", dia.SignalPower(self.sim_info, "input"))
-        self.diag.addNewDiagnostic("desiredPower", dia.SignalPower(self.sim_info, "desired"))
-        self.diag.addNewDiagnostic("errorPower", dia.SignalPower(self.sim_info, "error"))
-        self.diag.addNewDiagnostic("paramError", dia.StateNMSE(
+        self.diag.add_diagnostic("inputPower", dia.SignalPower(self.sim_info, "input"))
+        self.diag.add_diagnostic("desiredPower", dia.SignalPower(self.sim_info, "desired"))
+        self.diag.add_diagnostic("errorPower", dia.SignalPower(self.sim_info, "error"))
+        self.diag.add_diagnostic("paramError", dia.StateNMSE(
                     self.sim_info,
                     "controlFilter.ir", 
                     np.pad(self.arrays.paths["source"]["desired"],((0,0),(0,0),(0,512)), mode="constant", constant_values=0), 

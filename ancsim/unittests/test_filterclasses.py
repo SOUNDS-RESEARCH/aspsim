@@ -10,7 +10,6 @@ from ancsim.signal.filterclasses import (
 )
 import ancsim.presets as preset
 import pytest
-import ancsim.signal.filterclasses_new as fcn
 
 import matplotlib.pyplot as plt
 import time

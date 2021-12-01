@@ -105,7 +105,7 @@ def findAllEarlierFiles(
 
     earlierFiles = []
     for f in folder.iterdir():
-        if f.stem.startswith(name) and f.stem[len(name)+1:].isdigit():
+        if f.stem.startswith(name) and f.stem[len(name):].isdigit():
             fIdx = int(f.stem[len(name) :])
             if fIdx > currentIdx:
                 if errorIfFutureFilesExist:

@@ -105,20 +105,20 @@ def corr_matrix(seq1, seq2, lag1, lag2):
     return R 
 
 def _corr_matrix(seq1, seq2, lag1, lag2):
-    """seq1 has shape (numChannels_1, numSamples)
-        seq2 has shape (numChannels_2, numSamples)
+    """seq1 has shape (num_channels_1, numSamples)
+        seq2 has shape (num_channels_2, numSamples)
     
         Outputs a correlation matrix of size 
-        (numChannels_1*lag1, numChannels_2*lag2)"""
+        (num_channels_1*lag1, num_channels_2*lag2)"""
     assert seq1.ndim == seq2.ndim == 2
     assert seq1.shape[-1] == seq2.shape[-1]
     seqLen = seq1.shape[-1]
-    numChannels1 = seq1.shape[0]
-    numChannels2 = seq2.shape[0]
+    num_channels1 = seq1.shape[0]
+    num_channels2 = seq2.shape[0]
 
-    corr = np.zeros((numChannels1, numChannels2, 2*seqLen-1))
-    for i in range(numChannels1):
-        for j in range(numChannels2):
+    corr = np.zeros((num_channels1, num_channels2, 2*seqLen-1))
+    for i in range(num_channels1):
+        for j in range(num_channels2):
             corr[i,j,:] = spsig.correlate(seq1[i,:], seq2[j,:], mode="full")
     corr /= seqLen
     corrMid = seqLen - 1

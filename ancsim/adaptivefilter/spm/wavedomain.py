@@ -15,8 +15,8 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         super().__init__(mu, self.beta, speakerFilters, blockSize)
         self.name = "SPM Aux Noise Freq Domain Unconstrained"
         self.muSPM = muSPM
-        # self.auxNoiseSource = GoldSequenceSource(11, power=2, numChannels=self.numSpeaker)
-        self.auxNoiseSource = WhiteNoiseSource(power=3, numChannels=self.numSpeaker)
+        # self.auxNoiseSource = GoldSequenceSource(11, power=2, num_channels=self.numSpeaker)
+        self.auxNoiseSource = WhiteNoiseSource(power=3, num_channels=self.numSpeaker)
 
         self.secPathEstimate = NLMS_FREQ(
             numFreq=2 * blockSize,
@@ -27,7 +27,7 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
         self.G = np.transpose(self.G, (0, 2, 1))
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
 
-        self.diag.addNewDiagnostic(
+        self.diag.add_diagnostic(
             "secpath",
             diacore.ConstantEstimateNMSE(
                 self.G, self.sim_info.tot_samples, plotFrequency=self.plotFrequency

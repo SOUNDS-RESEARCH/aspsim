@@ -8,6 +8,22 @@ import ancsim.array as ar
 import ancsim.soundfield.geometry as geo
 import ancsim.signal.sources as src
 
+def debug (config):
+    arrays = ar.ArrayCollection()
+    arrays.add_array(
+        ar.FreeSourceArray("source", np.zeros((1,3)), 
+            src.Counter(num_channels=1))
+    )
+
+    arrays.add_array(
+        ar.ControllableSourceArray("loudspeaker", np.zeros((1,3)))
+    )
+
+    arrays.add_array(
+        ar.MicArray("mic", np.zeros((1,3)))
+    )
+    propPaths = {"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}}
+    return arrays, propPaths
 
 
 def audioProcessing(config, 
@@ -19,7 +35,7 @@ def audioProcessing(config,
     arrays = ar.ArrayCollection()
     arrays.add_array(
         ar.FreeSourceArray("source", np.zeros((1,3)), 
-            src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
+            src.SineSource(num_channels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
     )
     arrays.add_array(
         ar.ControllableSourceArray("output", np.zeros((numOutput,3)))
@@ -38,8 +54,8 @@ def signalEstimation(config,
     arrays = ar.ArrayCollection()
     arrays.add_array(
         ar.FreeSourceArray("source", np.zeros((numInput,3)), 
-            #src.SineSource(numChannels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
-            src.WhiteNoiseSource(numChannels=numInput, power=1))
+            #src.SineSource(num_channels=numInput, power=1,freq=100, samplerate=config["samplerate"]))
+            src.WhiteNoiseSource(num_channels=numInput, power=1))
     )
     arrays.add_array(
         ar.MicArray("input", np.zeros((numInput,3)))
