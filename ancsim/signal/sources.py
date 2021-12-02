@@ -7,7 +7,22 @@ from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
 
+class Source(ABC):
+    def __init__(self, num_channels, rng=None):
+        self.num_channels = num_channels
 
+        if rng is None:
+            self.rng = np.random.default_rng(123456)
+        else:
+            self.rng = rng
+
+        self.metadata = {}
+        self.metadata["number of channels"] = self.num_channels
+        #self.metadata["power"] = self.power
+    
+    @abstractmethod
+    def getSamples(self, num_samples):
+        return np.zeros((self.num_channels, num_samples))
 
 class SourceArray:
     def __init__(self, sourceType, numSources, amplitude, *args):
@@ -16,34 +31,22 @@ class SourceArray:
 
         self.sources = [sourceType(amplitude[i], *args) for i in range(numSources)]
 
-    def getSamples(self, numSamples):
+    def getSamples(self, num_samples):
         output = np.concatenate(
-            [src.getSamples(numSamples) for src in self.sources], axis=0
+            [src.getSamples(num_samples) for src in self.sources], axis=0
         )
         return output
 
 
-class Source(ABC):
-    def __init__(self, num_channels, power, rng=None):
-        self.num_channels = num_channels
-        self.power = power
 
-        if rng is None:
-            self.rng = np.random.default_rng(1)
-        else:
-            self.rng = rng
 
-        self.metadata = {}
-        self.metadata["number of channels"] = self.num_channels
-        self.metadata["power"] = self.power
-    
-    @abstractmethod
-    def getSamples(self, numSamples):
-        return np.zeros((self.num_channels, numSamples))
 
+
+#SOURCES
 class SineSource(Source):
-    def __init__(self, num_channels, power, freq, samplerate):
-        super().__init__(num_channels, power)
+    def __init__(self, num_channels, power, freq, samplerate, rng=None):
+        super().__init__(num_channels, rng)
+        self.power = power
         self.amplitude = np.sqrt(2 * self.power)
         # p = a^2 / 2
         # 2p = a^2
@@ -54,20 +57,20 @@ class SineSource(Source):
 
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
 
+        self.metadata["power"] = self.power
         self.metadata["frequency"] = self.freq
 
-    def getSamples(self, numSamples):
-        
+    def getSamples(self, num_samples):
         noise = (
             self.amplitude
-            * np.cos(self.phasePerSample * np.arange(numSamples)[None,:] + self.phase)
+            * np.cos(self.phasePerSample * np.arange(num_samples)[None,:] + self.phase)
         )
-        self.phase = (self.phase + numSamples * self.phasePerSample) % (2 * np.pi)
+        self.phase = (self.phase + num_samples * self.phasePerSample) % (2 * np.pi)
         return noise
 
 class MultiSineSource(Source):
-    def __init__(self, num_channels, power, freq, samplerate):
-        super().__init__(num_channels, power)
+    def __init__(self, num_channels, power, freq, samplerate, rng=None):
+        super().__init__(num_channels, rng)
         if num_channels > 1:
             raise NotImplementedError
         if isinstance(power, (list, tuple, np.ndarray)):
@@ -75,6 +78,7 @@ class MultiSineSource(Source):
         if isinstance(freq, (list, tuple)):
             freq = np.array(freq)
         assert freq.ndim == 1
+        self.power = power
         self.freq = freq
         self.samplerate = samplerate
         self.numSines = len(freq)
@@ -82,30 +86,34 @@ class MultiSineSource(Source):
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
         self.amplitude = np.sqrt(2 * self.power / self.numSines)
 
-    def getSamples(self, numSamples):
-        noise = np.zeros((1, numSamples))
+        self.metadata["power"] = self.power
+        self.metadata["frequency"] = self.freq
+
+    def getSamples(self, num_samples):
+        noise = np.zeros((1, num_samples))
         for i in range(self.numSines):
             noise += (
                 self.amplitude
                 * np.cos(
-                    np.arange(numSamples) * self.phasePerSample[i] + self.phase[i]
+                    np.arange(num_samples) * self.phasePerSample[i] + self.phase[i]
                 )[None, :]
             )
-            self.phase[i] = (self.phase[i] + numSamples * self.phasePerSample[i]) % (
+            self.phase[i] = (self.phase[i] + num_samples * self.phasePerSample[i]) % (
                 2 * np.pi
             )
         return noise
 
 
-
 class WhiteNoiseSource(Source):
-    def __init__(self, num_channels, power):
-        super().__init__(num_channels, power)
+    def __init__(self, num_channels, power, rng=None):
+        super().__init__(num_channels, rng)
         self.setPower(power)
 
-    def getSamples(self, numSamples):
+        self.metadata["power"] = self.power
+
+    def getSamples(self, num_samples):
         return self.rng.normal(
-            loc=0, scale=self.stdDev, size=(numSamples, self.num_channels)
+            loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
         ).T
     
     def setPower(self, newPower):
@@ -119,27 +127,27 @@ class WhiteNoiseSource(Source):
 
 
 class BandlimitedNoiseSource(Source):
-    def __init__(self, num_channels, power, freqLim, samplerate):
-        super().__init__(num_channels, power)
+    def __init__(self, num_channels, power, freqLim, samplerate, rng=None):
+        super().__init__(num_channels, rng)
         assert len(freqLim) == 2
         assert freqLim[0] < freqLim[1]
-        #if num_channels > 1:
-        #    raise NotImplementedError
         self.num_channels = num_channels
 
         wp = [freq for freq in freqLim]
         self.filtCoef = spsig.butter(16, wp, btype="bandpass", output="sos", fs=samplerate)
+
         testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=(self.num_channels,10000)))
         self.testSigPow = np.mean(testSig ** 2)
+        self.setPower(power)
+
         self.zi = spsig.sosfilt_zi(self.filtCoef)
         self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.num_channels,1))
 
-        self.setPower(power)
-        
+        self.metadata["power"] = power
         self.metadata["frequency span"] = freqLim
 
-    def getSamples(self, numSamples):
-        noise = self.amplitude * self.rng.normal(size=(self.num_channels, numSamples))
+    def getSamples(self, num_samples):
+        noise = self.amplitude * self.rng.normal(size=(self.num_channels, num_samples))
         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
         return filtNoise
 
@@ -155,10 +163,12 @@ class BandlimitedNoiseSource(Source):
 
 class Counter(Source):
     def __init__(self, num_channels, start_number=0):
-        super().__init__(num_channels, np.nan)
+        super().__init__(num_channels)
         if num_channels > 1:
             raise NotImplementedError
         self.current_number = start_number
+
+        self.metadata["start number"] = start_number 
 
     def getSamples(self, num_samples):
         values = np.arange(self.current_number, self.current_number+num_samples)
@@ -168,57 +178,11 @@ class Counter(Source):
 
 
 
-# class BandlimitedNoiseSource:
-#     def __init__(self, amplitude, freqLim, samplerate):
-#         assert len(freqLim) == 2
-#         assert freqLim[0] < freqLim[1]
-#         self.amplitude = amplitude
-#         self.num_channels = 1
-#         self.rng = np.random.default_rng(1)
+class LinearChirpSource(Source):
+    def __init__(self, num_channels, amplitude, freqRange, samplesToSweep, samplerate, rng=None):
+        raise NotImplementedError #change amplitude to power
 
-#         wp = [freq for freq in freqLim]
-
-#         self.filtCoef = spsig.butter(
-#             16, wp, btype="bandpass", output="sos", fs=samplerate
-#         )
-
-#         testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=10000))
-#         testSigPow = np.mean(testSig ** 2)
-#         self.normFactor = np.sqrt(0.5) / np.sqrt(testSigPow)
-
-#         self.zi = spsig.sosfilt_zi(self.filtCoef)
-
-#     def getSamples(self, numSamples):
-#         noise = self.rng.normal(size=numSamples) * self.amplitude
-#         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi)
-#         filtNoise *= self.normFactor
-#         return filtNoise[None, :]
-
-
-# class SineSource(Source):
-#     def __init__(self, amplitude, freq, samplerate):
-#         #super().__init__(num_channels, power)
-#         self.amp = amplitude
-#         self.freq = freq
-#         self.samplerate = samplerate
-#         rng = np.random.RandomState(1)
-#         self.phase = rng.uniform(low=0, high=2 * np.pi)
-
-#     def getSamples(self, numSamples):
-#         phasePerSample = 2 * np.pi * self.freq / self.samplerate
-#         noise = (
-#             self.amp
-#             * np.cos(np.arange(numSamples) * phasePerSample + self.phase)[None, :]
-#         )
-#         self.phase = (self.phase + numSamples * phasePerSample) % (2 * np.pi)
-#         return noise
-
-
-
-
-
-class LinearChirpSource:
-    def __init__(self, amplitude, freqRange, samplesToSweep, samplerate):
+        super.__init__(num_channels, rng)
         assert len(freqRange) == 2
         self.amp = amplitude
         self.samplerate = samplerate
@@ -228,8 +192,7 @@ class LinearChirpSource:
         self.deltaFreq = (freqRange[1] - freqRange[0]) / samplesToSweep
         self.freq = freqRange[0]
         self.freqCounter = 0
-        rng = np.random.default_rng(1)
-        self.phase = rng.uniform(low=0, high=2 * np.pi)
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi)
 
     def nextPhase(self):
         self.phase += (self.freq / self.samplerate) + (
@@ -238,11 +201,11 @@ class LinearChirpSource:
         self.phase = self.phase % 1
         self.freq = self.freq + self.deltaFreq
 
-    def getSamples(self, numSamples):
-        noise = np.zeros((1, numSamples))
-        samplesLeft = numSamples
+    def getSamples(self, num_samples):
+        noise = np.zeros((1, num_samples))
+        samplesLeft = num_samples
         n = 0
-        for blocks in range(1 + numSamples // self.samplesToSweep):
+        for blocks in range(1 + num_samples // self.samplesToSweep):
             blockSize = min(samplesLeft, self.samplesToSweep - self.freqCounter)
             for _ in range(blockSize):
                 noise[0, n] = np.cos(2 * np.pi * self.phase)
@@ -262,61 +225,106 @@ class LinearChirpSource:
         noise *= self.amp
         return noise
 
+class AudioSource(Source):
+    def __init__(self, audio, amp_factor = 1, end_mode = "repeat"):
+        """
+        audio is np.ndarray of audio samples to be played. 
+                    Shape is (num_channels, num_samples)
+        end_mode can be 'repeat' or 'zeros', which selects whether the 
+                    sound should repeat indefinitely or just be 0 
+                    after the supplied samples are over
+        """
+        assert isinstance(audio, np.ndarray)
+        if audio.ndim == 1:
+            audio = audio[None,:]
+        elif audio.ndim != 2:
+            raise ValueError
+        super().__init__(audio.shape[0])
 
-class AudioFileSource:
-    def __init__(self, amplitude, samplerate, filename, endTimestep, verbose=False):
-        # filename = "noise_bathroom_fan.wav"
-        # filename = "song_assemble.wav"
-        self.amplitude = amplitude
-        self.samplerate = samplerate
-        self.audioSamples, srAudio = sf.read(filename)
-        if self.audioSamples.ndim == 2:
-            self.audioSamples = self.audioSamples[:, 0]
-        self.currentSample = 0
+        self.audio = audio
+        self.amp_factor = amp_factor
+        self.end_mode = end_mode
+        self.tot_samples = audio.shape[1]
+        self.current_sample = 0
 
-        if srAudio != samplerate:
-            assert srAudio % samplerate == 0
-            assert srAudio > samplerate
-            downsamplingFactor = srAudio // samplerate
-            self.audioSamples = spsig.resample_poly(
-                self.audioSamples, up=1, down=downsamplingFactor, axis=-1
-            )
-            # srAudio = srAudio // downsamplingFactor
-            if verbose:
-                print(
-                    "AudioFileSource downsampled audio file from ",
-                    srAudio,
-                    " to ",
-                    srAudio // downsamplingFactor,
-                    " Hz",
-                )
+    def getSamples(self, num_samples):
+        sig = np.zeros((self.num_channels, num_samples))
+        if self.end_mode == "repeat":
+            block_lengths = util.calcBlockSizes(num_samples, self.current_sample, self.tot_samples)
+            i = 0
+            for block_len in block_lengths:
+                sig[:,i:i+block_len] = self.audio[:,self.current_sample:self.current_sample+block_len]
+                self.current_sample = (self.current_sample + block_len) % self.tot_samples
+                i += block_len
+        elif self.end_mode == "zeros":
+            raise NotImplementedError
+        else:
+            raise ValueError("Invalid end mode")
 
-        # assert(srAudio == samplerate)
-        assert endTimestep < self.audioSamples.shape[0]
+        # try:
+        #     sig = self.audio[
+        #         :, self.current_sample : self.current_sample + num_samples
+        #     ]
+        # except IndexError:
+        #     sig = np.zeros((self.num_channels, num_samples))
+        #     num_end = self.tot_samples - self.current_sample
+        #     sig[:,:num_end] = self.audio[:,self.current_sample:self.current_sample+num_end]
+        #     if self.end_mode == "repeat":
+        #         num_start = num_samples - num_end
+        #         sig[:,num_end:] = self.audio[:,:num_start]
+        #         self.current_sample = num_start
+        #     elif self.end_mode == "zeros":
+        #         pass
+        #     else:
+        #         raise ValueError("Invalid end mode")
+                
+        #self.current_sample += num_samples
+        return sig * self.amp_factor
 
-    def getSamples(self, numSamples):
-        sig = self.audioSamples[
-            None, self.currentSample : self.currentSample + numSamples
-        ]
-        self.currentSample += numSamples
-        return sig * self.amplitude
+def load_audio_file(file_name, desired_sr = None, verbose=False):
+    audio, audio_sr = sf.read(file_name)
+    raise NotImplementedError("Check which axis is audio and which is channel. \
+                                Make support for multiple channels (should be simple)")
+    if audio.ndim == 2:
+        audio = audio[:, 0]
+
+    if desired_sr != audio_sr:
+        assert audio_sr % desired_sr == 0
+        assert audio_sr > desired_sr
+        downsampling_factor = audio_sr // desired_sr
+        audio = spsig.resample_poly(
+            audio, up=1, down=downsampling_factor, axis=-1
+        )
+        # srAudio = srAudio // downsamplingFactor
+        if verbose:
+            print(f"AudioFileSource downsampled audio file from \
+                    {audio_sr} to {audio_sr // downsampling_factor} Hz")
+
+        return audio
 
 
-class MLS:
+class MLS(Source):
     """Generates a maximum length sequence"""
-    def __init__(self, order, polynomial, state=None):
+    def __init__(self, num_channels, order, polynomial, state=None):
+        super().__init__(num_channels, None)
+        if num_channels > 1:
+            raise NotImplementedError
         self.order = order
         self.poly = polynomial
         self.state = None
 
-    def getSamples(self, numSamples):
+        self.metadata["order"] = self.order
+        self.metadata["polynomial"] = self.poly
+        self.metadata["start state"] = self.state
+
+    def getSamples(self, num_samples):
         seq, self.state = spsig.max_len_seq(
-            self.order, state=self.state, length=numSamples, taps=self.poly
+            self.order, state=self.state, length=num_samples, taps=self.poly
         )
         return seq * 2 - 1
 
 
-class GoldSequenceSource:
+class GoldSequenceSource(Source):
     preferredSequences = {
         5: [[2], [1, 2, 3]],
         6: [[5], [1, 4, 5]],
@@ -327,28 +335,31 @@ class GoldSequenceSource:
         11: [[9], [3, 6, 9]],
     }
 
-    def __init__(self, order, power=np.ones((1, 1)), num_channels=1):
+    def __init__(self, num_channels, power, order):
+        super().__init__(num_channels)
         assert num_channels <= 2 ** order - 1
         self.num_channels = num_channels
         self.seqLength = 2 ** order - 1
         self.idx = 0
         self.setPower(power)
+        
+        self.metadata["power"] = self.power
+        self.metadata["order"] = order
+        self.metadata["sequence length"] = self.seqLength
 
         if 5 <= order <= 11:
-            mls1 = MLS(order, self.preferredSequences[order][0])
-            mls2 = MLS(order, self.preferredSequences[order][1])
+            mls1 = MLS(1, order, self.preferredSequences[order][0])
+            mls2 = MLS(1, order, self.preferredSequences[order][1])
             seq1 = mls1.getSamples(2 ** order - 1)
             seq2 = mls2.getSamples(2 ** order - 1)
         elif order > 11:
             assert order % 2 == 1
-            mls1 = MLS(order, None)
+            mls1 = MLS(1, order, None)
             seq1 = mls1.getSamples(2**order - 1)
             k = util.getSmallestCoprime(order)
             decimationFactor = int(2**k + 1)
             decimatedIndices = (np.arange(self.seqLength) * decimationFactor) % self.seqLength
             seq2 = np.copy(seq1[decimatedIndices])
-            
-
 
         self.sequences = np.zeros((num_channels, self.seqLength))
         for i in range(num_channels):
@@ -356,9 +367,9 @@ class GoldSequenceSource:
                 seq1 * np.roll(seq2, i)
             )  # XOR with integer shifts
 
-    def getSamples(self, numSamples):
-        outSignal = np.zeros((self.num_channels, numSamples))
-        blockLengths = util.calcBlockSizes(numSamples, self.idx, self.seqLength)
+    def getSamples(self, num_samples):
+        outSignal = np.zeros((self.num_channels, num_samples))
+        blockLengths = util.calcBlockSizes(num_samples, self.idx, self.seqLength)
         outIdx = 0
         for blockLen in blockLengths:
             outSignal[:, outIdx : outIdx + blockLen] = self.sequences[
@@ -379,43 +390,6 @@ class GoldSequenceSource:
         else:
             raise ValueError
         self.amplitude = np.sqrt(self.power)
-        
-
-# class WhiteNoiseSource:
-#     def __init__(self, power, num_channels=1):
-#         self.num_channels = num_channels
-#         self.setPower(power)
-#         self.rng = np.random.default_rng(1)
-
-#     def getSamples(self, numSamples):
-#         return self.rng.normal(
-#             loc=0, scale=self.stdDev, size=(numSamples, self.num_channels)
-#         ).T
-    
-#     def setPower(self, newPower):
-#         self.power = newPower
-#         self.stdDev = np.sqrt(newPower)
-
-#         if isinstance(self.power, np.ndarray):
-#             assert self.power.ndim == 1
-#             assert self.power.shape[0] == self.num_channels or \
-#                     self.power.shape[0] == 1
-
-# class WhiteNoiseSource_old:
-#     def __init__(self, power, num_channels=1):
-#         self.num_channels = num_channels
-#         self.power = power
-#         self.stdDev = np.sqrt(power)
-#         self.rng = np.random.RandomState(1)
-
-#     def getSamples(self, numSamples):
-#         return self.rng.normal(
-#             loc=0, scale=self.stdDev, size=(self.num_channels, numSamples)
-#     )
-    
-#     def setPower(newPower):
-#         self.power = newPower
-#         self.stdDev = np.sqrt(newPower)
 
 
 

@@ -43,23 +43,23 @@ def test_constant_scalar_integral():
     assert np.array_equal(val, np.array([vol]))
 
 
-def test_circle_centerofgravity():
-    print("Test circle center of gravity: ")
+# def test_circle_centerofgravity():
+#     print("Test circle center of gravity: ")
 
-    def f(r):
-        return r
+#     def f(r):
+#         return r
 
-    radius = 10
+#     radius = 10
 
-    def pointGen(numSamples):
-        r = np.sqrt(np.random.rand(numSamples)) * radius
-        angle = np.random.rand(numSamples) * 2 * np.pi
-        x = r * np.cos(angle)
-        y = r * np.sin(angle)
-        return np.stack((x, y), axis=0)
+#     def pointGen(numSamples):
+#         r = np.sqrt(np.random.rand(numSamples)) * radius
+#         angle = np.random.rand(numSamples) * 2 * np.pi
+#         x = r * np.cos(angle)
+#         y = r * np.sin(angle)
+#         return np.stack((x, y), axis=0)
 
-    vol = radius ** 2 * np.pi
-    for numSamples in [1e2, 1e3, 1e4]:
-        val = mc.integrate(f, pointGen, numSamples, vol)
-        print("Actual: ", val, " Expected: ", 0, "Number of Samples: ", numSamples)
-    print()
+#     vol = radius ** 2 * np.pi
+#     for numSamples in [1e2, 1e3, 1e4]:
+#         val = mc.integrate(f, pointGen, numSamples, vol)
+#         print("Actual: ", val, " Expected: ", 0, "Number of Samples: ", numSamples)
+#     print()

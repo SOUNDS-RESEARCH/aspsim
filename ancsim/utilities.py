@@ -11,12 +11,10 @@ import numpy as np
 def isPowerOf2(x):
     return isInteger(np.log2(x))
 
-
 def isInteger(x):
     if np.all(np.isclose(x, x.astype(int))):
         return True
     return False
-
 
 def cart2pol(x, y):
     r = np.hypot(x, y)
@@ -48,7 +46,6 @@ def spherical2cart(r, angle):
     cartCoord[:,2] = np.squeeze(r) * np.cos(angle[:,1])
     return cartCoord
 
-
 def getSmallestCoprime(N):
     assert N > 2 #don't have to deal with 1 and 2 at this point
     for i in range(2,N):
@@ -61,22 +58,17 @@ def nextDivisible(divisor, minValue):
     rem = (minValue + divisor) % divisor
     return minValue + divisor - rem
 
-
 def db2mag(db):
     return 10 ** (db / 20)
-
 
 def mag2db(amp):
     return 20 * np.log10(amp)
 
-
 def db2pow(db):
     return 10 ** (db / 10)
 
-
 def pow2db(power):
     return 10 * np.log10(power)
-
 
 def avgPower(signal, axis=None):
     return np.mean(np.abs(signal) ** 2, axis=axis)
@@ -96,20 +88,6 @@ def calcBlockSizes(numSamples, startIdx, blockSize):
     return blockSizes
 
 
-def calcPowerRed(error, noise, currentIdx, avgLength):
-    ePow = np.zeros((error.shape[0], error.shape[1] + avgLength - 1))
-    noisePow = np.zeros((noise.shape[0], noise.shape[1] + avgLength - 1))
-    for i in range(error.shape[0]):
-        ePow[i, :] = (
-            np.convolve(error[i, :] ** 2, np.ones(avgLength), "full") / avgLength
-        )
-        noisePow[i, :] = (
-            np.convolve(noise[i, :] ** 2, np.ones(avgLength), "full") / avgLength
-        )
-    powRed = pow2db(np.mean(ePow / noisePow, axis=0))
-    return powRed[: -avgLength + 1]
-
-
 # edited, originally from JBirdVegas, stackoverflow
 def measure(name):
     def measure_internal(func):
@@ -121,9 +99,7 @@ def measure(name):
             finally:
                 end_ = int(round(time.time() * 1000)) - start
                 print(name + f" execution time: {end_ if end_ > 0 else 0} ms")
-
         return _time_it
-
     return measure_internal
 
 
