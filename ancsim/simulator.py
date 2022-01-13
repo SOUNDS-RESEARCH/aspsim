@@ -6,7 +6,7 @@ import copy
 import ancsim.utilities as util
 import ancsim.configutil as configutil
 
-from ancsim.array import ArrayCollection, Array
+from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
 from ancsim.adaptivefilter.base import ProcessorWrapper
 from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
@@ -41,16 +41,16 @@ class SimulatorSetup:
     def addArray(self, array):
         self.arrays.add_array(array)
 
-    def addFreeSource(self, name, pos):
-        arr = Array(name, ArrayType.FREESOURCE, pos)
+    def addFreeSource(self, name, pos, source):
+        arr = FreeSourceArray(name, pos, source)
         self.addArray(arr)
 
     def addControllableSource(self, name, pos):
-        arr = Array(name, ArrayType.CTRLSOURCE, pos)
+        arr = ControllableSourceArray(name, pos)
         self.addArray(arr)
     
     def addMics(self, name, pos):
-        arr = Array(name, ArrayType.MIC, pos)
+        arr = MicArray(name,pos)
         self.addArray(arr)
 
     def setPath(self, srcName, micName, path):
@@ -278,12 +278,12 @@ class Simulator:
     #     for src in self.arrays.of_type(ArrayType.FREESOURCE):
     #         for mic in self.arrays.mics():
     #             self.freeSrcSig[src.name][mic.name] = {
-    #                 = src.getSamples(self.config["sim_chunk_size"])
+    #                 = src.get_samples(self.config["sim_chunk_size"])
     #             }
              
 
     # def _updateNoises(self, timeIdx, noises):
-    #     noise = self.freeSource.getSamples(self.config["sim_chunk_size"])
+    #     noise = self.freeSource.get_samples(self.config["sim_chunk_size"])
     #     noises = {
     #         filtName: np.concatenate(
     #             (noises[filtName][:, -self.config["sim_buffer"] :], sf.process(noise)),
@@ -294,7 +294,7 @@ class Simulator:
     #     return noises
 
     # def _fillBuffers(self):
-    #     noise = self.noiseSource.getSamples(self.config["sim_buffer"])
+    #     noise = self.noiseSource.get_samples(self.config["sim_buffer"])
     #     noises = {
     #         filtName: sf.process(noise) for filtName, sf in self.sourceFilters.items()
     #     }

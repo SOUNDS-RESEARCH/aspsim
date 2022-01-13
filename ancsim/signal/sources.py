@@ -21,7 +21,7 @@ class Source(ABC):
         #self.metadata["power"] = self.power
     
     @abstractmethod
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         return np.zeros((self.num_channels, num_samples))
 
 class SourceArray:
@@ -31,9 +31,9 @@ class SourceArray:
 
         self.sources = [sourceType(amplitude[i], *args) for i in range(numSources)]
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         output = np.concatenate(
-            [src.getSamples(num_samples) for src in self.sources], axis=0
+            [src.get_samples(num_samples) for src in self.sources], axis=0
         )
         return output
 
@@ -60,7 +60,7 @@ class SineSource(Source):
         self.metadata["power"] = self.power
         self.metadata["frequency"] = self.freq
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         noise = (
             self.amplitude
             * np.cos(self.phasePerSample * np.arange(num_samples)[None,:] + self.phase)
@@ -89,7 +89,7 @@ class MultiSineSource(Source):
         self.metadata["power"] = self.power
         self.metadata["frequency"] = self.freq
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         noise = np.zeros((1, num_samples))
         for i in range(self.numSines):
             noise += (
@@ -111,7 +111,7 @@ class WhiteNoiseSource(Source):
 
         self.metadata["power"] = self.power
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         return self.rng.normal(
             loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
         ).T
@@ -146,7 +146,7 @@ class BandlimitedNoiseSource(Source):
         self.metadata["power"] = power
         self.metadata["frequency span"] = freqLim
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         noise = self.amplitude * self.rng.normal(size=(self.num_channels, num_samples))
         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
         return filtNoise
@@ -170,7 +170,7 @@ class Counter(Source):
 
         self.metadata["start number"] = start_number 
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         values = np.arange(self.current_number, self.current_number+num_samples)
         self.current_number += num_samples
         return values
@@ -201,7 +201,7 @@ class LinearChirpSource(Source):
         self.phase = self.phase % 1
         self.freq = self.freq + self.deltaFreq
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         noise = np.zeros((1, num_samples))
         samplesLeft = num_samples
         n = 0
@@ -247,7 +247,7 @@ class AudioSource(Source):
         self.tot_samples = audio.shape[1]
         self.current_sample = 0
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         sig = np.zeros((self.num_channels, num_samples))
         if self.end_mode == "repeat":
             block_lengths = util.calcBlockSizes(num_samples, self.current_sample, self.tot_samples)
@@ -317,7 +317,7 @@ class MLS(Source):
         self.metadata["polynomial"] = self.poly
         self.metadata["start state"] = self.state
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         seq, self.state = spsig.max_len_seq(
             self.order, state=self.state, length=num_samples, taps=self.poly
         )
@@ -350,12 +350,12 @@ class GoldSequenceSource(Source):
         if 5 <= order <= 11:
             mls1 = MLS(1, order, self.preferredSequences[order][0])
             mls2 = MLS(1, order, self.preferredSequences[order][1])
-            seq1 = mls1.getSamples(2 ** order - 1)
-            seq2 = mls2.getSamples(2 ** order - 1)
+            seq1 = mls1.get_samples(2 ** order - 1)
+            seq2 = mls2.get_samples(2 ** order - 1)
         elif order > 11:
             assert order % 2 == 1
             mls1 = MLS(1, order, None)
-            seq1 = mls1.getSamples(2**order - 1)
+            seq1 = mls1.get_samples(2**order - 1)
             k = util.getSmallestCoprime(order)
             decimationFactor = int(2**k + 1)
             decimatedIndices = (np.arange(self.seqLength) * decimationFactor) % self.seqLength
@@ -367,7 +367,7 @@ class GoldSequenceSource(Source):
                 seq1 * np.roll(seq2, i)
             )  # XOR with integer shifts
 
-    def getSamples(self, num_samples):
+    def get_samples(self, num_samples):
         outSignal = np.zeros((self.num_channels, num_samples))
         blockLengths = util.calcBlockSizes(num_samples, self.idx, self.seqLength)
         outIdx = 0

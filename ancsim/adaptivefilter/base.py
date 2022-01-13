@@ -37,7 +37,7 @@ class ProcessorWrapper():
 
     def prepare(self):
         for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.getSamples(self.sim_info.sim_buffer)
+            self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
                     self.processor.sig[src.name][:,:self.sim_info.sim_buffer])
@@ -73,7 +73,7 @@ class ProcessorWrapper():
         i = self.processor.idx
 
         for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,i:i+self.blockSize] = src.getSamples(self.blockSize)
+            self.processor.sig[src.name][:,i:i+self.blockSize] = src.get_samples(self.blockSize)
 
         for src, mic in self.arrays.mic_src_combos():
                 propagated_signal = self.path_filters[src.name][mic.name].process(

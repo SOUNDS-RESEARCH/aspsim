@@ -159,7 +159,7 @@ class FastBlockAuxNoise(FastBlockFxLMS):
         #        np.mean(self.secPathFiltExtraSpeak.process(
         #            self.y[:,self.idx:self.idx+numSamples])**2))
 
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -513,7 +513,7 @@ class FxLMSSPMErikssonBlock(AdaptiveFilterFF):
 
     def forwardPassImplement(self, numSamples):
         y = self.controlFilt.process(self.x[:, self.idx : self.idx + numSamples])
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] = v + y
 
@@ -554,7 +554,7 @@ class FastBlockFxLMSSPMEriksson_old(FastBlockFxLMS):
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
 
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -668,7 +668,7 @@ class FxLMSSPMTuningless(AdaptiveFilterFF):
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -752,7 +752,7 @@ class FastBlockFxLMSSPMTuningless_old(FastBlockFxLMS):
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -901,7 +901,7 @@ class FxLMSSPMEriksson(AdaptiveFilterFF):
 
     def forwardPassImplement(self, numSamples):
         y = self.controlFilt.process(self.x[:, self.idx : self.idx + numSamples])
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] = v + y
 
@@ -1081,7 +1081,7 @@ class FxLMS_SPM_Yuxue(AdaptiveFilterFF):
 
     def forwardPassImplement(self, numSamples):
         y = self.controlFilt.process(self.x[:, self.idx : self.idx + numSamples])
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
 
         self.y[:, self.idx : self.idx + numSamples] = v + y

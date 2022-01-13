@@ -113,7 +113,7 @@ def soundSim(
     totNumSamples = startBuffer + samplesToAverage
 
     # sourceToRefFilt = FilterSum(sourceToRef)
-    sourceSig = source.getSamples(totNumSamples)
+    sourceSig = source.get_samples(totNumSamples)
     #refSig = sourceToRef.process(sourceSig)[:, refFiltLen:]
 
     speakerSigs = genSpeakerSignals(

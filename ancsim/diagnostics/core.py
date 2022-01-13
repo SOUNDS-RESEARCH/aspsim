@@ -163,7 +163,7 @@ class DiagnosticHandler:
 
 
 class IntervalCounter:
-    def __init__(self, intervals):
+    def __init__(self, intervals, num_values = None):
         """
         intervals is an iterable or iterator where each entry is a tuple or list 
         of length 2, with start (inclusive) and end (exclusive) points of each interval
@@ -186,6 +186,10 @@ class IntervalCounter:
                 self.num_values = len(intervals)
                 intervals = [[idx-1, idx] for idx in intervals]
             self.intervals = iter(intervals)
+            assert num_values is None
+        else:
+            self.intervals = intervals
+            self.num_values = num_values
 
         self.start, self.end = next(self.intervals)
 
@@ -271,7 +275,7 @@ class Diagnostic:
         export_at,
         save_at,
         export_func,
-        keep_only_last_export, 
+        keep_only_last_export,
         ):
         """
         save_at_idx is an iterable which gives all indices for which to save data. 
@@ -293,6 +297,8 @@ class Diagnostic:
         self.export_function = [type(self).export_functions[func_choice] for func_choice in export_func]
 
         self.keep_only_last_export = keep_only_last_export
+
+        self.plot_data = {}
 
     def next_export(self):
         return self.export_at.upcoming()
@@ -332,13 +338,20 @@ class SignalDiagnostic(Diagnostic):
         export_at=None,
         save_at = None, 
         export_func = "plot",
+        keep_only_last_export = None,
     ):
         if save_at is None:
             save_at = IntervalCounter(((0,sim_info.tot_samples),))
-            keep_only_last_export = True
+            if keep_only_last_export is None:
+                keep_only_last_export = True
         else:
-            keep_only_last_export = False
+            if keep_only_last_export is None:
+                keep_only_last_export = False
         super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export)
+
+        self.plot_data["xlabel"] = "Samples"
+        self.plot_data["ylabel"] = ""
+        self.plot_data["title"] = ""
 
 class StateDiagnostic(Diagnostic):
     export_functions = {
@@ -349,12 +362,20 @@ class StateDiagnostic(Diagnostic):
         self,
         sim_info,
         block_size,
-        export_at,
-        save_frequency,
+        export_at=None,
+        save_frequency=None,
+        export_func = "plot",
+        keep_only_last_export=True,
     ):
-        raise NotImplementedError
-        super().__init__(sim_info, block_size, save_at_idx, export_at_idx, 
-                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples))
+        if save_frequency is None:
+            save_frequency = block_size
+        super().__init__(sim_info, block_size, export_at, 
+                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples),
+                        export_func, 
+                        keep_only_last_export)
+        self.plot_data["xlabel"] = "Samples"
+        self.plot_data["ylabel"] = ""
+        self.plot_data["title"] = ""
 
 
 class InstantDiagnostic(Diagnostic):
@@ -374,7 +395,8 @@ class InstantDiagnostic(Diagnostic):
             save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
             save_at = IntervalCounter((save_freq, save_freq))
             export_at = IndexCounter(save_freq)
-            keep_only_last_export = True
+            #raise NotImplementedError("knas med default values. gör så man kan skriva över")
+            #keep_only_last_export = True
         else:
             # Only a single list, or a scalar
             if isinstance(save_at, (tuple, list, np.ndarray)):
@@ -385,60 +407,3 @@ class InstantDiagnostic(Diagnostic):
 
 
 
-class StatePower(Diagnostic):
-    def __init__(self, prop_name, 
-                        sim_info, 
-                        block_size, 
-                        export_at=None,
-                        save_frequency=None, ):
-        super().__init__(sim_info, block_size, export_at, save_frequency)
-        
-        self.power = np.full((self.save_at.num_values), np.nan)
-        self.time_indices = np.full((self.save_at.num_values), np.nan)
-
-        self.get_prop = op.attrgetter(prop_name)
-        self.diag_idx = 0
-        
-
-    def save(self, processor, chunkInterval, globInterval):
-        prop_val = self.get_prop(processor)
-        self.power[self.diag_idx] = np.mean(np.abs(prop_val)**2)
-        self.time_indices[self.diag_idx] = globInterval[1]
-
-        self.diag_idx += 1
-
-    def get_output(self):
-        return self.power, self.time_indices
-
-
-
-
-
-
-class SoundfieldPower(Diagnostic):
-    def __init__(
-        self, 
-        source_names,
-        arrays, 
-        num_avg,
-        sim_info, 
-        block_size, 
-        export_at_idx
-        ):
-
-        save_at_idx = [exp_idx - num_avg]
-        super().__init__(sim_info, block_size, export_at_idx)
-        
-
-        self.num_avg = num_avg
-
-        src_sig = {src_name : np.full((self.num_avg, arrays[src_name].num), np.nan) for src_name in source_names}
-
-    def save(self, processor, chunkInterval, globInterval):
-        pass
-
-    def get_output(self):
-        #... actually get output
-
-        self.reset()
-        

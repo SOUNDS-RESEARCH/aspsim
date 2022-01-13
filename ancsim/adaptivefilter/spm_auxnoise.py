@@ -87,7 +87,7 @@ class FastBlockFxLMSEriksson(FastBlockFxLMSAuxnoiseSPM):
 
     def genSpeakerSignals(self, numSamples):
         super().genSpeakerSignals(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.sig["v"][:, self.idx - numSamples : self.idx] = v
         self.sig["speaker"][:, self.idx : self.idx + numSamples] += v
 
@@ -178,7 +178,7 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
 
     def genSpeakerSignals(self, numSamples):
         super().genSpeakerSignals(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.sig["v"][self.auxSpeakerIdx, self.idx - numSamples : self.idx] = v
         self.sig["speaker"][self.auxSpeakerIdx, self.idx : self.idx + numSamples] += v
 
@@ -239,7 +239,7 @@ class FastBlockFxLMSKernelSPM(FastBlockFxLMSAuxnoiseSPM):
     # def forwardPassImplement(self, numSamples):
     #     super().forwardPassImplement(numSamples)
 
-    #     v = self.auxNoiseSource.getSamples(numSamples)[self.auxSpeakerIdx,:]
+    #     v = self.auxNoiseSource.get_samples(numSamples)[self.auxSpeakerIdx,:]
     #     #for i in self.auxSpeakerIdx:
     #     self.buffers["v"][self.auxSpeakerIdx, self.idx : self.idx + numSamples] = v
     #     self.y[self.auxSpeakerIdx, self.idx : self.idx + numSamples] += v

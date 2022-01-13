@@ -616,7 +616,7 @@ class FDKIFxLMSEriksson(ConstrainedFastBlockFxLMS):
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
 
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -760,7 +760,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
 
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 
@@ -885,7 +885,7 @@ class KernelSPM2(ConstrainedFastBlockFxLMS):
 #     def forwardPassImplement(self, numSamples):
 #         y = self.controlFilt.process(self.x[:,self.idx:self.idx+numSamples])
 
-#         v = self.auxNoiseSource.getSamples(numSamples)
+#         v = self.auxNoiseSource.get_samples(numSamples)
 #         self.buffers["v"][:,self.idx:self.idx+numSamples] = v
 
 #         self.y[:,self.idx:self.idx+numSamples] = v + y
@@ -912,7 +912,7 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFiltLen // 2
         self.kiFreqSamples = np.max(1024, 4 * self.filtLen)
 
-        self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
+        self.nextBlockAuxNoise = self.auxNoiseSource.get_samples(blockSize)
         # self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
@@ -973,11 +973,11 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         v[:, :numOldSamples] = self.futureAuxNoise[:, :numOldSamples]
         numNewSamples = numSamples - self.futureAuxNoise.shape[-1]
         if numNewSamples > 0:
-            v[:, numOldSamples:] = self.auxNoiseSource.getSamples(numNewSamples)
+            v[:, numOldSamples:] = self.auxNoiseSource.get_samples(numNewSamples)
 
         newToReplace = self.futureAuxNoise.shape[-1] - numOldSamples
         self.futureAuxNoise[:, :newToReplace] = self.futureAuxNoise[:, numOldSamples:]
-        self.futureAuxNoise[:, newToReplace:] = self.auxNoiseSource.getSamples(
+        self.futureAuxNoise[:, newToReplace:] = self.auxNoiseSource.get_samples(
             newToReplace
         )
 
@@ -988,7 +988,7 @@ class KernelSPM3(FastBlockFxLMSSPMEriksson):
         )
 
         v = self.nextBlockAuxNoise
-        self.nextBlockAuxNoise[...] = self.auxNoiseSource.getSamples(numSamples)
+        self.nextBlockAuxNoise[...] = self.auxNoiseSource.get_samples(numSamples)
 
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
@@ -1112,7 +1112,7 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFiltLen // 2
         self.kiFreqSamples = np.max(1024, 4 * self.filtLen)
 
-        self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
+        self.nextBlockAuxNoise = self.auxNoiseSource.get_samples(blockSize)
 
         self.buffers["v"] = np.zeros((self.numSpeaker, self.simChunkSize + s.sim_buffer))
         self.buffers["vf"] = np.zeros((self.numError, self.simChunkSize + s.sim_buffer))
@@ -1167,7 +1167,7 @@ class KernelSPM4(FastBlockFxLMSSPMEriksson):
         )
 
         v = self.nextBlockAuxNoise
-        self.nextBlockAuxNoise[...] = self.auxNoiseSource.getSamples(numSamples)
+        self.nextBlockAuxNoise[...] = self.auxNoiseSource.get_samples(numSamples)
 
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
@@ -1266,7 +1266,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
         self.kiDelay = kiFiltLen // 2
         self.kiFreqSamples = np.max(1024, 4 * self.filtLen)
 
-        self.nextBlockAuxNoise = self.auxNoiseSource.getSamples(blockSize)
+        self.nextBlockAuxNoise = self.auxNoiseSource.get_samples(blockSize)
         # self.nextBlockFilteredAuxNoise = np.zeros((self.numError, blockSize))
 
         self.diag.add_diagnostic(
@@ -1368,7 +1368,7 @@ class KernelSPM5(FastBlockFxLMSSPMEriksson):
         )
 
         v = self.nextBlockAuxNoise
-        self.nextBlockAuxNoise[...] = self.auxNoiseSource.getSamples(numSamples)
+        self.nextBlockAuxNoise[...] = self.auxNoiseSource.get_samples(numSamples)
 
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v

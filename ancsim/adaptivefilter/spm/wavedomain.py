@@ -39,7 +39,7 @@ class UnconstrainedFreqAuxNoiseFxLMS(ConstrainedFastBlockFxLMS):
 
     def forwardPassImplement(self, numSamples):
         super().forwardPassImplement(numSamples)
-        v = self.auxNoiseSource.getSamples(numSamples)
+        v = self.auxNoiseSource.get_samples(numSamples)
         self.buffers["v"][:, self.idx : self.idx + numSamples] = v
         self.y[:, self.idx : self.idx + numSamples] += v
 

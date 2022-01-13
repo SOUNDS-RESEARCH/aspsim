@@ -26,32 +26,79 @@ import ancsim.utilities as util
 #         return np.log(data)
 
 
-def functionOfTimePlot(name, diags, timeIdx, folder, printMethod="pdf"):
+def get_values_up_to_idx(signal, max_idx):
+    """
+    gives back signal values that correspond to time_values less than max_idx, 
+    and signal values that are not nan
+
+    max_idx is exlusive
+    """
+
+    time_indices = np.arange(max_idx)
+    signal = signal[:,:max_idx]
+
+    nan_filter = np.logical_not(np.isnan(signal))
+    assert np.isclose(nan_filter, nan_filter[0, :]).all()
+    nan_filter = nan_filter[0, :]
+
+    time_indices = time_indices[nan_filter]
+    signal = signal[:,nan_filter]
+    return signal, time_indices
+
+def get_values_from_selection(signal, time_indices, max_idx):
+    """
+    gives back signal values that correspond to time_values less than max_idx, 
+    and signal values that are not nan
+
+    max_idx is exlusive
+    """
+    nan_filter = np.logical_not(np.isnan(signal))
+    assert np.isclose(nan_filter, nan_filter[0, :]).all()
+    nan_filter = nan_filter[0, :]
+
+    assert time_indices.shape[-1] == signal.shape[-1]
+    time_indices = time_indices[nan_filter]
+    signal = signal[:,nan_filter]
+
+    above_max_idx = np.argmax(time_indices >= max_idx)
+    if above_max_idx == 0:
+        if np.logical_not(above_max_idx).all():
+            above_max_idx = len(time_indices)
+
+    time_indices = time_indices[:above_max_idx]
+    signal = signal[:,:above_max_idx]
+    return signal, time_indices
+
+
+
+def functionOfTimePlot(name, diags, time_idx, folder, printMethod="pdf"):
     fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig.tight_layout(pad=4)
 
-    xValues = np.arange(timeIdx)[None, :]
     for proc_name, diag in diags.items():
-        output = diag.get_output()
-        if output.ndim == 1:
-            output = output[None, :timeIdx]
-        elif output.ndim == 2:
-            output = output[:, :timeIdx]
-        else:
-            raise NotImplementedError
-
+        output = np.atleast_2d(diag.get_output())
+        assert output.ndim == 2
         num_channels = output.shape[0]
 
-        filterArray = np.logical_not(np.isnan(output))
-        assert np.isclose(filterArray, filterArray[0, :]).all()
-        filterArray = filterArray[0, :]
+        if hasattr(diag, "time_indices"):
+            output, time_indices = get_values_from_selection(output, diag.time_indices, time_idx+1)
+            #xValues = diag.time_indices
+        else:
+            output, time_indices = get_values_up_to_idx(output, time_idx+1)
+            #xValues = np.arange(time_idx+1)
 
-        if "label_suffix_channel" in metadata:
-            labels = ["_".join((algoName, suf)) for suf in metadata["label_suffix_channel"]]
+        #filterArray = np.logical_not(np.isnan(output))
+        #assert np.isclose(filterArray, filterArray[0, :]).all()
+        #filterArray = filterArray[0, :]
+        #xValues = xValues[filterArray[:time_idx+1]]
+        #output = output[:,filterArray]
+
+        if "label_suffix_channel" in diag.plot_data:
+            labels = ["_".join((proc_name, suf)) for suf in diag.plot_data["label_suffix_channel"]]
             assert len(labels) == num_channels
         else:
-            labels = [algoName for _ in range(num_channels)]
-        ax = plotMultipleChannels(ax, xValues[:,filterArray], output[:,filterArray], labels)
+            labels = [proc_name for _ in range(num_channels)]
+        ax = plotMultipleChannels(ax, time_indices, output, labels)
 
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
@@ -59,15 +106,15 @@ def functionOfTimePlot(name, diags, timeIdx, folder, printMethod="pdf"):
     legendWithoutDuplicates(ax, "upper right")
     #ax.legend(loc="upper right")
 
-    ax.set_xlabel(metadata["xlabel"])
-    ax.set_ylabel(metadata["ylabel"])
-    ax.set_title(metadata["title"] + " - " + name)
-    outputPlot(printMethod, folder, name + "_" + str(timeIdx))
+    ax.set_xlabel(diag.plot_data["xlabel"])
+    ax.set_ylabel(diag.plot_data["ylabel"])
+    ax.set_title(diag.plot_data["title"] + " - " + name)
+    outputPlot(printMethod, folder, name + "_" + str(time_idx))
 
-def plotMultipleChannels(ax, timeIdx, signal, labels):
+def plotMultipleChannels(ax, time_idx, signal, labels):
     for i, label in enumerate(labels):
         ax.plot(
-                timeIdx.T,
+                np.atleast_2d(time_idx).T,
                 signal[i:i+1,:].T,
                 alpha=0.8,
                 label=label,

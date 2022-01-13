@@ -76,7 +76,7 @@ class SoundzoneFIR(base.AudioProcessor):
         pass
 
     def process(self, numSamples):
-        x = self.src.getSamples(self.blockSize)
+        x = self.src.get_samples(self.blockSize)
         self.sig["orig_sig"][:,self.idx:self.idx+self.blockSize] = x
         self.sig["speaker"][:,self.idx:self.idx+self.blockSize] = self.controlFilter.process(x)
 
@@ -170,7 +170,7 @@ class PressureMatching(SoundzoneFIR):
     def calcControlFilter(self):
         pathLen = np.max((self.pathsBright.shape[-1],self.pathsDark.shape[-1]))
         totSamples = pathLen + self.ctrlFiltLen + self.corrAverageLen
-        x = self.src.getSamples(totSamples)
+        x = self.src.get_samples(totSamples)
         brightPathFilt = fc.createFilter(ir=self.pathsBright, broadcastDim=1, sumOverInput=False)
         xb = np.squeeze(brightPathFilt.process(x), axis=-2)
         xb = xb[...,pathLen:]
@@ -287,7 +287,7 @@ class VAST(SoundzoneFIR):
     def calcControlFilter(self):
         pathLen = np.max((self.pathsBright.shape[-1],self.pathsDark.shape[-1]))
         totSamples = pathLen + self.ctrlFiltLen + self.corrAverageLen
-        x = self.src.getSamples(totSamples)
+        x = self.src.get_samples(totSamples)
         brightPathFilt = fc.createFilter(ir=self.pathsBright, broadcastDim=1, sumOverInput=False)
         xb = np.squeeze(brightPathFilt.process(x), axis=-2)
         xb = xb[...,pathLen:]
@@ -559,7 +559,7 @@ class KIVAST(SoundzoneFIR):
     def calcControlFilter(self):
         pathLen = np.max((self.pathsBright.shape[-1],self.pathsDark.shape[-1]))
         totSamples = self.kiFiltLen + pathLen - 1 + self.ctrlFiltLen + self.corrAverageLen
-        x = self.src.getSamples(totSamples)
+        x = self.src.get_samples(totSamples)
 
         brightPathFilt = fc.createFilter(ir=self.pathsBright, broadcastDim=1, sumOverInput=False)
         xb = np.squeeze(brightPathFilt.process(x), axis=-2)
@@ -737,7 +737,7 @@ class KI_like_VAST(SoundzoneFIR):
     def calcControlFilter(self):
         pathLen = np.max((self.pathsBright.shape[-1],self.pathsDark.shape[-1]))
         totSamples = pathLen + self.ctrlFiltLen + self.corrAverageLen
-        x = self.src.getSamples(totSamples)
+        x = self.src.get_samples(totSamples)
 
         brightPathFilt = fc.createFilter(ir=self.pathsBright, broadcastDim=1, sumOverInput=False)
         xb = np.squeeze(brightPathFilt.process(x), axis=-2)

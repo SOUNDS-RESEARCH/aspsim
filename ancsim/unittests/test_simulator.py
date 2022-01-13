@@ -10,6 +10,7 @@ from ancsim.simulator import SimulatorSetup
 import ancsim.adaptivefilter.base as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
+import ancsim.diagnostics.diagnosticutils as diautil
 
 @pytest.fixture(scope="session")
 def sim_setup(tmp_path_factory):
@@ -34,6 +35,8 @@ def sim_setup(tmp_path_factory):
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = 10
     sim = sim_setup.createSimulator()
     sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.runSimulation()
@@ -44,6 +47,8 @@ def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_consecutive_simulators_give_same_values(sim_setup, bs):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = 10
     sim = sim_setup.createSimulator()
     sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.runSimulation()
@@ -60,8 +65,11 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 
 
 @hyp.settings(deadline=None)
-@hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs):
+@hyp.given(bs = st.integers(min_value=1, max_value=5),
+            buf_size = st.integers(min_value=10, max_value=30))
+def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = buf_size
     sim = sim_setup.createSimulator()
     sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
@@ -77,11 +85,35 @@ def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs):
                 assert np.allclose(data, np.arange(sim.sim_info.sim_buffer, 
                             sim.sim_info.sim_buffer+sim.sim_info.tot_samples))
     assert one_file_saved
+
+
+
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=5),
+            buf_size = st.integers(min_value=10, max_value=30))
+def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = buf_size
+    sim = sim_setup.createSimulator()
+    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+                   diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False)}))
+
+    sim.runSimulation()
+    
+    for f in sim.folderPath.iterdir():
+        if f.stem.startswith("mic"):
+            idx = diautil.find_index_in_name(f.stem)
+            saved_data = np.load(f)
+            for proc_name, data in saved_data.items():
+                assert np.allclose(data[:idx+1], np.arange(sim.sim_info.sim_buffer, 
+                            sim.sim_info.sim_buffer+idx+1))
     
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_export_file_naming_interval_diagnostics(sim_setup, bs):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = 10
     sim = sim_setup.createSimulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
@@ -101,6 +133,8 @@ def test_export_file_naming_interval_diagnostics(sim_setup, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = 10
     sim = sim_setup.createSimulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
@@ -131,9 +165,10 @@ def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
+    sim_setup.config["sim_chunk_size"] = 10
+    sim_setup.config["sim_buffer"] = 10
     sim = sim_setup.createSimulator()
 
-    
     save_at = (bs,)
     save_intervals = ((1,2), (3,4), (5,6))
     diag_name = "filt"
