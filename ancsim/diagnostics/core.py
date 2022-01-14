@@ -140,6 +140,7 @@ class DiagnosticHandler:
                 start_lcl = idx - (globalIdx-start)
                 diag.save(processor, (start_lcl, idx), (start, globalIdx))
                 diag.progress_save(globalIdx)
+                pass
 
 
     # def saveData(self, processor, idx, globalIdx):
@@ -381,6 +382,7 @@ class StateDiagnostic(Diagnostic):
 class InstantDiagnostic(Diagnostic):
     export_functions = {
         "plot" : dplot.plotIR,
+        "matshow" : dplot.matshow, 
         "npz" : dplot.savenpz,
     }
     def __init__ (
@@ -393,16 +395,16 @@ class InstantDiagnostic(Diagnostic):
     ):
         if save_at is None:
             save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
-            save_at = IntervalCounter((save_freq, save_freq))
-            export_at = IndexCounter(save_freq)
-            #raise NotImplementedError("knas med default values. gör så man kan skriva över")
-            #keep_only_last_export = True
+            save_at = IntervalCounter.from_frequency(save_freq, sim_info.tot_samples)
+            export_at = save_freq
+            #export_at = IndexCounter(save_freq)
         else:
-            # Only a single list, or a scalar
+            # Only a single list, or a scalar. save_at can't be intervals
             if isinstance(save_at, (tuple, list, np.ndarray)):
                 assert not isinstance(save_at[0], (tuple, list, np.ndarray))
-            save_at_counter = IntervalCounter(save_at)
-        super().__init__(sim_info, block_size, save_at, save_at_counter, export_func, keep_only_last_export)
+            export_at = save_at
+            save_at = IntervalCounter(save_at)
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export)
 
 
 

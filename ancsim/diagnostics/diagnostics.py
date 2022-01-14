@@ -14,6 +14,30 @@ import ancsim.diagnostics.diagnosticsummary as dsum
 
 import ancsim.diagnostics.core as diacore
 
+# class RecordMatrix(diacore.InstantDiagnostic):
+#     """
+#     """
+#     def __init__ (
+#         self, 
+#         prop_name, 
+#         sim_info, 
+#         block_size, 
+#         save_at = None, 
+#         export_func = "plot",
+#         **kwargs,
+#         ):
+#         super().__init__(sim_info, block_size, save_at, export_func, **kwargs)
+#         self.prop_name = prop_name
+#         self.get_prop = op.attrgetter(prop_name)
+#         self.prop = None
+
+#     def save(self, processor, chunkInterval, globInterval):
+#         self.prop = copy.deepcopy(self.get_prop(processor))
+
+#     def get_output(self):
+#         return self.prop
+
+
 
 class RecordFilter(diacore.InstantDiagnostic):
     """

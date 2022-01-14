@@ -138,7 +138,7 @@ def savenpz(name, diags, timeIdx, folder, printMethod="pdf"):
     saves is present in the current data"""
     outputs = {proc_name: diag.get_output() for proc_name, diag in diags.items()}
     #flatOutputs = util.flattenDict(outputs, sep="~")
-    np.savez_compressed(folder.joinpath(name + "_" + str(timeIdx)), **outputs)
+    np.savez_compressed(folder.joinpath(f"{name}_{timeIdx}"), **outputs)
 
     if list(diags.values())[0].keep_only_last_export:
         earlierFiles = meu.findAllEarlierFiles(folder, name, timeIdx, nameIncludesIdx=False)
@@ -181,14 +181,21 @@ def plotIR(name, diags, timeIdx, folder, printMethod="pdf"):
 
     outputPlot(printMethod, folder, name + "_" + str(timeIdx))
 
-	
-#plt.plot(trueir[0,:].T, label="true")
-# plt.plot(6*est[0,:].T, label="est")
-# plt.show()
+def matshow(name, diags, timeIdx, folder, printMethod="pdf"):
+    outputs = {proc_name: diag.get_output() for proc_name, diag in diags.items()}
+    
+    num_proc = len(diags)
+    fig, axes = plt.subplots(1,num_proc, figsize=(5, num_proc*5))
+    if num_proc == 1:
+        axes = [axes]
 
-# plt.plot(np.abs(np.fft.fft(trueir[0,:].T,n=4096)), label="true")
-# plt.plot(np.abs(np.fft.fft(3*est[0,:].T,n=4096)), label="est")
-# plt.show()
+    for ax, (proc_name, diag) in zip(axes, diags.items()):
+        clr = ax.matshow(diag.get_output())
+        fig.colorbar(clr, ax=ax, orientation='vertical')
+        ax.set_title(f"{name} - {proc_name}")
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+    outputPlot(printMethod, folder, f"{name}_{timeIdx}")
 
 
 def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):
