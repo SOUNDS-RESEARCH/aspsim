@@ -10,7 +10,12 @@ import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
 
+class SoundPropagator():
+    def __init__(self, arrays):
+        pass
 
+    def propagate(self):
+        pass
 
 
 class ProcessorWrapper():
@@ -92,7 +97,6 @@ class ProcessorWrapper():
         self.processor.process(self.blockSize)
         #if self.processor.diag.shouldSaveData(globalIdx):
         
-
     def last_block_on_buffer(self):
         return self.processor.idx+self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
         #return self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer

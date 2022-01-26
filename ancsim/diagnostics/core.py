@@ -195,9 +195,14 @@ class IntervalCounter:
         self.start, self.end = next(self.intervals)
 
     @classmethod
-    def from_frequency(cls, frequency, max_value):
+    def from_frequency(cls, frequency, max_value, include_zero=True):
         num_values = int(np.ceil(max_value / frequency))
-        return cls(zip(range(0, max_value, frequency), range(1, max_value+1, frequency)), num_values)
+
+        start_value = 0
+        if not include_zero:
+            start_value += frequency
+        return cls(zip(range(start_value, max_value, frequency), range(start_value+1, max_value+1, frequency)), num_values)
+
 
     # @classmethod
     # def from_list(cls, lst):
@@ -283,6 +288,8 @@ class Diagnostic:
                     Must be an integer multiple of the block size. (maybe change to 
                     must be equal or larger than the block size) 
         """
+        self.sim_info = sim_info
+        self.block_size = block_size
 
         assert isinstance(save_at, IntervalCounter)
         self.save_at = save_at
@@ -395,7 +402,7 @@ class InstantDiagnostic(Diagnostic):
     ):
         if save_at is None:
             save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
-            save_at = IntervalCounter.from_frequency(save_freq, sim_info.tot_samples)
+            save_at = IntervalCounter.from_frequency(save_freq, sim_info.tot_samples, include_zero=False)
             export_at = save_freq
             #export_at = IndexCounter(save_freq)
         else:

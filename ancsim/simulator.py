@@ -7,7 +7,7 @@ import ancsim.utilities as util
 import ancsim.configutil as configutil
 
 from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
-from ancsim.adaptivefilter.base import ProcessorWrapper
+from ancsim.adaptivefilter.base import ProcessorWrapper, Propagator
 from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
 import ancsim.saveloadsession as sess
@@ -210,10 +210,12 @@ class Simulator:
             self.sim_info, self.processors
         )
 
+        #self.propagator = Propagator()
         self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
+        
 
-        for filt in self.processors:
-            filt.prepare()
+        for proc in self.processors:
+            proc.prepare()
 
     def runSimulation(self):
         self._setupSimulation()

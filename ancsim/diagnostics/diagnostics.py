@@ -1,6 +1,5 @@
 import numpy as np
-from functools import partial
-import itertools as it
+import scipy.linalg as splin
 import operator as op
 import copy
 
@@ -47,13 +46,10 @@ class RecordFilter(diacore.InstantDiagnostic):
     def __init__ (
         self, 
         prop_name, 
-        sim_info, 
-        block_size, 
-        save_at = None, 
-        export_func = "plot",
+        *args,
         **kwargs,
         ):
-        super().__init__(sim_info, block_size, save_at, export_func, **kwargs)
+        super().__init__(*args, **kwargs)
         self.prop_name = prop_name
         self.get_prop = op.attrgetter(prop_name)
         self.prop = None
@@ -68,15 +64,11 @@ class RecordFilter(diacore.InstantDiagnostic):
 class RecordSignal(diacore.SignalDiagnostic):
     def __init__(self, 
         sig_name, 
-        sim_info,
-        block_size,
-        export_at=None,
-        save_at = None, 
-        export_func="plot",
+        *args,
         **kwargs):
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sig_name = sig_name
-        self.signal = np.full((sim_info.tot_samples), np.nan)
+        self.signal = np.full((self.sim_info.tot_samples), np.nan)
         
     def save(self, processor, chunkInterval, globInterval):
         if processor.sig[self.sig_name].shape[0] > 1:
@@ -87,6 +79,45 @@ class RecordSignal(diacore.SignalDiagnostic):
 
     def get_output(self):
         return self.signal
+
+
+class RecordState(diacore.StateDiagnostic):
+    """
+    If state_dim is 1, the state is a scalar calue
+    If the number is higher, the state is a vector, and the value of each component
+        will be plotted as each line by the default plot function
+    
+    If state_dim is a tuple (i.e. the state is a matrix/tensor), 
+    then the default plot function will have trouble
+    """
+    def __init__(self, 
+        state_name,
+        state_dim,
+        *args,
+        label_suffix_channel = None,
+        **kwargs):
+        super().__init__(*args, **kwargs)
+        if isinstance(state_dim, int):
+            state_dim = (state_dim,)
+
+        self.scalar_values = np.full((*state_dim, self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+
+        self.get_prop = op.attrgetter(state_name)
+        self.diag_idx = 0
+
+        if label_suffix_channel is not None:
+            self.plot_data["label_suffix_channel"] = label_suffix_channel
+        
+
+    def save(self, processor, chunkInterval, globInterval):
+        self.state_values[:, self.diag_idx] = self.get_prop(processor)
+        self.time_indices[self.diag_idx] = globInterval[1]
+
+        self.diag_idx += 1
+
+    def get_output(self):
+        return self.state_values
 
 
 
@@ -139,12 +170,9 @@ class StatePower(diacore.StateDiagnostic):
 class StateMSE(diacore.StateDiagnostic):
     def __init__(self, est_state_name,
                         true_state_name,
-                        sim_info, 
-                        block_size, 
-                        export_at=None,
-                        save_frequency=None, 
+                        *args,
                         **kwargs):
-        super().__init__(sim_info, block_size, save_frequency, export_at, **kwargs)
+        super().__init__(*args, **kwargs)
         
         self.mse = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
@@ -164,6 +192,43 @@ class StateMSE(diacore.StateDiagnostic):
 
     def get_output(self):
         return self.mse
+
+
+
+class Eigenvalues(diacore.StateDiagnostic):
+    """
+    Matrix must be square, otherwise EVD doesn't work
+    For now assumes hermitian matrix as well
+
+    eigval_idx should be a tuple with the indices of the desired eigenvalues
+    ascending order, zero indexed, and top inclusive
+
+    The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
+    The seconds value is how many of the largest eigenvalues that should be recorded
+    """
+    def __init__(self, matrix_name, eigval_idx, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert isinstance(eigval_idx, (list, tuple, np.ndarray))
+        assert len(eigval_idx) == 2
+        self.get_matrix = op.attrgetter(matrix_name)
+        self.eigval_idx = eigval_idx
+
+        self.eigvals = np.full((eigval_idx[1]-eigval_idx[0]+1, self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+        self.diag_idx = 0
+
+    def save(self, processor, chunkInterval, globInterval):
+        mat = self.get_matrix(processor)
+        assert np.allclose(mat, mat.T.conj())
+        evs = splin.eigh(mat, eigvals_only=True, subset_by_index=self.eigval_idx)
+        self.eigvals[:, self.diag_idx] = evs
+        self.time_indices[self.diag_idx] = globInterval[1]
+
+        self.diag_idx += 1
+        
+    def get_output(self):
+        return self.eigvals
+
 
 
 

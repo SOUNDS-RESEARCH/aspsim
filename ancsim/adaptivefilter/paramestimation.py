@@ -59,40 +59,45 @@ class LeastMeanSquares(AudioProcessor):
         performance than the block based version for long blocks. 
     """
         
-    def __init__(self, config, arrays, blockSize, stepSize, beta, filtLen):
-        super().__init__(config, arrays, blockSize)
+    def __init__(self, sim_info, arrays, blockSize, stepSize, beta, filtLen):
+        super().__init__(sim_info, arrays, blockSize)
         self.name = "Least Mean Squares"
 
-        self.numIn = self.arrays["input"].num
-        self.numOut = self.arrays["desired"].num
+        self.input = "input"
+        self.desired = "desired"
+        self.error = "error"
+        self.estimate = "estimate"
+
+        self.numIn = self.arrays[self.input].num
+        self.numOut = self.arrays[self.desired].num
         self.stepSize = stepSize
         self.beta = beta
         self.filtLen = filtLen
 
-        self.createNewBuffer("error", self.numOut)
-        self.createNewBuffer("estimate", self.numOut)
+        self.createNewBuffer(self.error, self.numOut)
+        self.createNewBuffer(self.estimate, self.numOut)
 
         self.controlFilter = FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
 
-        self.diag.add_diagnostic("inputPower", dia.SignalPower(self.sim_info, "input"))
-        self.diag.add_diagnostic("desiredPower", dia.SignalPower(self.sim_info, "desired"))
-        self.diag.add_diagnostic("errorPower", dia.SignalPower(self.sim_info, "error"))
+        self.diag.add_diagnostic("inputPower", dia.SignalPower(self.sim_info, self.input))
+        self.diag.add_diagnostic("desiredPower", dia.SignalPower(self.sim_info, self.desired))
+        self.diag.add_diagnostic("errorPower", dia.SignalPower(self.sim_info, self.error))
         self.diag.add_diagnostic("paramError", dia.StateNMSE(
                     self.sim_info,
                     "controlFilter.ir", 
-                    np.pad(self.arrays.paths["source"]["desired"],((0,0),(0,0),(0,512)), mode="constant", constant_values=0), 
+                    np.pad(self.arrays.paths["source"][self.desired],((0,0),(0,0),(0,512)), mode="constant", constant_values=0), 
                     100))
         
 
     def process(self, numSamples):
         for i in range(self.idx-numSamples, self.idx):
-            self.sig["estimate"][:,i] = np.squeeze(self.controlFilter.process(self.sig["input"][:,i:i+1]), axis=-1)
+            self.sig[self.estimate][:,i] = np.squeeze(self.controlFilter.process(self.sig[self.input][:,i:i+1]), axis=-1)
 
-            self.sig["error"][:,i] = self.sig["desired"][:,i] - self.sig["estimate"][:,i]
+            self.sig[self.error][:,i] = self.sig[self.desired][:,i] - self.sig[self.estimate][:,i]
 
-            grad = np.flip(self.sig["input"][:,None,i+1-self.filtLen:i+1], axis=-1) * \
-                            self.sig["error"][None,:,i:i+1]
+            grad = np.flip(self.sig[self.input][:,None,i+1-self.filtLen:i+1], axis=-1) * \
+                            self.sig[self.error][None,:,i:i+1]
 
-            normalization = 1 / (np.sum(self.sig["input"][:,i+1-self.filtLen:i+1]**2) + self.beta)
+            normalization = 1 / (np.sum(self.sig[self.input][:,i+1-self.filtLen:i+1]**2) + self.beta)
             self.controlFilter.ir += self.stepSize * normalization * grad

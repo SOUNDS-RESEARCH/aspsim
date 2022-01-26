@@ -154,32 +154,41 @@ def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 
 def plotIR(name, diags, timeIdx, folder, printMethod="pdf"):
     numSets = 0
-    for algoName, diag in outputs.items():
+    for algoName, diag in diags.items():
         for irSet in diag.get_output():
             numIRs = irSet.shape[0]
             numSets += 1
-    numAlgo = len(outputs)
+    numAlgo = len(diags)
 
     #fig, axes = plt.subplots(numSets, numIRs, figsize=(numSets*4, numIRs*4))
     fig, axes = plt.subplots(numAlgo, numIRs, figsize=(numIRs*6, numAlgo*6))
-    if axes.ndim == 1:
-        axes = axes[None,:]
+    if numAlgo == 1:
+        axes = np.expand_dims(axes, 0)
+    if numIRs == 1:
+        axes = np.expand_dims(axes, -1)
+    #axes = np.atleast_2d(axes)
+    #if not isinstance(axes, tuple):
+    #    axes = [[axes]]
+    #elif not isinstance(axes[0], tuple):
+    #    axes = [axes]
 
-    for row, (algoName, output) in enumerate(outputs.items()):
+    for row, (algoName, diag) in enumerate(diags.items()):
+        output = diag.get_output()
         for setIdx, irSet in enumerate(output):
             for col in range(irSet.shape[0]):
-                axes[row, col].plot(irSet[col,:], label=f"{algoName} {metadata['label'][setIdx]}", alpha=0.6)
-    
+                #axes[row, col].plot(irSet[col,:], label=f"{algoName} {metadata['label'][setIdx]}", alpha=0.6)
+                axes[row, col].plot(irSet[col,:], label=f"{algoName}", alpha=0.6)
+                #axes[row, col].set_xlabel(diag.plot_data["xlabel"])
+                #axes[row, col].set_ylabel(diag.plot_data["ylabel"])
+
     for ax in axes.flatten():
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         ax.grid(True)
         legendWithoutDuplicates(ax, "upper right")
         #ax.legend(loc="upper right")
-        ax.set_xlabel(metadata["xlabel"])
-        ax.set_ylabel(metadata["ylabel"])
-
-    outputPlot(printMethod, folder, name + "_" + str(timeIdx))
+        
+    outputPlot(printMethod, folder, f"{name}_{timeIdx}")
 
 def matshow(name, diags, timeIdx, folder, printMethod="pdf"):
     outputs = {proc_name: diag.get_output() for proc_name, diag in diags.items()}

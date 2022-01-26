@@ -42,8 +42,6 @@ def block_diag(arrays):
         idx += idx_shift
     return diag_mat
 
-
-
 def block_of_toeplitz(block_of_col, block_of_row=None):
     """ block_of_col and block_of_row are of shapes
         (M, N, K_col) and (M, N, K_row)
@@ -75,4 +73,32 @@ def block_of_toeplitz(block_of_col, block_of_row=None):
                                                                    block_of_row[m,n,:])
     return block_mat
 
+def block_transpose(matrix, block_size, out=None):
+    """
+    Transposes each block individually in a block matrix. 
+    block_size is an integer defining the size of the square blocks. 
+    Requires square blocks, but not a square block matrix. 
 
+    B = [
+        A_11^T, ..., A_1r^T
+
+        A_r1^T, ..., A_rc^T
+    ]
+
+    if out is supplied, the transposed matrix will be written into its memory
+    """
+    assert matrix.shape[0] % block_size == 0
+    assert matrix.shape[1] % block_size == 0
+    num_rows = matrix.shape[0] // block_size
+    num_cols = matrix.shape[1] // block_size
+
+    if out is not None:
+        transposed_mat = out
+    else:
+        transposed_mat = np.zeros((matrix.shape[1], matrix.shape[0]))
+
+    for r in range(num_rows):
+        for c in range(num_cols):
+            transposed_mat[r*block_size:(r+1)*block_size, c*block_size:(c+1)*block_size] = \
+                    matrix[r*block_size:(r+1)*block_size, c*block_size:(c+1)*block_size].T
+    return transposed_mat
