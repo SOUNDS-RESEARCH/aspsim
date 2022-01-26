@@ -10,12 +10,63 @@ import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.freqdomainfiltering as fdf
 
-class SoundPropagator():
-    def __init__(self, arrays):
-        pass
 
-    def propagate(self):
-        pass
+
+class FreeSourceHandler():
+    def __init__(self, sim_info, arrays):
+        self.sim_info = sim_info
+        self.arrays = arrays
+        self.glob_to_lcl_diff = 0
+
+        self.sig = {}
+        for src in self.arrays.free_sources():
+            self.sig[src.name] = np.zeros((src.num, self.sim_info.sim_buffer+self.sim_info.sim_chunk_size))
+
+    def glob_to_lcl_idx(self, glob_idx):
+        return glob_idx + self.glob_to_lcl_diff
+
+    def prepare(self):
+        for src in self.arrays.free_sources():
+            self.sig[src.name][:,:] = src.get_samples(self.sim_info.sim_buffer+self.sim_info.sim_chunk_size)
+        self.glob_to_lcl_diff += self.sim_info.sim_buffer
+        #self.idx = self.sim_info.sim_buffer
+
+    def reset_buffers(self):
+        for src_name, sig in self.sig.items():
+            self.sig[src_name][:,:self.sim_info.sim_buffer] = sig[:,-self.sim_info.sim_buffer:]
+            self.sig[src_name][:,self.sim_info.sim_buffer:] = self.arrays[src_name].get_samples(self.sim_info.sim_chunk_size)
+            
+        self.glob_to_lcl_diff -= self.sim_info.sim_chunk_size
+
+    def copy_sig_to_proc(self, proc, glob_idx, block_size):
+        lcl_idx = self.glob_to_lcl_idx(glob_idx)
+        if lcl_idx >= self.sim_info.sim_buffer+self.sim_info.sim_chunk_size:
+            self.reset_buffers()
+            lcl_idx = self.glob_to_lcl_idx(glob_idx)
+
+        for src in self.arrays.free_sources():
+            proc.processor.sig[src.name][:,proc.processor.idx:proc.processor.idx+block_size] = \
+                self.sig[src.name][:,lcl_idx-block_size:lcl_idx]
+
+        #for src in self.arrays.free_sources():
+        #    self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
+# class Propagator():
+#     def __init__(self, sim_info, arrays, source_names):
+#         self.sim_info = sim_info
+#         self.arrays = arrays
+#         self.source_names = source_names
+
+#     def prepare(self, sigs):
+#         for src_name in self.source_names():
+#             for mic in self.arrays.mics():
+#                 propagated_signal = self.path_filters[src.name][mic.name].process(
+#                         sigs[src_name][:,:self.sim_info.sim_buffer])
+#                 self.processor.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
+#                 if self.sim_info.save_source_contributions:
+#                     self.processor.sig[src_name+"~"+mic.name][:,:self.sim_info.sim_buffer] = propagated_signal
+#         self.processor.idx = self.sim_info.sim_buffer
+#         self.processor.prepare()
+
 
 
 class ProcessorWrapper():
@@ -41,8 +92,8 @@ class ProcessorWrapper():
         #self.ctrlSources = list(arrays.of_type(ar.ArrayType.CTRLSOURCE))
 
     def prepare(self):
-        for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
+        #for src in self.arrays.free_sources():
+        #    self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
                     self.processor.sig[src.name][:,:self.sim_info.sim_buffer])
@@ -77,8 +128,8 @@ class ProcessorWrapper():
 
         i = self.processor.idx
 
-        for src in self.arrays.free_sources():
-            self.processor.sig[src.name][:,i:i+self.blockSize] = src.get_samples(self.blockSize)
+        #for src in self.arrays.free_sources():
+        #    self.processor.sig[src.name][:,i:i+self.blockSize] = src.get_samples(self.blockSize)
 
         for src, mic in self.arrays.mic_src_combos():
                 propagated_signal = self.path_filters[src.name][mic.name].process(
@@ -148,7 +199,7 @@ class AudioProcessor(ABC):
 
     @abstractmethod
     def process(self, numSamples):
-        """ microphone signals up to self.idx (excluding) are available. i.e. [:,choose-start-idx:self.idx] can be used
+        """ microphone signals up to self.idx (excluding) are available. i.e. [:,choose_start_idx:self.idx] can be used
             To play a signal through controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
             for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.blockSize]. 
             Adding samples further ahead than that will likely cause a outOfBounds error. 

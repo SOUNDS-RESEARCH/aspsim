@@ -7,7 +7,7 @@ import ancsim.utilities as util
 import ancsim.configutil as configutil
 
 from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
-from ancsim.adaptivefilter.base import ProcessorWrapper, Propagator
+from ancsim.adaptivefilter.base import ProcessorWrapper, FreeSourceHandler
 from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
 import ancsim.saveloadsession as sess
@@ -210,12 +210,14 @@ class Simulator:
             self.sim_info, self.processors
         )
 
-        #self.propagator = Propagator()
+        self.free_src_handler = FreeSourceHandler(self.sim_info, self.arrays)
         self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
         
-
+        self.free_src_handler.prepare()
         for proc in self.processors:
+            self.free_src_handler.copy_sig_to_proc(proc, 0, self.sim_info.sim_buffer)
             proc.prepare()
+            
 
     def runSimulation(self):
         self._setupSimulation()
@@ -242,6 +244,8 @@ class Simulator:
                 for i, proc in enumerate(self.processors):
                     if self.n_tot % proc.blockSize == 0:
                         proc.process(self.n_tot)
+                        self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, proc.blockSize)
+                        #self.transfer_src_samples(self.n_tot, )
                         proc.propagate(self.n_tot)
                         
                         #print("self.n_tot", self.n_tot)

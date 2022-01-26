@@ -42,7 +42,7 @@ def sim_setup(tmp_path_factory):
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5),
             buf_size = st.integers(min_value=10, max_value=30),
-            num_proc = st.integers(min_value=2, max_value=3))
+            num_proc = st.integers(min_value=1, max_value=3))
 def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size, num_proc):
     reset_sim_setup(sim_setup)
     sim_setup.config["sim_buffer"] = buf_size
@@ -166,16 +166,29 @@ def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_same_result_two_processors_with_identical_diagnostics(sim_setup, bs):
+def test_two_processors_with_different_diagnostics(sim_setup, bs):
     reset_sim_setup(sim_setup)
     sim = sim_setup.createSimulator()
 
     proc1 = bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
-            diagnostics = {"debug" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz")}
+            diagnostics = {"common" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz", keep_only_last_export=False),
+                            "individual1" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz", keep_only_last_export=False),
+            }
             )
     proc2 = bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
-            diagnostics = {"debug" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz")}
+            diagnostics = {"common" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz", keep_only_last_export=False),
+                            "individual2" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz", keep_only_last_export=False)
+                }
             )
 
     sim.addProcessor(proc1)
     sim.addProcessor(proc2)
+    sim.runSimulation()
+
+    for f in sim.folderPath.iterdir():
+        if f.stem.startswith("mic"):
+            idx = diautil.find_index_in_name(f.stem)
+            saved_data = np.load(f)
+            for proc_name, data in saved_data.items():
+                assert np.allclose(data[:idx+1], np.arange(sim.sim_info.sim_buffer, 
+                            sim.sim_info.sim_buffer+idx+1))

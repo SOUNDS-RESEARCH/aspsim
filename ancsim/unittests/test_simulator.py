@@ -65,3 +65,7 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
     sig2 = sim.processors[0].processor.sig["mic"]
 
     assert np.allclose(sig1, sig2)
+
+
+def test_correct_processing_delay():
+    assert False

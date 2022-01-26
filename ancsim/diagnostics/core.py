@@ -60,13 +60,14 @@ class DiagnosticExporter:
         diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
         self.verify_same_export_settings(diag_dict)
 
-        exp_funcs = processors[0].diag[diag_name].export_function
-        export_time_idx = processors[0].diag[diag_name].next_export()
+        one_diag_object = diag_dict[list(diag_dict.keys())[0]]
+        exp_funcs = one_diag_object.export_function
+        export_time_idx = one_diag_object.next_export()
         for exp_func in exp_funcs:
             exp_func(diag_name, diag_dict, export_time_idx, fldr)
 
-        for proc in processors:
-            proc.diag[diag_name].progress_export()
+        for diag in diag_dict.values():
+            diag.progress_export()
 
 
     def dispatch(self, processors, time_idx, fldr):
