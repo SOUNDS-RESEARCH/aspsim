@@ -69,3 +69,14 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 
 def test_correct_processing_delay():
     assert False
+
+
+def test_multiple_free_sources():
+    assert False
+
+def test_same_with_multiple_processors():
+    assert False
+
+
+#Kolla manuellt på noiset i rir_extimation_exp, och se att det är det jag förväntar mig. Efterssom
+# icke-modifierade noise correlation matrix är annorlunda. 
