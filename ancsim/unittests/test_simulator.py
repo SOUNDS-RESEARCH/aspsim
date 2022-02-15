@@ -77,6 +77,22 @@ def test_multiple_free_sources():
 def test_same_with_multiple_processors():
     assert False
 
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=5))
+def test_trajectory_mic(sim_setup, bs):
+    reset_sim_setup(sim_setup)
+    sim_setup.config["reverb"] = "freespace" 
+    sim_setup.arrays = ar.ArrayCollection()
+    mic_traj = ar.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
+    sim_setup.addMics("mic", mic_traj)
+    sim_setup.addControllableSource("loudspeaker", np.array([[-1, -1, -1]]))
+
+    sim = sim_setup.createSimulator()
+    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.runSimulation()
+
+    assert False
+
 
 #Kolla manuellt på noiset i rir_extimation_exp, och se att det är det jag förväntar mig. Efterssom
 # icke-modifierade noise correlation matrix är annorlunda. 

@@ -122,12 +122,6 @@ class ArrayCollection():
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name], self.paths[src_name][mic_name]
 
-    # def iter_paths_from(self, selectedSrc):
-    #     assert isinstance(selectedSrc, ArrayType)
-    #     for src, mic, path in self.iter_paths():
-    #         if src.typ == selectedSrc:
-    #             yield src, mic, path
-    
     def add_array(self, array):
         assert array.name not in self.arrays
         self.arrays[array.name] = array
@@ -170,9 +164,7 @@ class ArrayCollection():
         """ """
         print("Computing Room IR...")
         metadata = {}
-        
-        #self.set_default_path_type(sim_info.reverb)
-
+        self.sim_info = sim_info
         for src, mic in self.mic_src_combos():
             self.path_info[f"{src.name}->{mic.name}"] = {}
 
@@ -183,42 +175,83 @@ class ArrayCollection():
 
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
+            if reverb != "modified":
+                self.paths[src.name][mic.name], path_info = self.create_path(src, mic, reverb, sim_info, True)
+                for key, val in path_info.items():
+                    self.path_info[f"{src.name}->{mic.name}"][key] = val
+            
 
-            if reverb == "none": 
-                self.paths[src.name][mic.name] = np.zeros((src.num, mic.num, 1))
-            elif reverb == "identity":
-                self.paths[src.name][mic.name] = np.ones((src.num,mic.num, 1))
-            elif reverb == "isolated":
-                assert src.num == mic.num
-                self.paths[src.name][mic.name] = np.eye(src.num, mic.num)[...,None]
-            elif reverb == "random":
-                self.paths[src.name][mic.name] = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
-            elif reverb == "ism":
-                if sim_info.spatial_dims == 3:
-                    self.paths[src.name][mic.name], ism_info = rir.irRoomImageSource3d(
-                                                        src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
-                                                        sim_info.max_room_ir_length, sim_info.rt60, 
-                                                        sim_info.samplerate, sim_info.c,
-                                                        calculateMetadata=True)
-                    self.path_info[f"{src.name}->{mic.name}"]["ism_info"] = ism_info
-                else:
-                    raise ValueError
-            elif reverb == "freespace":
-                if sim_info.spatial_dims == 3:
-                    self.paths[src.name][mic.name] = rir.irPointSource3d(
-                    src.pos, mic.pos, sim_info.samplerate, sim_info.c)
-                elif sim_info.spatial_dims == 2:
-                    self.paths[src.name][mic.name] = rir.irPointSource2d(
-                        src.pos, mic.pos, sim_info.samplerate, sim_info.c
-                    )
-                else:
-                    raise ValueError
-            elif reverb == "modified":
-                pass
+    def create_path (self, src, mic, reverb, sim_info, return_path_info=False):
+        path_info = {}
+        if reverb == "none": 
+            path = np.zeros((src.num, mic.num, 1))
+        elif reverb == "identity":
+            path = np.ones((src.num,mic.num, 1))
+        elif reverb == "isolated":
+            assert src.num == mic.num
+            path = np.eye(src.num, mic.num)[...,None]
+        elif reverb == "random":
+            path = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
+        elif reverb == "ism":
+            if sim_info.spatial_dims == 3:
+                path = rir.irRoomImageSource3d(
+                        src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
+                        sim_info.max_room_ir_length, sim_info.rt60, 
+                        sim_info.samplerate, sim_info.c,
+                        calculateMetadata=return_path_info)
+                if return_path_info:
+                    path, path_info["ism_info"] = path
             else:
                 raise ValueError
-        #return metadata
+        elif reverb == "freespace":
+            if sim_info.spatial_dims == 3:
+                path = rir.irPointSource3d(
+                src.pos, mic.pos, sim_info.samplerate, sim_info.c)
+            elif sim_info.spatial_dims == 2:
+                path = rir.irPointSource2d(
+                    src.pos, mic.pos, sim_info.samplerate, sim_info.c
+                )
+            else:
+                raise ValueError
+        #elif reverb == "modified":
+        #    pass
+        else:
+            raise ValueError
+        if return_path_info:
+            return path, path_info
+        return path
 
+    def update_path(self, src, mic):
+        reverb = self.path_type[src.name][mic.name]
+        assert reverb != "modified"
+        self.paths[src.name][mic.name] = self.create_path(src, mic, reverb, self.sim_info)
+
+    def update(self, glob_idx):
+        #1. update arrays pos/properties
+        #2. get info about which arrays actually changed
+        #3. update the paths connecting the updated arrays
+
+        changed_arrays = []
+
+        for ar_name, ar in self.arrays.items():
+            changed = ar.update(glob_idx)
+            if changed:
+                changed_arrays.append(ar_name)
+
+        already_updated = []
+        
+        for ar_name in changed_arrays:
+            if self.arrays[ar_name].is_mic:
+                for src in self.sources():
+                    if not src.name in already_updated:
+                        self.update_path(src, self.arrays[ar_name])
+            elif self.arrays[ar_name].is_source:
+                for mic in self.mics():
+                    if not mic.name in already_updated:
+                        self.update_path(self.arrays[ar_name], mic)
+            else:
+                raise ValueError("Array must be mic or source")
+            already_updated.append(ar_name)
 
 
 
@@ -282,12 +315,22 @@ class Array(ABC):
             self.num_groups = len(pos)
             self.pos = np.concatenate(pos, axis=0)
             self.pos_segments = pos
-        else:
-            assert isinstance(pos, np.ndarray)
+            self.dynamic = False
+        elif isinstance(pos, np.ndarray):
             self.group_idxs = None
             self.num_groups = 1
             self.pos = pos
             self.pos_segments = [pos]
+            self.dynamic = False
+        elif isinstance(pos, Trajectory):
+            self.trajectory = pos
+            self.group_idxs = None
+            self.num_groups = 1
+            self.pos = self.trajectory.current_pos(0)
+            self.pos_segments = [pos]
+            self.dynamic = True
+        else:
+            raise ValueError("Incorrect datatype for pos")
 
         self.num = self.pos.shape[0]
         assert self.pos.ndim == 2
@@ -296,6 +339,7 @@ class Array(ABC):
             "type" : self.__class__.__name__,
             "number" : self.num,
             "number of groups" : self.num_groups,
+            "dynamic" : self.dynamic,
         }
 
     def set_groups(self, group_idxs):
@@ -305,9 +349,14 @@ class Array(ABC):
         self.num_groups = len(group_idxs)
         self.group_idxs = group_idxs
 
-        
     def plot(self, ax):
         ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
+
+    def update(self, glob_idx):
+        if self.dynamic:
+            self.pos = self.trajectory.current_pos(glob_idx)
+            return True
+        return False
 
 class MicArray(Array):
     is_mic = True
@@ -363,3 +412,57 @@ class FreeSourceArray(Array):
         self.source = source
 
 
+
+
+class Trajectory():
+
+    #make a static function or similar that can be used for the linear-interpolation stuff
+    # 
+    @classmethod
+    def linear_interpolation_const_speed(cls, points, period, samplerate):
+        if isinstance(points, (list, tuple)):
+            points = np.array(points)
+
+        if not np.allclose(points[-1,:], points[0,:]):
+            points = np.concatenate((points, points[:1,:]), axis=0)
+
+        segment_distance = np.sqrt(np.sum((points[:-1,:] - points[1:,:])**2, axis=-1))
+        assert all(segment_distance > 0)
+        
+        tot_distance = np.sum(segment_distance)
+        distance_per_sample = tot_distance / (samplerate * period)
+        segment_samples = segment_distance / distance_per_sample
+
+        cycle_start = 0
+        cumulative_samples = np.concatenate(([0], np.cumsum(segment_samples)))
+
+        def pos_func(t):
+            period_samples = t % (period * samplerate)
+
+            point_idx = np.argmax(period_samples < cumulative_samples)
+            time_this_segment = period_samples - cumulative_samples[point_idx-1]
+            ip_factor = time_this_segment / segment_samples[point_idx-1]
+            pos = points[point_idx-1,:]*(1-ip_factor) + points[point_idx,:]*ip_factor
+            return pos[None,:]
+
+        return cls(pos_func)
+
+
+    def linear_interpolation_const_time():
+        pass
+
+
+    def __init__(self, pos_func):
+        """positions (change name later) can be either a list of points
+            between which we will linearly interpolate,
+            or it can be a function, which will take in a time_index and output a position"""
+        self.pos_func = pos_func
+        self.idx = 0
+        self.num_pos = 1
+        #self.pos = np.full((1,3), np.nan)
+
+    def next(self):
+        self.idx += 1
+
+    def current_pos(self, time_idx):
+        return self.pos_func(time_idx)

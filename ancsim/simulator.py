@@ -234,25 +234,15 @@ class Simulator:
                 self.sim_info.sim_buffer
                 + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + 1+maxBlockSize - self.n_tot),
             ):
-                
-
-                #Break if simulation is finished
-                #if self.sim_info.tot_samples - maxBlockSize < self.n_tot:
-                #    break
 
                 #Generate and propagate noise from controllable sources
                 for i, proc in enumerate(self.processors):
                     if self.n_tot % proc.blockSize == 0:
                         proc.process(self.n_tot)
                         self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, proc.blockSize)
-                        #self.transfer_src_samples(self.n_tot, )
                         proc.propagate(self.n_tot)
-                        
-                        #print("self.n_tot", self.n_tot)
-                        #print("proc idx", proc.processor.idx)
-                        #noiseIndices[i] += proc.blockSize
-
-                
+ 
+                self.arrays.update(self.n_tot)
 
                 # Generate plots and diagnostics
                 if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
@@ -264,11 +254,6 @@ class Simulator:
                 # Write progress
                 if self.n_tot % 1000 == 0:
                     print("Timestep: ", self.n_tot)#, end="\r")
-                    #f True and (
-                     #   bufferIdx % self.sim_info.save_raw_data_freq == 0
-                     #   or bufferIdx - 1 == 0
-                    #):
-                    #    sess.saveRawData(self.processors, self.n_tot, self.folderPath)
 
                 self.n_tot += 1
             bufferIdx += 1
