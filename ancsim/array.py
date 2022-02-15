@@ -414,7 +414,7 @@ class FreeSourceArray(Array):
 
 
 
-class Trajectory():
+class Trajectory:
 
     #make a static function or similar that can be used for the linear-interpolation stuff
     # 

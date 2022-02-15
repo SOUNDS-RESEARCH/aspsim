@@ -132,11 +132,13 @@ class ProcessorWrapper():
         #    self.processor.sig[src.name][:,i:i+self.blockSize] = src.get_samples(self.blockSize)
 
         for src, mic in self.arrays.mic_src_combos():
-                propagated_signal = self.path_filters[src.name][mic.name].process(
-                        self.processor.sig[src.name][:,i:i+self.blockSize])
-                self.processor.sig[mic.name][:,i:i+self.blockSize] += propagated_signal
-                if self.sim_info.save_source_contributions:
-                    self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
+            if src.dynamic or mic.dynamic:
+                self.path_filters[src.name][mic.name].ir = self.arrays.paths[src.name][mic.name]
+            propagated_signal = self.path_filters[src.name][mic.name].process(
+                    self.processor.sig[src.name][:,i:i+self.blockSize])
+            self.processor.sig[mic.name][:,i:i+self.blockSize] += propagated_signal
+            if self.sim_info.save_source_contributions:
+                self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
         self.processor.idx += self.blockSize
 
         last_block = self.last_block_on_buffer()
