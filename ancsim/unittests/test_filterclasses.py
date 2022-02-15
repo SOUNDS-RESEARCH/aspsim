@@ -1,13 +1,7 @@
 import numpy as np
-from hypothesis import given
+import hypothesis as hyp
 import hypothesis.strategies as st
-from ancsim.signal.filterclasses import (
-    FilterSum,
-    Filter_IntBuffer,
-    FilterSum_Freqdomain,
-    FilterMD_IntBuffer,
-    FilterMD_Freqdomain,
-)
+import ancsim.signal.filterclasses as fc
 import ancsim.presets as preset
 import pytest
 
@@ -15,17 +9,17 @@ import matplotlib.pyplot as plt
 import time
 
 
-@pytest.fixture
-def setupconstants():
-    pos = preset.getPositionsCylinder3d()
-    sr = int(1000 + np.random.rand() * 8000)
-    noiseFreq = int(100 + np.random.rand() * 800)
-    return pos, sr, noiseFreq
+# @pytest.fixture
+# def setupconstants():
+#     pos = preset.getPositionsCylinder3d()
+#     sr = int(1000 + np.random.rand() * 8000)
+#     noiseFreq = int(100 + np.random.rand() * 800)
+#     return pos, sr, noiseFreq
 
 
 def test_hardcoded_filtersum():
     ir = np.vstack((np.sin(np.arange(5)), np.cos(np.arange(5))))
-    filt1 = FilterSum(ir[:, None, :])
+    filt1 = fc.FilterSum(ir[:, None, :])
 
     inSig = np.array([[10, 9, 8, 7, 6, 5], [4, 5, 4, 5, 4, 5]])
     out = filt1.process(inSig)
@@ -37,11 +31,11 @@ def test_hardcoded_filtersum():
 
 
 def test_impulseir_filtersum():
-    filt1 = FilterSum(np.ones((1, 1, 1)))
+    filt1 = fc.FilterSum(np.ones((1, 1, 1)))
 
     ir2 = np.zeros((1, 1, 10))
     ir2[0, 0, 0] = 1
-    filt2 = FilterSum(ir2)
+    filt2 = fc.FilterSum(ir2)
 
     inSig = np.random.rand(1, 16)
 
@@ -52,7 +46,7 @@ def test_impulseir_filtersum():
 
 
 def test_impulseir_onedimfilter():
-    filt1 = Filter_IntBuffer(
+    filt1 = fc.Filter_IntBuffer(
         np.array((1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
     )
     inSig = np.random.rand(1, 16)
@@ -61,7 +55,7 @@ def test_impulseir_onedimfilter():
 
 
 def test_hardcoded_onedimfilter():
-    filt1 = Filter_IntBuffer(np.sin(np.arange(5)))
+    filt1 = fc.Filter_IntBuffer(np.sin(np.arange(5)))
     inSig = np.array([[10, 9, 8, 7, 6, 5]])
     out1 = filt1.process(inSig)
     print(out1)
@@ -72,7 +66,43 @@ def test_hardcoded_onedimfilter():
     assert np.allclose(out1, realOut)
 
 
-@given(
+@hyp.settings(deadline=None)
+@hyp.given(
+    st.integers(min_value=1, max_value=256),
+    st.integers(min_value=1, max_value=8),
+    st.integers(min_value=1, max_value=8),
+    st.integers(min_value=1, max_value=10),
+)
+def test_filtersum_dynamic_static_equal_results(irLen, numIn, numOut, numBlocks):
+    rng = np.random.default_rng()
+    ir = rng.normal(0, 1, size=(numIn,numOut,irLen))
+
+    filt_dyn = fc.FilterSumDynamic(ir)
+    filt = fc.FilterSum(ir)
+
+    out = np.zeros((numOut, numBlocks * irLen))
+    out_dyn = np.zeros((numOut, numBlocks * irLen))
+
+    sig = rng.normal(0, 1, (numIn, numBlocks * irLen))
+    for i in range(numBlocks):
+        out[:, i * irLen : (i + 1) * irLen] = filt.process(
+            sig[:, i * irLen : (i + 1) * irLen]
+        )
+        out_dyn[:, i * irLen : (i + 1) * irLen] = filt_dyn.process(
+            sig[:, i * irLen : (i + 1) * irLen]
+        )
+    #print(np.mean(np.abs(tdOut - fdOut)**2))
+    assert np.allclose(out, out_dyn)
+
+
+
+
+
+
+
+
+@hyp.settings(deadline=None)
+@hyp.given(
     st.integers(min_value=1, max_value=256),
     st.integers(min_value=1, max_value=8),
     st.integers(min_value=1, max_value=8),
@@ -82,8 +112,8 @@ def test_freq_time_filter_sum_equal_results(irLen, numIn, numOut, numBlocks):
     ir = np.random.standard_normal((numIn, numOut, irLen))
     # ir = np.zeros((numIn, numOut, irLen))
     # ir[:,:,0] = 1
-    tdFilt = FilterSum(ir=ir)
-    fdFilt = FilterSum_Freqdomain(ir=ir)
+    tdFilt = fc.FilterSum(ir=ir)
+    fdFilt = fc.FilterSum_Freqdomain(ir=ir)
 
     tdOut = np.zeros((numOut, numBlocks * irLen))
     fdOut = np.zeros((numOut, numBlocks * irLen))
@@ -98,26 +128,22 @@ def test_freq_time_filter_sum_equal_results(irLen, numIn, numOut, numBlocks):
         )
     assert np.allclose(tdOut, fdOut)
 
-
-@given(
+@hyp.settings(deadline=None)
+@hyp.given(
     st.integers(min_value=1, max_value=16),
-    st.tuples(
-        st.integers(min_value=1, max_value=3), st.integers(min_value=1, max_value=3)
-    ),
-    st.tuples(
-        st.integers(min_value=1, max_value=3), st.integers(min_value=1, max_value=3)
-    ),
+    st.integers(min_value=1, max_value=3),
+    st.tuples(st.integers(min_value=1, max_value=3), st.integers(min_value=1, max_value=3)),
     st.integers(min_value=1, max_value=3),
 )
 def test_freq_time_md_filter_equal_results(irLen, dataDim, filtDim, numBlocks):
     ir = np.random.standard_normal((*filtDim, irLen))
-    tdFilt = FilterMD_IntBuffer(dataDim, ir=ir)
-    fdFilt = FilterMD_Freqdomain(dataDim, ir=ir)
+    tdFilt = fc.FilterMD(dataDim, ir)
+    fdFilt = fc.FilterMD_Freqdomain(dataDim, ir=ir)
 
-    tdOut = np.zeros((*filtDim, *dataDim, numBlocks * irLen))
-    fdOut = np.zeros((*filtDim, *dataDim, numBlocks * irLen))
+    tdOut = np.zeros((*filtDim, dataDim, numBlocks * irLen))
+    fdOut = np.zeros((*filtDim, dataDim, numBlocks * irLen))
 
-    signal = np.random.standard_normal((*dataDim, numBlocks * irLen))
+    signal = np.random.standard_normal((dataDim, numBlocks * irLen))
     for i in range(numBlocks):
         fdOut[..., i * irLen : (i + 1) * irLen] = fdFilt.process(
             signal[..., i * irLen : (i + 1) * irLen]

@@ -7,7 +7,7 @@ import numexpr as ne
 
 
 
-def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None, sumOverInput=True):
+def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None, sumOverInput=True, dynamic=False):
     if numIn is not None and numOut is not None and irLen is not None:
         assert ir is None
         ir = np.zeros((numIn, numOut, irLen))
@@ -15,12 +15,16 @@ def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None
     if ir is not None:
         #assert numIn is None and numOut is None and irLen is None
         if broadcastDim is not None:
+            if dynamic:
+                raise NotImplementedError
             if sumOverInput:
                 raise NotImplementedError
             assert ir.ndim == 3 and isinstance(broadcastDim, int) # A fallback to non-numba MD-filter can be added instead of assert
             return FilterMD(broadcastDim, ir)
         
         if sumOverInput:
+            if dynamic:
+                return FilterSumDynamic(ir)
             return FilterSum(ir)
         return FilterIndividualInputs(ir)
 
@@ -100,6 +104,30 @@ class FilterMD:
 
         self.buffer[:, :] = bufferedInput[:, -self.irLen + 1:]
         return filtered
+
+
+class FilterSumDynamic:
+    """# Identical in use to FilterSum, but uses a buffered output instead of input
+        for a more correct filtering when the IR changes while processing. """
+    def __init__(self, ir):
+        self.ir = ir
+        self.numIn = ir.shape[0]
+        self.numOut = ir.shape[1]
+        self.irLen = ir.shape[2]
+        self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.out_buffer = np.zeros((self.numOut, self.irLen - 1))
+
+    def process(self, data_to_filter):
+        num_samples = data_to_filter.shape[-1]
+        filtered = np.zeros((self.numOut, num_samples+self.irLen-1))
+        filtered[:,:self.irLen-1] = self.out_buffer
+        #bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+        #for out_idx in range(self.numOut):
+        for i in range(num_samples):
+            filtered[:,i:i+self.irLen] += np.sum(self.ir * data_to_filter[:,None,i:i+1], axis=0)
+
+        self.out_buffer = filtered[:, num_samples:]
+        return filtered[:,:num_samples]
 
 
 
@@ -307,7 +335,7 @@ class FilterSum_Freqdomain:
                 assert irLen is None
                 totLen = numFreq
             else:
-                totLen = ir.shape[-1]
+                totLen = 2*ir.shape[-1]
 
             self.tf = np.transpose(
                 np.fft.fft(np.concatenate((ir, np.zeros(ir.shape[:-1]+(totLen-ir.shape[-1],))), axis=-1), axis=-1),

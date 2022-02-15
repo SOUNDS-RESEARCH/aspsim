@@ -80,7 +80,7 @@ class ProcessorWrapper():
         for src, mic, path in arrays.iter_paths():
             if src.name not in self.path_filters:
                 self.path_filters[src.name] = {}
-            self.path_filters[src.name][mic.name] = fc.FilterSum(path)
+            self.path_filters[src.name][mic.name] = fc.createFilter(ir=path, sumOverInput=True, dynamic=(src.dynamic or mic.dynamic))
 
         for mic in self.arrays.mics():
             self.processor.createNewBuffer(mic.name, mic.num)
