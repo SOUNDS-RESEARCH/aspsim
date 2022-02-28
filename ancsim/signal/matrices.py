@@ -102,3 +102,53 @@ def block_transpose(matrix, block_size, out=None):
             transposed_mat[r*block_size:(r+1)*block_size, c*block_size:(c+1)*block_size] = \
                     matrix[r*block_size:(r+1)*block_size, c*block_size:(c+1)*block_size].T
     return transposed_mat
+
+
+
+def block_diag_multiply(mat, block_left=None, block_right=None, out_matrix=None):
+    """
+    block_left is size (a, a)
+    block_right is size (a, a)
+    mat is size (ab, ab) for some integer b
+    
+    performs the operation block_diag_left @ mat @ block_diag_right, 
+    where block_diag is a matrix with multiple copies of block on the diagonal
+    block_diag = I_b kron block
+    """
+    if block_left is not None and block_right is not None:
+        assert all([block_left.shape[0] == b for b in (*block_left.shape, *block_right.shape)])
+        block_size = block_left.shape[0]
+    elif block_left is not None:
+        assert block_left.shape[0] == block_left.shape[1]
+        block_size = block_left.shape[0]
+    elif block_right is not None:
+        assert block_right.shape[0] == block_right.shape[1]
+        block_size = block_right.shape[0]
+    else:
+        raise ValueError("Neither block_left or block_right provided")
+    
+    assert mat.shape[0] == mat.shape[1]
+    mat_size = mat.shape[0]
+    assert mat_size % block_size == 0
+    num_blocks = mat_size // block_size
+    
+    if out_matrix is None:
+        out_matrix = np.zeros((mat_size, mat_size))
+
+    if block_left is not None and block_right is not None:
+        for i in range(num_blocks):
+            for j in range(num_blocks):
+                out_matrix[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = \
+                    block_left @ mat[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] @ block_right
+    elif block_left is not None:
+        for i in range(num_blocks):
+            for j in range(num_blocks):
+                out_matrix[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = \
+                    block_left @ mat[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size]
+    elif block_right is not None:
+        for i in range(num_blocks):
+            for j in range(num_blocks):
+                out_matrix[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = \
+                    mat[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] @ block_right
+
+    return out_matrix

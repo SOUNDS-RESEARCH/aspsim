@@ -144,25 +144,6 @@ class DiagnosticHandler:
                 pass
 
 
-    # def saveData(self, processor, idx, globalIdx):
-    #     for diagName, diag in self.diagnostics.items():
-    #         if globalIdx >= self.lastGlobalSaveIdx[diagName] + self.samplesUntilSave[diagName]:
-                
-    #             if idx < self.lastSaveIdx[diagName]:
-    #                 self.lastSaveIdx[diagName] -= self.sim_info.sim_chunk_size
-    #             numSamples = idx - self.lastSaveIdx[diagName]
-
-    #             diag.saveData(processor, self.lastSaveIdx[diagName], idx, self.lastGlobalSaveIdx[diagName], globalIdx)
-
-    #             if globalIdx >= self.exportAfterSample[diagName]:
-    #                 self.toBeExported.append(diagName)
-    #                 self.exportAfterSample[diagname] = util.nextDivisible(self.sim_info.plot_frequency*self.sim_info.sim_chunk_size, 
-    #                                                                         self.exportAfterSample[diagname])
-
-    #             self.samplesUntilSave[diagName] += diag.save_frequency - numSamples
-    #             self.lastSaveIdx[diagName] += numSamples
-    #             self.lastGlobalSaveIdx[diagName] += numSamples
-
 
 class IntervalCounter:
     def __init__(self, intervals, num_values = None):
@@ -174,13 +155,6 @@ class IntervalCounter:
         It is assumed that the intervals are strictly increasing, with no overlap. 
         meaning that ivs[i+1][0]>ivs[i][1] for all i. 
         """
-        # try: #if is iterable
-        #     self.intervals = iter(intervals)
-        #     self.num_values = np.sum([iv[1]-iv[0] for iv in intervals])
-        # except TypeError: #else is iterator
-        #     self.intervals = intervals
-        #     self.num_values = num_values
-        #     assert num_values is not None
         if isinstance(intervals, (list, tuple, np.ndarray)):
             if isinstance(intervals[0], (list, tuple, np.ndarray)):
                 self.num_values = np.sum([iv[1]-iv[0] for iv in intervals])
@@ -203,17 +177,6 @@ class IntervalCounter:
         if not include_zero:
             start_value += frequency
         return cls(zip(range(start_value, max_value, frequency), range(start_value+1, max_value+1, frequency)), num_values)
-
-
-    # @classmethod
-    # def from_list(cls, lst):
-    #     """
-    #     If you want freely chosen discrete times instead of intervals,
-    #     supply a list as [time_1, time_2, time_3, ...]
-    #     """
-    #     num_values = len(lst)
-    #     interval_lst = [[idx, idx+1] for idx in lst]
-    #     return cls(interval_lst, num_values)
 
     def upcoming(self):
         return self.start, self.end
@@ -241,18 +204,6 @@ class IndexCounter():
             self.interval = idx_selection
             self.idx_selection = it.count(idx_selection-1, idx_selection)
         self.upcoming_idx = next(self.idx_selection, np.inf)
-        #self.progress()
-
-    # @classmethod
-    # def from_intervals(cls, intervals, max_spacing):
-    #     """
-    #         Intervals is a list of lists or list of tuples, 
-    #         where len(intervals[i]) == 2, and the intervals 
-    #         are sorted according to end value. 
-    #         numpy array is also fine, with the shape (num_intervals, 2)
-    #     """
-
-    #     assert all([intervals[i,1] < intervals[i+1,1] for i in range(len(intervals)-1)])
 
     def progress(self):
         self.upcoming_idx = next(self.idx_selection, np.inf)

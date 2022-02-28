@@ -108,3 +108,18 @@ def _corr_matrix(seq1, seq2, lag1, lag2):
 
 def test_autocorr_matrix(corr_mat):
     pass
+
+
+
+def corr_matrix_distance(mat1, mat2):
+    """Computes the correlation matrix distance, as defined in:
+    Correlation matrix distaince, a meaningful measure for evaluation of 
+    non-stationary MIMO channels - Herdin, Czink, Ozcelik, Bonek
+    
+    0 means that the matrices are equal up to a scaling
+    1 means that they are maximally different (orthogonal in NxN dimensional space)
+    """
+    assert mat1.shape == mat2.shape
+    norm1 = np.linalg.norm(mat1, ord="fro", axis=(-2,-1))
+    norm2 = np.linalg.norm(mat2, ord="fro", axis=(-2,-1))
+    return 1 - np.trace(norm1 @ norm2) / (norm1 * norm2)

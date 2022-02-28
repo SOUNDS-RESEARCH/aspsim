@@ -176,12 +176,12 @@ class ArrayCollection():
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
             if reverb != "modified":
-                self.paths[src.name][mic.name], path_info = self.create_path(src, mic, reverb, sim_info, True)
+                self.paths[src.name][mic.name], path_info = self.create_path(src, mic, reverb, sim_info, True, True)
                 for key, val in path_info.items():
                     self.path_info[f"{src.name}->{mic.name}"][key] = val
             
 
-    def create_path (self, src, mic, reverb, sim_info, return_path_info=False):
+    def create_path (self, src, mic, reverb, sim_info, return_path_info=False, verbose=False):
         path_info = {}
         if reverb == "none": 
             path = np.zeros((src.num, mic.num, 1))
@@ -198,7 +198,8 @@ class ArrayCollection():
                         src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
                         sim_info.max_room_ir_length, sim_info.rt60, 
                         sim_info.samplerate, sim_info.c,
-                        calculateMetadata=return_path_info)
+                        calculateMetadata=return_path_info,
+                        verbose = verbose)
                 if return_path_info:
                     path, path_info["ism_info"] = path
             else:
@@ -230,6 +231,9 @@ class ArrayCollection():
         #1. update arrays pos/properties
         #2. get info about which arrays actually changed
         #3. update the paths connecting the updated arrays
+        if glob_idx % self.sim_info.array_update_freq != 0:
+            return 
+        #print("update position")
 
         changed_arrays = []
 
@@ -420,6 +424,11 @@ class Trajectory:
     # 
     @classmethod
     def linear_interpolation_const_speed(cls, points, period, samplerate):
+        """
+        points is array of shape (numpoints, spatial_dim) or equivalent list of lists
+        period is in seconds
+        update freq is in samples
+        """
         if isinstance(points, (list, tuple)):
             points = np.array(points)
 
@@ -430,6 +439,7 @@ class Trajectory:
         assert all(segment_distance > 0)
         
         tot_distance = np.sum(segment_distance)
+        #updates_per_period = samplerate * period / update_freq
         distance_per_sample = tot_distance / (samplerate * period)
         segment_samples = segment_distance / distance_per_sample
 
@@ -453,16 +463,9 @@ class Trajectory:
 
 
     def __init__(self, pos_func):
-        """positions (change name later) can be either a list of points
-            between which we will linearly interpolate,
-            or it can be a function, which will take in a time_index and output a position"""
+        """pos_func is a function, which takes a time_index and outputs a position"""
         self.pos_func = pos_func
-        self.idx = 0
-        self.num_pos = 1
         #self.pos = np.full((1,3), np.nan)
-
-    def next(self):
-        self.idx += 1
 
     def current_pos(self, time_idx):
         return self.pos_func(time_idx)

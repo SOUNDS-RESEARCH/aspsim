@@ -13,6 +13,24 @@ import ancsim.diagnostics.diagnosticsummary as dsum
 
 import ancsim.diagnostics.core as diacore
 
+
+def attritemgetter(name):
+    assert name[0] != "["
+    attributes = name.replace("]", "").replace("'", "")
+    attributes = attributes.split(".")
+    attributes = [attr.split("[") for attr in attributes]
+
+    def getter (obj):
+        for sub_list in attributes:
+            obj = getattr(obj, sub_list[0])
+            for item in sub_list[1:]:
+                obj = obj[item]
+        return obj
+    return getter
+
+
+
+
 # class RecordMatrix(diacore.InstantDiagnostic):
 #     """
 #     """
@@ -51,7 +69,7 @@ class RecordFilter(diacore.InstantDiagnostic):
         ):
         super().__init__(*args, **kwargs)
         self.prop_name = prop_name
-        self.get_prop = op.attrgetter(prop_name)
+        self.get_prop = attritemgetter(prop_name)
         self.prop = None
 
     def save(self, processor, chunkInterval, globInterval):
@@ -103,7 +121,7 @@ class RecordState(diacore.StateDiagnostic):
         self.scalar_values = np.full((*state_dim, self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
-        self.get_prop = op.attrgetter(state_name)
+        self.get_prop = attritemgetter(state_name)
         self.diag_idx = 0
 
         if label_suffix_channel is not None:
@@ -152,7 +170,7 @@ class StatePower(diacore.StateDiagnostic):
         self.power = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
-        self.get_prop = op.attrgetter(prop_name)
+        self.get_prop = attritemgetter(prop_name)
         self.diag_idx = 0
         
 
@@ -177,8 +195,8 @@ class StateMSE(diacore.StateDiagnostic):
         self.mse = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
-        self.get_est_state = op.attrgetter(est_state_name)
-        self.get_true_state = op.attrgetter(true_state_name)
+        self.get_est_state = attritemgetter(est_state_name)
+        self.get_true_state = attritemgetter(true_state_name)
         self.diag_idx = 0
         
 
@@ -195,7 +213,7 @@ class StateMSE(diacore.StateDiagnostic):
 
 
 
-class Eigenvalues(diacore.StateDiagnostic):
+class EigenvaluesOverTime(diacore.StateDiagnostic):
     """
     Matrix must be square, otherwise EVD doesn't work
     For now assumes hermitian matrix as well
@@ -206,21 +224,29 @@ class Eigenvalues(diacore.StateDiagnostic):
     The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
     The seconds value is how many of the largest eigenvalues that should be recorded
     """
-    def __init__(self, matrix_name, eigval_idx, *args, **kwargs):
+    def __init__(self, matrix_name, eigval_idx, abs_value=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert isinstance(eigval_idx, (list, tuple, np.ndarray))
         assert len(eigval_idx) == 2
-        self.get_matrix = op.attrgetter(matrix_name)
+        self.get_matrix = attritemgetter(matrix_name)
         self.eigval_idx = eigval_idx
+        self.abs_value = abs_value
 
         self.eigvals = np.full((eigval_idx[1]-eigval_idx[0]+1, self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
         self.diag_idx = 0
 
+        if self.abs_value:
+            self.plot_data["title"] = "Size of Eigenvalues"
+        else:
+            self.plot_data["title"] = "Eigenvalues"
+
     def save(self, processor, chunkInterval, globInterval):
         mat = self.get_matrix(processor)
         assert np.allclose(mat, mat.T.conj())
         evs = splin.eigh(mat, eigvals_only=True, subset_by_index=self.eigval_idx)
+        if self.abs_value:
+            evs = np.abs(evs)
         self.eigvals[:, self.diag_idx] = evs
         self.time_indices[self.diag_idx] = globInterval[1]
 
@@ -230,6 +256,42 @@ class Eigenvalues(diacore.StateDiagnostic):
         return self.eigvals
 
 
+class Eigenvalues(diacore.InstantDiagnostic):
+    def __init__ (
+        self, 
+        matrix_name,
+        abs_value = False,
+        *args,
+        **kwargs,
+        ):
+        super().__init__(*args, **kwargs)
+        #self.matrix_name = matrix_name
+        self.get_mat = attritemgetter(matrix_name)
+        self.evs = None
+        self.abs_value = abs_value
+
+        if self.abs_value:
+            self.plot_data["title"] = "Size of Eigenvalues"
+        else:
+            self.plot_data["title"] = "Eigenvalues"
+
+    def save(self, processor, chunkInterval, globInterval):
+        mat = self.get_mat(processor)
+        assert np.allclose(mat, mat.T.conj())
+        self.evs = splin.eigh(mat, eigvals_only=True)[None,None,:]
+
+        if self.abs_value:
+            self.evs = np.abs(self.evs)
+
+    def get_output(self):
+        return self.evs
+
+# class CovarianceMatrix(diacore.StateDiagnostic):
+#     def __init__(self, vector_name, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.get_vec = op.attrgetter(vector_name)
+
+#         self.cov_mat = np.zeros
 
 
 

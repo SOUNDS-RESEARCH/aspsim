@@ -77,6 +77,7 @@ def irRoomImageSource3d(
     samplerate,
     c, 
     calculateMetadata=False,
+    verbose=False,
 ):
 
     numFrom = fromPos.shape[0]
@@ -89,7 +90,7 @@ def irRoomImageSource3d(
 
     if rt60 > 0:
         eAbsorption, maxOrder = pra.inverse_sabine(rt60, roomSize)
-        maxOrder += 10
+        maxOrder += 3
     else:
         eAbsorption = 0.9
         maxOrder = 0
@@ -102,8 +103,9 @@ def irRoomImageSource3d(
     min_dly = int(np.ceil(shortest_distance * samplerate / c))
     frac_dly_len = 2*min_dly+1
     pra.constants.set("frac_delay_length",frac_dly_len)
-    if frac_dly_len < 20:
-        print("WARNING: fractional delay length: ",frac_dly_len)
+    if verbose:
+        if frac_dly_len < 20:
+            print("WARNING: fractional delay length: ",frac_dly_len)
 
     maxTruncError = np.NINF
     maxTruncValue = np.NINF
@@ -128,13 +130,14 @@ def irRoomImageSource3d(
         )
         room.add_microphone_array(mics)
 
-        print(
-            "Computing RIR {} - {} of {}".format(
-                numComputed * numFrom + 1,
-                (numComputed + blockSize) * numFrom,
-                numTo * numFrom,
+        if verbose:
+            print(
+                "Computing RIR {} - {} of {}".format(
+                    numComputed * numFrom + 1,
+                    (numComputed + blockSize) * numFrom,
+                    numTo * numFrom,
+                )
             )
-        )
         room.compute_rir()
         for toIdx, receiver in enumerate(room.rir):
             for fromIdx, singleRIR in enumerate(receiver):

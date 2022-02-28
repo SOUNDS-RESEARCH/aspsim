@@ -591,8 +591,8 @@ class MovingAverage:
             self.state *= self.forgetFactor
             self.state += newDataPoint * self.invForgetFactor
         else:
-            self.state = ne.evaluate("state*(i/(i+1)) + newDataPoint / (i+1)", 
-                            local_dict={'state': self.state, 'i': self.initCounter, "newDataPoint":newDataPoint})
+            self.state[...] = ne.evaluate("state*(i/(i+1)) + newDataPoint / (i+1)", 
+                                local_dict={'state': self.state, 'i': self.initCounter, "newDataPoint":newDataPoint})
 
             #self.state *= (self.initCounter / (self.initCounter + 1))
             #self.state += newDataPoint / (self.initCounter + 1)
