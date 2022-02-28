@@ -7,6 +7,7 @@ import ancsim.array as ar
 import ancsim.utilities as util
 import ancsim.experiment.plotscripts as psc
 import ancsim.signal.filterclasses as fc
+import ancsim.signal.correlation as corr
 import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum
 
@@ -285,6 +286,35 @@ class Eigenvalues(diacore.InstantDiagnostic):
 
     def get_output(self):
         return self.evs
+
+
+
+class CorrMatrixDistance(diacore.StateDiagnostic):
+    """
+
+    """
+    def __init__(self, name_mat1, name_mat2, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.get_mat1 = attritemgetter(name_mat1)
+        self.get_mat2 = attritemgetter(name_mat2)
+
+        self.cmd = np.full((self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+        self.diag_idx = 0
+
+        self.plot_data["title"] = "Correlation matrix distance"
+
+    def save(self, processor, chunkInterval, globInterval):
+        mat1 = self.get_mat1(processor)
+        mat2 = self.get_mat2(processor)
+
+        self.cmd[self.diag_idx] = corr.corr_matrix_distance(mat1, mat2)
+        self.time_indices[self.diag_idx] = globInterval[1]
+        self.diag_idx += 1
+        
+    def get_output(self):
+        return self.cmd
+
 
 # class CovarianceMatrix(diacore.StateDiagnostic):
 #     def __init__(self, vector_name, *args, **kwargs):
