@@ -122,4 +122,4 @@ def corr_matrix_distance(mat1, mat2):
     assert mat1.shape == mat2.shape
     norm1 = np.linalg.norm(mat1, ord="fro", axis=(-2,-1))
     norm2 = np.linalg.norm(mat2, ord="fro", axis=(-2,-1))
-    return 1 - np.trace(norm1 @ norm2) / (norm1 * norm2)
+    return 1 - np.trace(mat1 @ mat2) / (norm1 * norm2)

@@ -225,7 +225,7 @@ class EigenvaluesOverTime(diacore.StateDiagnostic):
     The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
     The seconds value is how many of the largest eigenvalues that should be recorded
     """
-    def __init__(self, matrix_name, eigval_idx, abs_value=False, *args, **kwargs):
+    def __init__(self, matrix_name, eigval_idx, *args, abs_value=False, **kwargs):
         super().__init__(*args, **kwargs)
         assert isinstance(eigval_idx, (list, tuple, np.ndarray))
         assert len(eigval_idx) == 2
@@ -261,8 +261,8 @@ class Eigenvalues(diacore.InstantDiagnostic):
     def __init__ (
         self, 
         matrix_name,
-        abs_value = False,
         *args,
+        abs_value = False,
         **kwargs,
         ):
         super().__init__(*args, **kwargs)

@@ -60,6 +60,10 @@ def get_values_from_selection(signal, time_indices, max_idx):
     time_indices = time_indices[nan_filter]
     signal = signal[:,nan_filter]
 
+    if len(time_indices) == 0:
+        assert signal.shape[-1] == 0
+        return signal, time_indices
+        
     above_max_idx = np.argmax(time_indices >= max_idx)
     if above_max_idx == 0:
         if np.logical_not(above_max_idx).all():
