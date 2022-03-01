@@ -64,9 +64,10 @@ class DiagnosticExporter:
         one_diag_object = diag_dict[list(diag_dict.keys())[0]]
         exp_funcs = one_diag_object.export_function
         exp_kwargs = one_diag_object.export_kwargs
+        preproc = one_diag_object.preprocess
         export_time_idx = one_diag_object.next_export()
-        for exp_func, exp_kwarg in zip(exp_funcs, exp_kwargs):
-            exp_func(diag_name, diag_dict, export_time_idx, fldr, **exp_kwarg)
+        for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, **exp_kwarg)
 
         for diag in diag_dict.values():
             diag.progress_export()
@@ -234,6 +235,7 @@ class Diagnostic:
         export_func,
         keep_only_last_export,
         export_kwargs,
+        preprocess,
         ):
         """
         save_at_idx is an iterable which gives all indices for which to save data. 
@@ -262,6 +264,13 @@ class Diagnostic:
             export_kwargs = [export_kwargs]
         assert len(export_kwargs) == len(self.export_function)
         self.export_kwargs = export_kwargs
+
+        if preprocess is None:
+            preprocess = [[] for _ in range(len(self.export_function))]
+        elif callable(preprocess):
+            preprocess = [preprocess]
+        self.preprocess = [[pp] if callable(pp) else pp for pp in preprocess]
+        assert len(self.preprocess) == len(self.export_function)
 
         self.keep_only_last_export = keep_only_last_export
 
@@ -292,6 +301,14 @@ class Diagnostic:
     def get_output(self):
         self.export_at.progress()
 
+    def get_processed_output(self, time_idx, preprocess):
+        """
+        """
+        output = self.get_output()
+        for pp in preprocess:
+            output = pp(output)
+        return output
+
 
 class SignalDiagnostic(Diagnostic):
     export_functions = {
@@ -307,6 +324,7 @@ class SignalDiagnostic(Diagnostic):
         export_func = "plot",
         keep_only_last_export = None,
         export_kwargs = None,
+        preprocess = None,
     ):
         if save_at is None:
             save_at = IntervalCounter(((0,sim_info.tot_samples),))
@@ -315,11 +333,18 @@ class SignalDiagnostic(Diagnostic):
         else:
             if keep_only_last_export is None:
                 keep_only_last_export = False
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs)
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
         self.plot_data["xlabel"] = "Samples"
         self.plot_data["ylabel"] = ""
         self.plot_data["title"] = ""
+
+    def get_processed_output(self, time_idx, preprocess):
+        output, time_indices = get_values_up_to_idx(self.get_output(), time_idx+1)
+        for pp in preprocess:
+            output = pp(output)
+        return output, time_indices
+
 
 class StateDiagnostic(Diagnostic):
     export_functions = {
@@ -335,6 +360,7 @@ class StateDiagnostic(Diagnostic):
         export_func = "plot",
         keep_only_last_export=True,
         export_kwargs = None,
+        preprocess = None,
     ):
         if save_frequency is None:
             save_frequency = block_size
@@ -342,10 +368,17 @@ class StateDiagnostic(Diagnostic):
                         IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples),
                         export_func, 
                         keep_only_last_export,
-                        export_kwargs)
+                        export_kwargs,
+                        preprocess)
         self.plot_data["xlabel"] = "Samples"
         self.plot_data["ylabel"] = ""
         self.plot_data["title"] = ""
+
+    def get_processed_output(self, time_idx, preprocess):
+        output, time_indices = get_values_from_selection(self.get_output(), self.time_indices, time_idx+1)
+        for pp in preprocess:
+            output = pp(output)
+        return output, time_indices
 
 
 class InstantDiagnostic(Diagnostic):
@@ -362,6 +395,7 @@ class InstantDiagnostic(Diagnostic):
         export_func = "plot",
         keep_only_last_export = False,
         export_kwargs = None,
+        preprocess = None,
     ):
         if save_at is None:
             save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
@@ -374,8 +408,57 @@ class InstantDiagnostic(Diagnostic):
                 assert not isinstance(save_at[0], (tuple, list, np.ndarray))
             export_at = save_at
             save_at = IntervalCounter(save_at)
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs)
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
 
 
+def get_values_up_to_idx(signal, max_idx):
+    """
+    gives back signal values that correspond to time_values less than max_idx, 
+    and signal values that are not nan
 
+    max_idx is exlusive
+    """
+    signal = np.atleast_2d(signal)
+    assert signal.ndim == 2
+
+    time_indices = np.arange(max_idx)
+    signal = signal[:,:max_idx]
+
+    nan_filter = np.logical_not(np.isnan(signal))
+    assert np.isclose(nan_filter, nan_filter[0, :]).all()
+    nan_filter = nan_filter[0, :]
+
+    time_indices = time_indices[nan_filter]
+    signal = signal[:,nan_filter]
+    return signal, time_indices
+
+def get_values_from_selection(signal, time_indices, max_idx):
+    """
+    gives back signal values that correspond to time_values less than max_idx, 
+    and signal values that are not nan
+
+    max_idx is exlusive
+    """
+    signal = np.atleast_2d(signal)
+    assert signal.ndim == 2
+    nan_filter = np.logical_not(np.isnan(signal))
+    assert np.isclose(nan_filter, nan_filter[0, :]).all()
+    nan_filter = nan_filter[0, :]
+
+    assert time_indices.shape[-1] == signal.shape[-1]
+    time_indices = time_indices[nan_filter]
+    signal = signal[:,nan_filter]
+
+    if len(time_indices) == 0:
+        assert signal.shape[-1] == 0
+        return signal, time_indices
+
+    above_max_idx = np.argmax(time_indices >= max_idx)
+    if above_max_idx == 0:
+        if np.logical_not(above_max_idx).all():
+            above_max_idx = len(time_indices)
+
+    time_indices = time_indices[:above_max_idx]
+    signal = signal[:,:above_max_idx]
+    return signal, time_indices

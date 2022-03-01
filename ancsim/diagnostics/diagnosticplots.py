@@ -59,77 +59,24 @@ def scale_data(signal, scaling):
 #         return np.log(data)
 
 
-def get_values_up_to_idx(signal, max_idx):
-    """
-    gives back signal values that correspond to time_values less than max_idx, 
-    and signal values that are not nan
-
-    max_idx is exlusive
-    """
-
-    time_indices = np.arange(max_idx)
-    signal = signal[:,:max_idx]
-
-    nan_filter = np.logical_not(np.isnan(signal))
-    assert np.isclose(nan_filter, nan_filter[0, :]).all()
-    nan_filter = nan_filter[0, :]
-
-    time_indices = time_indices[nan_filter]
-    signal = signal[:,nan_filter]
-    return signal, time_indices
-
-def get_values_from_selection(signal, time_indices, max_idx):
-    """
-    gives back signal values that correspond to time_values less than max_idx, 
-    and signal values that are not nan
-
-    max_idx is exlusive
-    """
-    nan_filter = np.logical_not(np.isnan(signal))
-    assert np.isclose(nan_filter, nan_filter[0, :]).all()
-    nan_filter = nan_filter[0, :]
-
-    assert time_indices.shape[-1] == signal.shape[-1]
-    time_indices = time_indices[nan_filter]
-    signal = signal[:,nan_filter]
-
-    if len(time_indices) == 0:
-        assert signal.shape[-1] == 0
-        return signal, time_indices
-
-    above_max_idx = np.argmax(time_indices >= max_idx)
-    if above_max_idx == 0:
-        if np.logical_not(above_max_idx).all():
-            above_max_idx = len(time_indices)
-
-    time_indices = time_indices[:above_max_idx]
-    signal = signal[:,:above_max_idx]
-    return signal, time_indices
 
 
-
-def functionOfTimePlot(name, diags, time_idx, folder, printMethod="pdf", scaling="linear"):
+def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="pdf", scaling="linear"):
     fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig.tight_layout(pad=4)
 
     for proc_name, diag in diags.items():
-        output = np.atleast_2d(diag.get_output())
-        assert output.ndim == 2
+        # output = np.atleast_2d(diag.get_output())
+        # assert output.ndim == 2
+        #num_channels = output.shape[0]
+
+        # if hasattr(diag, "time_indices"):
+        #     output, time_indices = get_values_from_selection(output, diag.time_indices, time_idx+1)
+        # else:
+        #     output, time_indices = get_values_up_to_idx(output, time_idx+1)
+        output, time_indices = diag.get_processed_output(time_idx, preprocess)
+        #output = scale_data(output, scaling)
         num_channels = output.shape[0]
-
-        if hasattr(diag, "time_indices"):
-            output, time_indices = get_values_from_selection(output, diag.time_indices, time_idx+1)
-            #xValues = diag.time_indices
-        else:
-            output, time_indices = get_values_up_to_idx(output, time_idx+1)
-        output = scale_data(output, scaling)
-            #xValues = np.arange(time_idx+1)
-
-        #filterArray = np.logical_not(np.isnan(output))
-        #assert np.isclose(filterArray, filterArray[0, :]).all()
-        #filterArray = filterArray[0, :]
-        #xValues = xValues[filterArray[:time_idx+1]]
-        #output = output[:,filterArray]
 
         if "label_suffix_channel" in diag.plot_data:
             labels = ["_".join((proc_name, suf)) for suf in diag.plot_data["label_suffix_channel"]]
@@ -170,7 +117,7 @@ def legendWithoutDuplicates(ax, loc):
     ax.legend(newHandles, newLabels, loc=loc)
 
 
-def savenpz(name, diags, timeIdx, folder, printMethod="pdf"):
+def savenpz(name, diags, timeIdx, folder, preprocess, printMethod="pdf"):
     """Keeps only the latest save.
     Assumes that the data in previous
     saves is present in the current data"""
@@ -190,7 +137,7 @@ def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 	
 
 
-def plotIR(name, diags, timeIdx, folder, printMethod="pdf"):
+def plotIR(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     numSets = 0
     for algoName, diag in diags.items():
         for irSet in diag.get_output():
@@ -211,7 +158,7 @@ def plotIR(name, diags, timeIdx, folder, printMethod="pdf"):
     #    axes = [axes]
 
     for row, (algoName, diag) in enumerate(diags.items()):
-        output = diag.get_output()
+        output = diag.get_processed_output(time_idx, preprocess)
         for setIdx, irSet in enumerate(output):
             for col in range(irSet.shape[0]):
                 #axes[row, col].plot(irSet[col,:], label=f"{algoName} {metadata['label'][setIdx]}", alpha=0.6)
@@ -226,10 +173,10 @@ def plotIR(name, diags, timeIdx, folder, printMethod="pdf"):
         legendWithoutDuplicates(ax, "upper right")
         #ax.legend(loc="upper right")
         
-    outputPlot(printMethod, folder, f"{name}_{timeIdx}")
+    outputPlot(printMethod, folder, f"{name}_{time_idx}")
 
-def matshow(name, diags, timeIdx, folder, printMethod="pdf"):
-    outputs = {proc_name: diag.get_output() for proc_name, diag in diags.items()}
+def matshow(name, diags, timeIdx, folder, preprocess, printMethod="pdf"):
+    outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     
     num_proc = len(diags)
     fig, axes = plt.subplots(1,num_proc, figsize=(5, num_proc*5))
