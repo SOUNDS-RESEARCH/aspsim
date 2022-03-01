@@ -1,12 +1,45 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from enum import Enum
 import soundfile as sf
 
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.experiment.multiexperimentutils as meu
 import ancsim.utilities as util
 
+
+
+def linear(signal):
+    return signal
+
+def db_power(signal):
+    return 10*np.log10(signal)
+
+def db_amplitude(signal):
+    return 20*np.log10(signal)
+
+def natural_log(signal):
+    return np.log(signal)
+
+def preset_scaling(scaling):
+    if scaling == "linear":
+        return linear
+    elif scaling == "db_power":
+        return db_power
+    elif scaling == "db_amplitude":
+        return db_amplitude
+    elif scaling == "natural_log":
+        return natural_log
+    else:
+        raise ValueError("Invalid scaling string")
+
+def scale_data(signal, scaling):
+    if callable(scaling):
+        return scaling(signal)
+    elif isinstance(scaling, str):
+        scaling_func = preset_scaling(scaling)
+        return scaling_func(signal)
+    else:
+        raise ValueError("Invalid scaling type")
 
 # class SCALINGTYPE(Enum):
 #     linear = 1
@@ -63,7 +96,7 @@ def get_values_from_selection(signal, time_indices, max_idx):
     if len(time_indices) == 0:
         assert signal.shape[-1] == 0
         return signal, time_indices
-        
+
     above_max_idx = np.argmax(time_indices >= max_idx)
     if above_max_idx == 0:
         if np.logical_not(above_max_idx).all():
@@ -75,7 +108,7 @@ def get_values_from_selection(signal, time_indices, max_idx):
 
 
 
-def functionOfTimePlot(name, diags, time_idx, folder, printMethod="pdf"):
+def functionOfTimePlot(name, diags, time_idx, folder, printMethod="pdf", scaling="linear"):
     fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig.tight_layout(pad=4)
 
@@ -89,6 +122,7 @@ def functionOfTimePlot(name, diags, time_idx, folder, printMethod="pdf"):
             #xValues = diag.time_indices
         else:
             output, time_indices = get_values_up_to_idx(output, time_idx+1)
+        output = scale_data(output, scaling)
             #xValues = np.arange(time_idx+1)
 
         #filterArray = np.logical_not(np.isnan(output))

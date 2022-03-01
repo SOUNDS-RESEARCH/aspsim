@@ -54,6 +54,7 @@ class DiagnosticExporter:
             assert first_diag.export_function == dg.export_function
             assert first_diag.next_export() == dg.next_export()
             assert first_diag.keep_only_last_export == dg.keep_only_last_export
+            assert first_diag.export_kwargs == dg.export_kwargs
 
 
     def export_single_diag(self, diag_name, processors, fldr):
@@ -62,9 +63,10 @@ class DiagnosticExporter:
 
         one_diag_object = diag_dict[list(diag_dict.keys())[0]]
         exp_funcs = one_diag_object.export_function
+        exp_kwargs = one_diag_object.export_kwargs
         export_time_idx = one_diag_object.next_export()
-        for exp_func in exp_funcs:
-            exp_func(diag_name, diag_dict, export_time_idx, fldr)
+        for exp_func, exp_kwarg in zip(exp_funcs, exp_kwargs):
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, **exp_kwarg)
 
         for diag in diag_dict.values():
             diag.progress_export()
@@ -141,7 +143,6 @@ class DiagnosticHandler:
                 start_lcl = idx - (globalIdx-start)
                 diag.save(processor, (start_lcl, idx), (start, globalIdx))
                 diag.progress_save(globalIdx)
-                pass
 
 
 
@@ -222,8 +223,6 @@ class IndexCounter():
                     return i
 
         
-
-
 class Diagnostic:
     export_functions = {}
     def __init__(
@@ -234,6 +233,7 @@ class Diagnostic:
         save_at,
         export_func,
         keep_only_last_export,
+        export_kwargs,
         ):
         """
         save_at_idx is an iterable which gives all indices for which to save data. 
@@ -255,6 +255,13 @@ class Diagnostic:
         if isinstance(export_func, str):
             export_func = [export_func]
         self.export_function = [type(self).export_functions[func_choice] for func_choice in export_func]
+
+        if export_kwargs is None:
+            export_kwargs = {}
+        if isinstance(export_kwargs, dict):
+            export_kwargs = [export_kwargs]
+        assert len(export_kwargs) == len(self.export_function)
+        self.export_kwargs = export_kwargs
 
         self.keep_only_last_export = keep_only_last_export
 
@@ -299,6 +306,7 @@ class SignalDiagnostic(Diagnostic):
         save_at = None, 
         export_func = "plot",
         keep_only_last_export = None,
+        export_kwargs = None,
     ):
         if save_at is None:
             save_at = IntervalCounter(((0,sim_info.tot_samples),))
@@ -307,7 +315,7 @@ class SignalDiagnostic(Diagnostic):
         else:
             if keep_only_last_export is None:
                 keep_only_last_export = False
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export)
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs)
 
         self.plot_data["xlabel"] = "Samples"
         self.plot_data["ylabel"] = ""
@@ -326,13 +334,15 @@ class StateDiagnostic(Diagnostic):
         save_frequency=None,
         export_func = "plot",
         keep_only_last_export=True,
+        export_kwargs = None,
     ):
         if save_frequency is None:
             save_frequency = block_size
         super().__init__(sim_info, block_size, export_at, 
                         IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples),
                         export_func, 
-                        keep_only_last_export)
+                        keep_only_last_export,
+                        export_kwargs)
         self.plot_data["xlabel"] = "Samples"
         self.plot_data["ylabel"] = ""
         self.plot_data["title"] = ""
@@ -351,6 +361,7 @@ class InstantDiagnostic(Diagnostic):
         save_at = None, 
         export_func = "plot",
         keep_only_last_export = False,
+        export_kwargs = None,
     ):
         if save_at is None:
             save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
@@ -363,7 +374,7 @@ class InstantDiagnostic(Diagnostic):
                 assert not isinstance(save_at[0], (tuple, list, np.ndarray))
             export_at = save_at
             save_at = IntervalCounter(save_at)
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export)
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs)
 
 
 
