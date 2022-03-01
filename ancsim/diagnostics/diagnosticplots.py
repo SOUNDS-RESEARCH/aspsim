@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal as spsig
 import matplotlib.pyplot as plt
 import soundfile as sf
 
@@ -41,22 +42,26 @@ def scale_data(signal, scaling):
     else:
         raise ValueError("Invalid scaling type")
 
-# class SCALINGTYPE(Enum):
-#     linear = 1
-#     dbPower = 2
-#     dbAmp = 3
-#     ln = 4
+
+def clip(low_lim, high_lim):
+    def clip_internal(signal):
+        return np.clip(signal, low_lim, high_lim)
+    return clip_internal
 
 
-# def scaleData(scalingType, data):
-#     if scalingType == SCALINGTYPE.linear:
-#         return data
-#     elif scalingType == SCALINGTYPE.dbPower:
-#         return 10 * np.log10(data)
-#     elif scalingType == SCALINGTYPE.dbAmp:
-#         return 20 * np.log10(data)
-#     elif scalingType == SCALINGTYPE.ln:
-#         return np.log(data)
+def smooth(smooth_len):
+    ir = np.ones((1, smooth_len)) / smooth_len
+    def smooth_internal(signal):
+        return spsig.oaconvolve(signal, ir, mode="full", axes=-1)[:,:signal.shape[-1]]
+    return smooth_internal
+
+
+
+
+
+
+
+
 
 
 
@@ -117,16 +122,18 @@ def legendWithoutDuplicates(ax, loc):
     ax.legend(newHandles, newLabels, loc=loc)
 
 
-def savenpz(name, diags, timeIdx, folder, preprocess, printMethod="pdf"):
+def savenpz(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     """Keeps only the latest save.
     Assumes that the data in previous
     saves is present in the current data"""
-    outputs = {proc_name: diag.get_output() for proc_name, diag in diags.items()}
+    outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+    #outputs will here be a tuple of (output, time_indices) for StateDiagnostics and SignalDiagnostics
+
     #flatOutputs = util.flattenDict(outputs, sep="~")
-    np.savez_compressed(folder.joinpath(f"{name}_{timeIdx}"), **outputs)
+    np.savez_compressed(folder.joinpath(f"{name}_{time_idx}"), **outputs)
 
     if list(diags.values())[0].keep_only_last_export:
-        earlierFiles = meu.findAllEarlierFiles(folder, name, timeIdx, nameIncludesIdx=False)
+        earlierFiles = meu.findAllEarlierFiles(folder, name, time_idx, nameIncludesIdx=False)
         for f in earlierFiles:
             if f.suffix == ".npz":
                 f.unlink()
@@ -175,7 +182,7 @@ def plotIR(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
         
     outputPlot(printMethod, folder, f"{name}_{time_idx}")
 
-def matshow(name, diags, timeIdx, folder, preprocess, printMethod="pdf"):
+def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     
     num_proc = len(diags)
@@ -189,7 +196,7 @@ def matshow(name, diags, timeIdx, folder, preprocess, printMethod="pdf"):
         ax.set_title(f"{name} - {proc_name}")
         ax.spines["right"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-    outputPlot(printMethod, folder, f"{name}_{timeIdx}")
+    outputPlot(printMethod, folder, f"{name}_{time_idx}")
 
 
 def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):

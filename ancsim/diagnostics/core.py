@@ -55,6 +55,11 @@ class DiagnosticExporter:
             assert first_diag.next_export() == dg.next_export()
             assert first_diag.keep_only_last_export == dg.keep_only_last_export
             assert first_diag.export_kwargs == dg.export_kwargs
+            for prep1, prep2 in zip(first_diag.preprocess, dg.preprocess):
+                assert len(prep1) == len(prep2)
+                for pp_func1, pp_func2 in zip(prep1, prep2):
+                    assert pp_func1.__name__ == pp_func2.__name__
+            #assert first_diag.preprocess == dg.preprocess
 
 
     def export_single_diag(self, diag_name, processors, fldr):

@@ -23,6 +23,6 @@ plot_begin : 0
 chunk_per_export : 10
 plot_output : pdf
 
-output_smoothing : 16536
+output_smoothing : 1
 
 auto_save_load : True

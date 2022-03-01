@@ -177,7 +177,7 @@ class StateMSE(diacore.StateDiagnostic):
     def save(self, processor, chunkInterval, globInterval):
         est_val = self.get_est_state(processor)
         true_val = self.get_true_state(processor)
-        self.mse[self.diag_idx] = 10*np.log10(1e-60+ np.sum(np.abs(est_val - true_val)**2) / np.sum(np.abs(true_val)**2))
+        self.mse[self.diag_idx] = np.sum(np.abs(est_val - true_val)**2) / np.sum(np.abs(true_val)**2)
         self.time_indices[self.diag_idx] = globInterval[1]
 
         self.diag_idx += 1
