@@ -11,6 +11,54 @@ import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum
 
 
+"""
+===== DIAGNOSTICS OVERVIEW =====
+All diagnostics should inherit from Diagnostic, but it is suggested to use the 
+intermediate SignalDiagnostic, StateDiagnostic, and Instantdiagnostic. 
+
+===== PROCESSOR.IDX =====
+The processor.idx should be interpreted as the next (local, in reference to the internal signal buffer)
+time index it will process. So if processor.idx == 1, then processor.sig['signame'][:,0] is a processed sample
+that can be saved to a diagnostic, but processor.sig['signame'][:,1] is not. 
+
+The processor.idx is increased after propagating all signals. During its .process method, the processing can
+add source signals between idx:idx+block_size. These new signals are propagated to the microphones, and the 
+index is increased by block_size. Directly after that, the diagnostics are saved. 
+
+===== GLOBAL VS LOCAL TIME INDEX =====
+At the time when data is saved to diagnostics, the global_idx == (local_idx-buffer) + K*chunk_size for some 
+integer K. Meaning that the two indices are in sync, without any small offset. The very first chunk the local
+index is merely offset by the buffer_size. 
+
+
+===== SAVE_AT AND EXPORT_AT =====
+All diagnostics needs an IntervalCounter as the member save_at
+which dictates when data should be saved from the processor to the diagnostic
+
+All diagnostics needs an IndexCounter as the member export_at
+which dictates when data should be saved from the diagnostic to file. 
+
+Both export_at and save_at will be indexes compared to the global time index. 
+
+save_at should be/represent a sequence of non-overlapping intervals, where
+each interval is (start, end), and the relevant signal should be saved
+to the diagnostics between start:end (meaning end-exclusive).
+To save state or instant diagnostics (where a continuous signal is not available)
+the interval should be of length 1, so (start, start+1). 
+
+When specifying save frequency, or giving just a list of indices (as you would for state or instant diagnostics)
+it is interpreted as "save each X samples" or "save after X samples has passed". 
+This means that with a save frequency of 200, the first save would be after globalIdx 199 has been processed; 
+and as explained above, by the time data is saved to diagnostics, the globalIdx would then be 200.  
+
+
+"""
+
+
+
+
+
+
 class DiagnosticExporter:
     def __init__(self, sim_info, processors):
         self.sim_info = sim_info
@@ -44,8 +92,9 @@ class DiagnosticExporter:
         for proc in processors:
             for dg_name, dg in proc.diag.items():
                 if dg.next_export() <= idx_to_check:
-                    if dg_name not in diag_names:
-                        diag_names.append(dg_name)
+                    if dg.next_save()[0] >= idx_to_check:
+                        if dg_name not in diag_names:
+                            diag_names.append(dg_name)
         return diag_names
                 
     def verify_same_export_settings(self, diag_dict):
@@ -136,19 +185,19 @@ class DiagnosticHandler:
     #def add_diagnostic(self, name, diagnostic):
     #    self.diagnostics[name] = diagnostic
 
-    def saveData(self, processor, idx, globalIdx, last_block_on_chunk):
+    def saveData(self, processor, idx, global_idx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
             start, end = diag.next_save()
 
-            if globalIdx >= end:
-                end_lcl = idx - (globalIdx - end)
+            if global_idx >= end:
+                end_lcl = idx - (global_idx - end)
                 start_lcl = end_lcl - (end-start)
                 diag.save(processor, (start_lcl, end_lcl), (start, end))
                 diag.progress_save(end)
-            elif last_block_on_chunk and globalIdx >= start:
-                start_lcl = idx - (globalIdx-start)
-                diag.save(processor, (start_lcl, idx), (start, globalIdx))
-                diag.progress_save(globalIdx)
+            elif last_block_on_chunk and global_idx >= start:
+                start_lcl = idx - (global_idx-start)
+                diag.save(processor, (start_lcl, idx), (start, global_idx))
+                diag.progress_save(global_idx)
 
 
 
@@ -177,13 +226,23 @@ class IntervalCounter:
         self.start, self.end = next(self.intervals)
 
     @classmethod
-    def from_frequency(cls, frequency, max_value, include_zero=True):
+    def from_frequency(cls, frequency, max_value, include_zero=False):
         num_values = int(np.ceil(max_value / frequency))
 
         start_value = 0
         if not include_zero:
             start_value += frequency
-        return cls(zip(range(start_value, max_value, frequency), range(start_value+1, max_value+1, frequency)), num_values)
+        return cls(zip(range(start_value-1, max_value, frequency), range(start_value, max_value+1, frequency)), num_values)
+
+
+    # @classmethod
+    # def from_frequency(cls, frequency, max_value, include_zero=True):
+    #     num_values = int(np.ceil(max_value / frequency))
+
+    #     start_value = 0
+    #     if not include_zero:
+    #         start_value += frequency
+    #     return cls(zip(range(start_value, max_value, frequency), range(start_value+1, max_value+1, frequency)), num_values)
 
     def upcoming(self):
         return self.start, self.end
@@ -198,7 +257,7 @@ class IntervalCounter:
 
 
 class IndexCounter():
-    def __init__(self, idx_selection):
+    def __init__(self, idx_selection, tot_samples=None):
         """
         idx_selection is either an iterable of indices, or a single number
                         which is the interval between adjacent desired indices. 
@@ -208,8 +267,11 @@ class IndexCounter():
             self.orig_iterable = idx_selection
             self.idx_selection = iter(idx_selection)
         except TypeError:
+            assert tot_samples is not None
             self.interval = idx_selection
-            self.idx_selection = it.count(idx_selection-1, idx_selection)
+            #self.idx_selection = it.count(idx_selection-1, idx_selection)
+            self.idx_selection = iter(range(idx_selection, tot_samples+1, idx_selection))
+            #self.idx_selection = it.count(idx_selection, idx_selection)
         self.upcoming_idx = next(self.idx_selection, np.inf)
 
     def progress(self):
@@ -255,9 +317,12 @@ class Diagnostic:
 
         if export_at is None:
             export_at = sim_info.sim_chunk_size * sim_info.chunk_per_export
-        if not isinstance(export_at, (list, tuple, np.ndarray)):
+        if isinstance(export_at, (list, tuple, np.ndarray)):
+            assert all([exp_at >= block_size for exp_at in export_at])
+        else:
             assert export_at >= block_size
-        self.export_at = IndexCounter(export_at)
+        
+        self.export_at = IndexCounter(export_at, self.sim_info.tot_samples)
 
         if isinstance(export_func, str):
             export_func = [export_func]
@@ -345,7 +410,7 @@ class SignalDiagnostic(Diagnostic):
         self.plot_data["title"] = ""
 
     def get_processed_output(self, time_idx, preprocess):
-        output, time_indices = get_values_up_to_idx(self.get_output(), time_idx+1)
+        output, time_indices = get_values_up_to_idx(self.get_output(), time_idx)
         for pp in preprocess:
             output = pp(output)
         return output, time_indices
@@ -370,7 +435,7 @@ class StateDiagnostic(Diagnostic):
         if save_frequency is None:
             save_frequency = block_size
         super().__init__(sim_info, block_size, export_at, 
-                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples),
+                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples,include_zero=True),
                         export_func, 
                         keep_only_last_export,
                         export_kwargs,
@@ -380,7 +445,7 @@ class StateDiagnostic(Diagnostic):
         self.plot_data["title"] = ""
 
     def get_processed_output(self, time_idx, preprocess):
-        output, time_indices = get_values_from_selection(self.get_output(), self.time_indices, time_idx+1)
+        output, time_indices = get_values_from_selection(self.get_output(), self.time_indices, time_idx)
         for pp in preprocess:
             output = pp(output)
         return output, time_indices
@@ -409,10 +474,12 @@ class InstantDiagnostic(Diagnostic):
             #export_at = IndexCounter(save_freq)
         else:
             # Only a single list, or a scalar. save_at can't be intervals
+            export_at = save_at
             if isinstance(save_at, (tuple, list, np.ndarray)):
                 assert not isinstance(save_at[0], (tuple, list, np.ndarray))
-            export_at = save_at
-            save_at = IntervalCounter(save_at)
+                save_at = IntervalCounter(save_at)
+            else:
+                save_at = IntervalCounter.from_frequency(save_at, sim_info.tot_samples, include_zero=False)
         super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
 

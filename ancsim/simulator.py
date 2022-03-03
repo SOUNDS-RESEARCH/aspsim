@@ -228,11 +228,11 @@ class Simulator:
         print("SIM START")
         self.n_tot = 1
         bufferIdx = 0
-        while self.n_tot <= self.sim_info.tot_samples+maxBlockSize:
+        while self.n_tot < self.sim_info.tot_samples+maxBlockSize:
             for n in range(
                 self.sim_info.sim_buffer,
                 self.sim_info.sim_buffer
-                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + 1+maxBlockSize - self.n_tot),
+                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + maxBlockSize - self.n_tot),
             ):
 
                 #Generate and propagate noise from controllable sources
@@ -245,11 +245,11 @@ class Simulator:
                 self.arrays.update(self.n_tot)
 
                 # Generate plots and diagnostics
-                if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
-                    if self.sim_info.plot_output != "none":
-                        self.plot_exporter.dispatch(
-                            [p.processor for p in self.processors], self.n_tot, self.folderPath
-                        )
+                #if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
+                if self.sim_info.plot_output != "none":
+                    self.plot_exporter.dispatch(
+                        [p.processor for p in self.processors], self.n_tot, self.folderPath
+                    )
 
                 # Write progress
                 if self.n_tot % 1000 == 0:

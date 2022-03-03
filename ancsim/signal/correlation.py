@@ -105,11 +105,19 @@ def _corr_matrix(seq1, seq2, lag1, lag2):
     return R
 
 
+def cos_similary(vec1, vec2):
+    """Computes <vec1, vec2> / (||vec1|| ||vec2||)
+        which is cosine of the angle between the two vectors. 
+        1 is paralell vectors, 0 is orthogonal, and -1 is opposite directions
 
-def test_autocorr_matrix(corr_mat):
-    pass
-
-
+        If the arrays have more than 1 axis, it will be flattened.
+    """
+    assert vec1.shape == vec2.shape
+    vec1 = np.ravel(vec1)
+    vec2 = np.ravel(vec2)
+    ip = vec1.T @ vec2
+    norms = np.linalg.norm(vec1) *np.linalg.norm(vec2)
+    return ip / norms
 
 def corr_matrix_distance(mat1, mat2):
     """Computes the correlation matrix distance, as defined in:

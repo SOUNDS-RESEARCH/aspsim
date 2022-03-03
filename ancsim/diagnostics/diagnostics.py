@@ -264,7 +264,8 @@ class Eigenvalues(diacore.InstantDiagnostic):
 
 class CorrMatrixDistance(diacore.StateDiagnostic):
     """
-
+        Records the Correlation Matrix Distance between two matrices
+        See corr.corr_matrix_distance for more info
     """
     def __init__(self, name_mat1, name_mat2, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -288,14 +289,32 @@ class CorrMatrixDistance(diacore.StateDiagnostic):
     def get_output(self):
         return self.cmd
 
+class CosSimilarity(diacore.StateDiagnostic):
+    """
+        Records the cosine similarity between two vectors
+        see corr.cos_similarity for more info
+    """
+    def __init__(self, name_vec1, name_vec2, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.get_vec1 = attritemgetter(name_vec1)
+        self.get_vec2 = attritemgetter(name_vec2)
 
-# class CovarianceMatrix(diacore.StateDiagnostic):
-#     def __init__(self, vector_name, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.get_vec = op.attrgetter(vector_name)
+        self.sim = np.full((self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+        self.diag_idx = 0
 
-#         self.cov_mat = np.zeros
+        self.plot_data["title"] = "Cosine Similiarity"
 
+    def save(self, processor, chunkInterval, globInterval):
+        vec1 = self.get_vec1(processor)
+        vec2 = self.get_vec2(processor)
+
+        self.sim[self.diag_idx] = corr.cos_similary(vec1, vec2)
+        self.time_indices[self.diag_idx] = globInterval[1]
+        self.diag_idx += 1
+        
+    def get_output(self):
+        return self.sim
 
 
 class SoundfieldPower(diacore.Diagnostic):

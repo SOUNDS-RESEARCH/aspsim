@@ -127,8 +127,9 @@ def savenpz(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     Assumes that the data in previous
     saves is present in the current data"""
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
-    #outputs will here be a tuple of (output, time_indices) for StateDiagnostics and SignalDiagnostics
-
+    outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()} 
+    # only takes output even if time indices are provided
+  
     #flatOutputs = util.flattenDict(outputs, sep="~")
     np.savez_compressed(folder.joinpath(f"{name}_{time_idx}"), **outputs)
 
@@ -186,7 +187,7 @@ def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     
     num_proc = len(diags)
-    fig, axes = plt.subplots(1,num_proc, figsize=(5, num_proc*5))
+    fig, axes = plt.subplots(1,num_proc, figsize=(num_proc*5, 5))
     if num_proc == 1:
         axes = [axes]
 
