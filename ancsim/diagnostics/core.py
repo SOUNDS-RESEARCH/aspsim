@@ -194,8 +194,9 @@ class DiagnosticHandler:
                 start_lcl = end_lcl - (end-start)
                 diag.save(processor, (start_lcl, end_lcl), (start, end))
                 diag.progress_save(end)
-            elif last_block_on_chunk and global_idx >= start:
+            elif last_block_on_chunk and global_idx > start:
                 start_lcl = idx - (global_idx-start)
+                #diag.save(processor, (start_lcl, idx), (start, global_idx))
                 diag.save(processor, (start_lcl, idx), (start, global_idx))
                 diag.progress_save(global_idx)
 
@@ -435,7 +436,7 @@ class StateDiagnostic(Diagnostic):
         if save_frequency is None:
             save_frequency = block_size
         super().__init__(sim_info, block_size, export_at, 
-                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples,include_zero=True),
+                        IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples,include_zero=False),
                         export_func, 
                         keep_only_last_export,
                         export_kwargs,

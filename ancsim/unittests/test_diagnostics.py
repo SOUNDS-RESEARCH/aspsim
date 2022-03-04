@@ -167,6 +167,55 @@ def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
                 expected,
                 equal_nan=True
             )
+            
+
+
+
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=5),
+            buf_size = st.integers(min_value=10, max_value=30),
+            num_proc = st.integers(min_value=1, max_value=3))
+def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
+    reset_sim_setup(sim_setup)
+    #bs = 1
+    #sim_setup.config["tot_samples"] = 13
+    #sim_setup.config["sim_chunk_size"] = 5
+    sim_setup.config["sim_buffer"] = buf_size
+
+    sim = sim_setup.createSimulator()
+
+    #save_at = diacore.IntervalCounter(np.arange(1,sim.sim_info.tot_samples+1))
+    for _ in range(num_proc):
+        sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+                    diagnostics={"state":dia.RecordState("processed_samples", 1, sim.sim_info, bs, export_func="npz")}))
+
+    sim.runSimulation()
+    
+    one_file_saved = False
+    for f in sim.folderPath.iterdir():
+        if f.stem.startswith("state"):
+            one_file_saved = True
+            idx = diautil.find_index_in_name(f.stem)
+            saved_data = np.load(f)
+            for proc_name, data in saved_data.items():
+                assert np.allclose(data, np.arange(bs, idx+1, bs))
+    assert one_file_saved
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
@@ -214,6 +263,14 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
         saved_data = np.load(sim.folderPath.joinpath(f"{diag_name}_{idx}.npz"))
         for proc_name, data in saved_data.items():
             assert np.allclose(data, np.zeros_like(data)+idx)
+
+
+
+
+
+
+
+
 
 
 @hyp.settings(deadline=None)

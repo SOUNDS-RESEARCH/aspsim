@@ -92,7 +92,7 @@ class RecordState(diacore.StateDiagnostic):
         if isinstance(state_dim, int):
             state_dim = (state_dim,)
 
-        self.scalar_values = np.full((*state_dim, self.save_at.num_values), np.nan)
+        self.state_values = np.full((*state_dim, self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
         self.get_prop = attritemgetter(state_name)
@@ -103,8 +103,9 @@ class RecordState(diacore.StateDiagnostic):
         
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         self.state_values[:, self.diag_idx] = self.get_prop(processor)
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
 
         self.diag_idx += 1
 
@@ -149,9 +150,10 @@ class StatePower(diacore.StateDiagnostic):
         
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         prop_val = self.get_prop(processor)
         self.power[self.diag_idx] = np.mean(np.abs(prop_val)**2)
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
 
         self.diag_idx += 1
 
@@ -175,10 +177,11 @@ class StateMSE(diacore.StateDiagnostic):
         
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         est_val = self.get_est_state(processor)
         true_val = self.get_true_state(processor)
         self.mse[self.diag_idx] = np.sum(np.abs(est_val - true_val)**2) / np.sum(np.abs(true_val)**2)
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
 
         self.diag_idx += 1
 
@@ -216,13 +219,14 @@ class EigenvaluesOverTime(diacore.StateDiagnostic):
             self.plot_data["title"] = "Eigenvalues"
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         mat = self.get_matrix(processor)
         assert np.allclose(mat, mat.T.conj())
         evs = splin.eigh(mat, eigvals_only=True, subset_by_index=self.eigval_idx)
         if self.abs_value:
             evs = np.abs(evs)
         self.eigvals[:, self.diag_idx] = evs
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
 
         self.diag_idx += 1
         
@@ -279,11 +283,12 @@ class CorrMatrixDistance(diacore.StateDiagnostic):
         self.plot_data["title"] = "Correlation matrix distance"
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         mat1 = self.get_mat1(processor)
         mat2 = self.get_mat2(processor)
 
         self.cmd[self.diag_idx] = corr.corr_matrix_distance(mat1, mat2)
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
         self.diag_idx += 1
         
     def get_output(self):
@@ -306,11 +311,12 @@ class CosSimilarity(diacore.StateDiagnostic):
         self.plot_data["title"] = "Cosine Similiarity"
 
     def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
         vec1 = self.get_vec1(processor)
         vec2 = self.get_vec2(processor)
 
         self.sim[self.diag_idx] = corr.cos_similary(vec1, vec2)
-        self.time_indices[self.diag_idx] = globInterval[1]
+        self.time_indices[self.diag_idx] = globInterval[0]
         self.diag_idx += 1
         
     def get_output(self):
