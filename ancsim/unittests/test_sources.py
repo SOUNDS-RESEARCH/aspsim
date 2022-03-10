@@ -128,6 +128,42 @@ def test_gold_sequence_remembering_state():
 
 
 
+#@hyp.settings(deadline=None)
+#@hyp.given(bs = st.integers(min_value=1, max_value=5))
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=5),
+            num_samples = st.integers(min_value=10, max_value=100),
+            num_channels = st.integers(min_value=1, max_value=3))
+
+def test_pulse_train(bs, num_samples, num_channels):
+    #import matplotlib.pyplot as plt
+    rng = np.random.default_rng()
+    period = rng.integers(low=1, high=10, size=num_channels)
+    dly = rng.integers(low=0, high=30, size=num_channels)
+    amp = rng.standard_normal(size=num_channels)
+
+    pulse_src = sources.PulseTrain(num_channels, amp, period, dly)
+    sig = np.zeros((num_channels,num_samples))
+    for i in range(num_samples // bs):
+        sig[:,i*bs:(i+1)*bs] = pulse_src.get_samples(bs)
+    sig[:,(i+1)*bs:] = pulse_src.get_samples(num_samples-(i+1)*bs)
+
+    for j in range(num_channels):
+        for i in range(num_samples):
+            if (i - dly[j]) % period[j] == 0:
+                assert sig[j,i] == amp[j]
+            else:
+                assert sig[j,i] == 0
+    #plt.plot(sig.T)
+    #plt.show()
+
+
+
+
+
+
+
+
 # def test_bandlim_noise():
 #     # import matplotlib.pyplot as plt
 #     sr = 8000

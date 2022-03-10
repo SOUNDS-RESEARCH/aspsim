@@ -1,29 +1,177 @@
 import numpy as np
+import numexpr as ne
 import scipy.signal as spsig
 import scipy.linalg as splinalg
 
 import ancsim.signal.matrices as mat
+import ancsim.signal.filterclasses as fc
 
 
-
-def autocorrelation(sig, max_lag, interval):
+def cov_est_oas(sample_cov, n, verbose=False):
     """
-    Returns the autocorrelation of a multichannel signal
+    Implements the OAS covariance estimator with shrinkage from
+    Shrinkage Algorithms for MMSE Covariance Estimation
 
-    corr[j,k,i] = r_jk(i) = E[s_j(n)s_k(n-i)]
-    output is for positive indices, i=0,...,max_lag-1
-    for negative correlation values for r_jk, use r_kj instead
-    Because r_jk(i) = r_kj(-i)
+    n is the number of sample vectors that the sample covariance is 
+    constructed from
+
+    Assumes Gaussian sample distribution
     """
-    #Check if the correlation is normalized
-    num_channels = sig.shape[0]
-    corr = np.zeros((num_channels, num_channels, max_lag))
+    assert sample_cov.ndim == 2
+    assert sample_cov.shape[0] == sample_cov.shape[1]
+    p = sample_cov.shape[-1]
+    tr_s = np.trace(sample_cov)
+    tr_s_square = np.trace(sample_cov @ sample_cov)
 
-    for i in range(num_channels):
-        for j in range(num_channels):
-            corr[i,j,:] = spsig.correlate(np.flip(sig[i,interval[0]-max_lag+1:interval[1]]), 
-                                            np.flip(sig[j,interval[0]:interval[1]]), "valid")
-    return corr
+    rho_num = ((-1) / p) *  tr_s_square + tr_s**2
+    rho_denom = ((n - 1) / p) * (tr_s_square - (tr_s**2 / p))
+    rho = rho_num / rho_denom
+    rho_oas = min(rho, 1)
+
+    reg_factor = rho_oas * tr_s / p
+    cov_est = (1-rho_oas) * sample_cov + shrink_factor * np.eye(p)
+
+    if verbose:
+        print(f"OAS covariance estimate is {1-rho_oas} * sample_cov + {reg_factor} * I")
+    return cov_est
+
+
+
+class SampleCorrelation:
+    """
+    Estimates the correlation matrix between two random vectors 
+    v(n) & w(n) by iteratively computing (1/N) sum_{n=0}^{N-1} v(n) w^T(n) 
+    The goal is to estimate R = E[v(n) w^T(n)]
+
+    Only the internal state will be changed by calling update()
+    In order to update self.corr_mat, get_corr() must be called
+    """
+    def __init__(self, forget_factor, size):
+        """
+        size : scalar integer, correlation matrix is size x size. 
+                or tuple of length 2, correlation matrix is size
+        forget_factor : scalar between 0 and 1. 
+            1 is straight averaging, increasing time window
+            0 will make matrix only dependent on the last sample
+        """
+        if not isinstance(size, (list, tuple, np.ndarray)):
+            size = (size, size)
+        self.corr_mat = np.zeros(size)
+        self.avg = fc.MovingAverage(forget_factor, size)
+        self._preallocated_update = np.zeros_like(self.avg.state)
+        self.n = 0
+
+    def update(self, vec1, vec2=None):
+        """Update the correlation matrix with a new sample vector"""
+        if vec2 is None:
+            vec2 = vec1
+        np.matmul(vec1, vec2.T, out=self._preallocated_update)
+        self.avg.update(self._preallocated_update)
+        self.n += 1
+
+    def get_corr(self, autocorr=False, est_method="plain", pos_def=False):
+        """Returns the correlation matrix but will ensure
+        positive semi-definiteness and hermitian-ness. If pos_def=True
+        it will even ensure that the matrix is positive definite. 
+        
+        est_method can be 'oas', 'plain', possibly 'wl' if implemented
+        """
+        if not autocorr:
+            self.corr_mat[...] = self.avg.state
+            return self.corr_mat
+            
+        if est_method == "plain":
+            self.corr_mat[...] = self.avg.state
+        elif est_method == "oas":
+            self.corr_mat[...] = cov_est_oas(self.avg.state, self.n, verbose=True)
+        else:
+            raise ValueError("Invalid est_method name")
+        
+        self.corr_mat = mat.ensure_hermitian(self.corr_mat)
+        if pos_def:
+            self.corr_mat = mat.ensure_pos_def_adhoc(self.corr_mat, verbose=True)
+        else:
+            self.corr_mat = mat.ensure_pos_semidef(self.corr_mat)
+        return self.corr_mat
+        
+
+class Autocorrelation:
+    """
+    Autocorrelation is defined as r_m1m2(i) = E[s_m1(n) s_m2(n-i)]
+    the returned shape is (num_channels, num_channels, max_lag)
+    r[m1, m2, i] is positive entries, r_m1m2(i)
+    r[m2, m1, i] is negative entries, r_m1m2(-i)
+    """
+    def __init__(self, forget_factor, max_lag, num_channels):
+        """
+        size : scalar integer, correlation matrix is size x size. 
+        forget_factor : scalar between 0 and 1. 
+            1 is straight averaging, increasing time window
+            0 will make matrix only dependent on the last sample
+        """
+        self.forget_factor = forget_factor
+        self.max_lag = max_lag
+        self.num_channels = num_channels
+
+        self.corr = fc.MovingAverage(forget_factor, (num_channels, num_channels, max_lag))
+        self.corr_mat = None
+
+        self._buffer = np.zeros((self.num_channels, self.max_lag-1))
+
+    def update(self, sig):
+        num_samples = sig.shape[-1]
+        if num_samples == 0:
+            return
+        padded_sig = np.concatenate((self._buffer, sig), axis=-1)
+        self.corr.update(autocorr(padded_sig, self.max_lag), count_as_updates=num_samples)
+
+        self._buffer[...] = padded_sig[:,sig.shape[-1]:]
+
+    def get_corr_mat(self, max_lag=None, new_first=True, pos_def=False):
+        """
+        shorthands: L=max_lag, M=num_channels, r(i)=r_m1m2(i)
+
+        R = E[s(n) s(n)^T] =    [R_11 ... R_1M  ]
+                                [               ]
+                                [               ]
+                                [R_M1 ... R_MM  ]
+
+        R_m1m2 = E[s_m1(n) s_m2(n)^T]
+
+        == With new_first==True the vector is defined as
+        s_m(n) = [s_m(n) s_m(n-1) ... s_m(n-max_lag+1)]^T
+
+        R_m1m2 =    [r(0)   r(1) ... r(L-1) ]
+                    [r(-1)                  ]
+                    [                  r(1) ]
+                    [r(-L+1) ... r(-1) r(0) ]
+
+        == With new_first==False, the vector is defined as 
+        s_m(n) = [s_m(n-max_lag+1) s_m(n-max_lag+2) ... s_m(n)]^T
+
+        R_m1m2 =    [r(0) r(-1) ...   r(-L+1) ]
+                    [r(1)                     ]
+                    [                  r(-1)  ]
+                    [r(L-1) ...   r(1) r(0)   ]
+        """
+        if max_lag is None:
+            max_lag = self.max_lag
+        if new_first:
+            self.corr_mat = corr_matrix_from_autocorrelation(self.corr.state)
+        else:
+            mat.block_transpose(corr_matrix_from_autocorrelation(self.corr.state), max_lag ,out=self.corr_mat)
+
+        self.corr_mat = mat.ensure_hermitian(self.corr_mat)
+        if pos_def:
+            self.corr_mat = mat.ensure_pos_def_adhoc(self.corr_mat)
+        else:
+            self.corr_mat = mat.ensure_pos_semidef(self.corr_mat, verbose=True)
+        return self.corr_mat
+
+
+
+
+
 
 def corr_matrix_from_autocorrelation(corr):
     """The correlation is of shape (num_channels, num_channels, max_lag)
@@ -45,9 +193,9 @@ def corr_matrix_from_autocorrelation(corr):
         where X(n) = [X^T_1(n), ... , X^T_M]^T
         and X_i = [x_i(n), ..., x_i(n-max_lag)]^T
     """
-    #num_channels = corr.shape[0]
-    #assert num_channels == corr.shape[1]
-    #max_lag = corr.shape[-1]
+    # num_channels = corr.shape[0]
+    # assert num_channels == corr.shape[1]
+    # max_lag = corr.shape[-1]
     corr_mat = mat.block_of_toeplitz(np.moveaxis(corr, 0,1), corr)
     return corr_mat
     
@@ -104,6 +252,13 @@ def _corr_matrix(seq1, seq2, lag1, lag2):
             R[rowIdx,:] = corr[c1, :, corrMid-l1:corrMid-l1+lag2].ravel()
     return R
 
+def is_corr_mat(mat):
+    pass
+
+def is_corr_func(func):
+    pass
+
+
 
 def cos_similary(vec1, vec2):
     """Computes <vec1, vec2> / (||vec1|| ||vec2||)
@@ -115,8 +270,10 @@ def cos_similary(vec1, vec2):
     assert vec1.shape == vec2.shape
     vec1 = np.ravel(vec1)
     vec2 = np.ravel(vec2)
-    ip = vec1.T @ vec2
     norms = np.linalg.norm(vec1) *np.linalg.norm(vec2)
+    if norms == 0:
+        return np.nan
+    ip = vec1.T @ vec2
     return ip / norms
 
 def corr_matrix_distance(mat1, mat2):
@@ -130,4 +287,106 @@ def corr_matrix_distance(mat1, mat2):
     assert mat1.shape == mat2.shape
     norm1 = np.linalg.norm(mat1, ord="fro", axis=(-2,-1))
     norm2 = np.linalg.norm(mat2, ord="fro", axis=(-2,-1))
+    if norm1 * norm2 == 0:
+        return np.nan
     return 1 - np.trace(mat1 @ mat2) / (norm1 * norm2)
+
+
+
+
+
+
+
+
+
+def autocorrelation(sig, max_lag, interval):
+    """
+    I'm not sure I trust this one. Write some unit tests 
+    against Autocorrelation class first
+
+    Returns the autocorrelation of a multichannel signal
+
+    corr[j,k,i] = r_jk(i) = E[s_j(n)s_k(n-i)]
+    output is for positive indices, i=0,...,max_lag-1
+    for negative correlation values for r_jk, use r_kj instead
+    Because r_jk(i) = r_kj(-i)
+    """
+    #Check if the correlation is normalized
+    num_channels = sig.shape[0]
+    corr = np.zeros((num_channels, num_channels, max_lag))
+
+    for i in range(num_channels):
+        for j in range(num_channels):
+            corr[i,j,:] = spsig.correlate(np.flip(sig[i,interval[0]-max_lag+1:interval[1]]), 
+                                            np.flip(sig[j,interval[0]:interval[1]]), "valid")
+    # corr /= interval[1] - interval[0] #+ max_lag - 1
+    return corr
+
+
+
+
+# These should be working correctly, but are written only for testing purposes.
+# Might be removed at any time and moved to test module. 
+
+def autocorr(sig, max_lag, normalize=True):
+    num_channels = sig.shape[0]
+    padded_len = sig.shape[-1]
+    num_samples = padded_len - max_lag + 1
+    r = np.zeros((num_channels, num_channels, max_lag))
+    for ch1 in range(num_channels):
+        for ch2 in range(num_channels):
+            for i in range(max_lag-1, padded_len):
+                r[ch1, ch2, :] += sig[ch1,i] * np.flip(sig[ch2, i-max_lag+1:i+1])
+    if normalize:
+        r /= num_samples
+    return r
+
+def autocorr_ref_spsig(sig, max_lag):
+    num_channels = sig.shape[0]
+    num_samples = sig.shape[-1]
+    sig = np.pad(sig, ((0,0), (max_lag-1, 0)))
+    r = np.zeros((num_channels, num_channels, max_lag))
+    for ch1 in range(num_channels):
+        for ch2 in range(num_channels):
+                r[ch1, ch2, :] = spsig.correlate(np.flip(sig[ch1,:]), 
+                                            np.flip(sig[ch2,max_lag-1:]), "valid")
+    r /= num_samples
+    return r
+
+
+def autocorr_ref(sig, max_lag):
+    num_channels = sig.shape[0]
+    num_samples = sig.shape[-1]
+    padded_len = num_samples + max_lag - 1
+    sig = np.pad(sig, ((0,0), (max_lag-1, 0)))
+    r = np.zeros((num_channels, num_channels, max_lag))
+    for ch1 in range(num_channels):
+        for ch2 in range(num_channels):
+            for i in range(max_lag-1, padded_len):
+                r[ch1, ch2, :] += sig[ch1,i] * np.flip(sig[ch2, i-max_lag+1:i+1])
+    r /= num_samples
+    return r
+
+def corr_mat_new_first_ref(sig, max_lag):
+    num_channels = sig.shape[0]
+    num_samples = sig.shape[-1]
+    padded_len = num_samples + max_lag - 1
+    sig = np.pad(sig, ((0,0), (max_lag-1, 0)))
+    R = np.zeros((max_lag*num_channels, max_lag*num_channels))
+    for i in range(max_lag-1, padded_len):
+        vec = np.flip(sig[:,i-max_lag+1:i+1], axis=-1).reshape(-1,1)
+        R+= vec @ vec.T
+    R /= num_samples
+    return R
+
+def corr_mat_old_first_ref(sig, max_lag):
+    num_channels = sig.shape[0]
+    num_samples = sig.shape[-1]
+    padded_len = num_samples + max_lag - 1
+    sig = np.pad(sig, ((0,0), (max_lag-1, 0)))
+    R = np.zeros((max_lag*num_channels, max_lag*num_channels))
+    for i in range(max_lag-1, padded_len):
+        vec = sig[:,i-max_lag+1:i+1].reshape(-1,1)
+        R+= vec @ vec.T
+    R /= num_samples
+    return R

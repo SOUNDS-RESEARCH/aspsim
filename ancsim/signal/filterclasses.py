@@ -577,33 +577,46 @@ class SinglePoleLowPass:
 
 
 class MovingAverage:
-    def __init__(self, forgetFactor, dim, dtype=np.float64):
+    def __init__(self, forget_factor, dim, dtype=np.float64):
         self.state = np.zeros(dim, dtype=dtype)
-        self.forgetFactor = forgetFactor
-        self.invForgetFactor = 1 - forgetFactor
+        self.forget_factor = forget_factor
+        self.forget_factor_inv = 1 - forget_factor
+
         self.initialized = False
-        self.numInit = int(np.ceil(1 / self.invForgetFactor))
-        self.initCounter = 0
-
-    def update(self, newDataPoint):
-        assert newDataPoint.shape == self.state.shape
-        if self.initialized:
-            self.state *= self.forgetFactor
-            self.state += newDataPoint * self.invForgetFactor
+        self.init_counter = 0
+        if self.forget_factor == 1:
+            self.num_init = np.inf
         else:
-            self.state[...] = ne.evaluate("state*(i/(i+1)) + newDataPoint / (i+1)", 
-                                local_dict={'state': self.state, 'i': self.initCounter, "newDataPoint":newDataPoint})
+            self.num_init = int(np.ceil(1 / self.forget_factor_inv))
 
-            #self.state *= (self.initCounter / (self.initCounter + 1))
-            #self.state += newDataPoint / (self.initCounter + 1)
-            self.initCounter += 1
-            if self.initCounter == self.numInit:
+    def update(self, new_data_point, count_as_updates=1):
+        assert new_data_point.shape == self.state.shape
+        if self.initialized:
+            if count_as_updates > 1:
+                raise NotImplementedError
+
+            self.state[...] = ne.evaluate("state*ff + new_data_point*ff_inv", 
+                                local_dict={"state":self.state, "new_data_point":new_data_point,
+                                            "ff":self.forget_factor, "ff_inv":self.forget_factor_inv})
+            #self.state *= self.forget_factor
+            #self.state += new_data_point * self.forget_factor_inv
+        else:
+            self.state[...] = ne.evaluate("state*(i/(i+j)) + new_data_point*(j/(i+j))", 
+                                local_dict={'state': self.state, "new_data_point":new_data_point, 
+                                            'i': self.init_counter, "j" : count_as_updates})
+
+            #self.state *= (self.init_counter / (self.init_counter + 1))
+            #self.state += new_data_point / (self.init_counter + 1)
+            self.init_counter += count_as_updates
+            if self.init_counter >= self.num_init:
                 self.initialized = True
+                if self.init_count > self.num_init:
+                    print("Initialization happened not exactly at self.num_init")
 
     def reset(self):
         self.initialized = False
-        self.numInit = ceil(1 / self.invForgetFactor)
-        self.initCounter = 0
+        self.num_init = ceil(1 / self.forget_factor_inv)
+        self.init_counter = 0
 
 
 # Free function for applying a filtersum once

@@ -176,6 +176,41 @@ class Counter(Source):
         return values
 
 
+class PulseTrain(Source):
+    def __init__(self, num_channels, amplitude, period_len, delay=0):
+        super().__init__(num_channels)
+
+        if isinstance(amplitude, (tuple, list, np.ndarray)):
+            assert len(amplitude) == self.num_channels
+            self.amplitude = np.array(amplitude)
+        else:
+            self.amplitude = np.ones(self.num_channels) * amplitude
+
+        if isinstance(period_len, (tuple, list, np.ndarray)):
+            assert len(period_len) == self.num_channels
+            self.period_len = np.array(period_len)
+        else:
+            self.period_len = np.ones(self.num_channels)*period_len
+
+        if isinstance(delay, (tuple ,list, np.ndarray)):
+            assert len(delay) == self.num_channels
+            self.delay = np.array(delay)
+        else:
+            self.delay = np.ones(self.num_channels) * delay
+
+        self.idx = np.zeros(self.num_channels)
+        self.idx -= self.delay
+
+    def get_samples(self, num_samples):
+        sig = np.zeros((self.num_channels, num_samples))
+
+        for i in range(num_samples):
+            add_pulse = np.mod(self.idx, self.period_len) == 0
+            sig[add_pulse,i] = self.amplitude[add_pulse]
+            self.idx += 1
+        return sig
+
+
 
 
 class LinearChirpSource(Source):

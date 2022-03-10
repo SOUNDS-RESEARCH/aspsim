@@ -1,7 +1,6 @@
 import numpy as np
-import numba as nb
 import scipy.signal as spsig
-import scipy.linalg as splinalg
+import scipy.linalg as splin
 
 
 def to_length(ar, length, axis=-1):
@@ -69,7 +68,7 @@ def block_of_toeplitz(block_of_col, block_of_row=None):
     for m in range(block_of_col.shape[0]):
         for n in range(block_of_col.shape[1]):
             block_mat[m*len_col:(m+1)*len_col, 
-                      n*len_row:(n+1)*len_row] = splinalg.toeplitz(block_of_col[m,n,:], 
+                      n*len_row:(n+1)*len_row] = splin.toeplitz(block_of_col[m,n,:], 
                                                                    block_of_row[m,n,:])
     return block_mat
 
@@ -152,3 +151,70 @@ def block_diag_multiply(mat, block_left=None, block_right=None, out_matrix=None)
                     mat[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] @ block_right
 
     return out_matrix
+
+
+def is_hermitian(mat):
+    assert mat.ndim == 2
+    if mat.shape[0] != mat.shape[1]:
+        return False
+    return np.allclose(mat, mat.conj().T)
+
+def ensure_hermitian(mat, overwrite_ok=True):
+    if not is_hermitian(mat):
+        if overwrite_ok:
+            mat += mat.conj().T
+            mat /= 2
+        else:
+            mat = (mat + mat.conj().T) / 2
+    return mat
+    
+def is_pos_semidef(mat):
+    """
+    Assumes mat is hermitian without checking
+    """
+    evs = splin.eigh(mat, eigvals_only=True)
+    return np.all(evs >= 0)
+
+def is_pos_def(mat):
+    """
+    Assumes mat is hermitian without checking
+    """
+    evs = splin.eigh(mat, eigvals_only=True)
+    return np.all(evs > 0)
+
+
+def ensure_pos_semidef(mat):
+    """
+    Ensures matrix is positive semidefinite by setting all
+    negative eigenvalues to 0. 
+
+    Assumes without checking that mat is hermitian
+    If you are unsure, use ensure_hermitian first. 
+    """
+    evs, vec = splin.eigh(mat)
+    evs[evs < 0] = 0
+    return vec @ np.diag(evs) @ vec.T.conj()
+
+def ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
+    """
+    Adds a scaled identity matrix to the matrix in
+    order to ensure positive definiteness. Starts by 
+    adding I * 10**(start_reg), and increases the 
+    scaling by an order of magnitude each time it fails
+    to be positive definite.
+    
+    Checks for positive definiteness by attempting to compute 
+    a cholesky decomposition.
+    """
+    psd = False
+    reg = start_reg
+    while not psd:
+        new_mat = mat + 10**(reg) * np.eye(mat.shape[0])
+        try:
+            splin.cholesky(new_mat)
+            psd=True
+        except splin.LinAlgError:
+            reg += 1
+    if verbose:
+        print(f"To ensure positive definiteness, identity matrix scaled by 10**{reg} was added")
+    return new_mat
