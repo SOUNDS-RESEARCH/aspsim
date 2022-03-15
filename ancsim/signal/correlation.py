@@ -62,7 +62,10 @@ class SampleCorrelation:
         self.n = 0
 
     def update(self, vec1, vec2=None):
-        """Update the correlation matrix with a new sample vector"""
+        """Update the correlation matrix with a new sample vector
+            If only one is provided, the autocorrelation is computed
+            If two are provided, the cross-correlation is computed
+        """
         if vec2 is None:
             vec2 = vec1
         np.matmul(vec1, vec2.T, out=self._preallocated_update)
@@ -79,7 +82,7 @@ class SampleCorrelation:
         if not autocorr:
             self.corr_mat[...] = self.avg.state
             return self.corr_mat
-            
+
         if est_method == "plain":
             self.corr_mat[...] = self.avg.state
         elif est_method == "oas":
@@ -163,9 +166,9 @@ class Autocorrelation:
 
         self.corr_mat = mat.ensure_hermitian(self.corr_mat)
         if pos_def:
-            self.corr_mat = mat.ensure_pos_def_adhoc(self.corr_mat)
+            self.corr_mat = mat.ensure_pos_def_adhoc(self.corr_mat, verbose=True)
         else:
-            self.corr_mat = mat.ensure_pos_semidef(self.corr_mat, verbose=True)
+            self.corr_mat = mat.ensure_pos_semidef(self.corr_mat)
         return self.corr_mat
 
 
@@ -193,15 +196,15 @@ def corr_matrix_from_autocorrelation(corr):
         where X(n) = [X^T_1(n), ... , X^T_M]^T
         and X_i = [x_i(n), ..., x_i(n-max_lag)]^T
     """
-    # num_channels = corr.shape[0]
-    # assert num_channels == corr.shape[1]
-    # max_lag = corr.shape[-1]
     corr_mat = mat.block_of_toeplitz(np.moveaxis(corr, 0,1), corr)
     return corr_mat
     
 
 def corr_matrix(seq1, seq2, lag1, lag2):
-    """seq1 has shape (sumCh, numCh1, numSamples) or (numCh1, numSamples)
+    """Computes the cross-correlation matrix from two signals. See definition
+        in Autocorrelation class or corr_matrix_from_autocorrelation.
+    
+        seq1 has shape (sumCh, numCh1, numSamples) or (numCh1, numSamples)
         seq2 has shape (sumCh, numCh2, numSamples) or (numCh2, numSamples)
     
         Outputs a correlation matrix of size 
@@ -252,11 +255,42 @@ def _corr_matrix(seq1, seq2, lag1, lag2):
             R[rowIdx,:] = corr[c1, :, corrMid-l1:corrMid-l1+lag2].ravel()
     return R
 
-def is_corr_mat(mat):
-    pass
+def is_autocorr_mat(ac_mat, verbose=False):
+    assert ac_mat.ndim == 2
+    square = ac_mat.shape[0] == ac_mat.shape[1]
+    herm = mat.is_hermitian(ac_mat)
+    psd = mat.is_pos_semidef(ac_mat)
 
-def is_corr_func(func):
-    pass
+    if verbose:
+        print(f"Is square: {square}")
+        print(f"Is hermitian: {herm}")
+        print(f"Is positive semidefinite: {psd}")
+
+    return all((square, herm, psd))
+
+def is_autocorr_func(func, verbose=False):
+    """
+    An autocorrelation function should be of shape
+    (num_channels, num_channels, max_lag)
+    """
+    raise NotImplementedError
+    assert func.ndim == 3
+    equal_channels = func.shape[0] == func.shape[1]
+    symmetric = False
+
+    if verbose:
+        print(f"Has equal number of channels: {equal_channels}")
+    
+    return all((equal_channels,))
+
+def _func_is_symmetric(func):
+    raise NotImplementedError
+    assert func.ndim == 3
+    assert func.shape[0] == func.shape[1]
+    num_ch = func.shape[0]
+    for i in range(num_ch):
+        for j in range(num_ch):
+            np.allclose(func[i,j,:])
 
 
 
@@ -302,7 +336,8 @@ def corr_matrix_distance(mat1, mat2):
 def autocorrelation(sig, max_lag, interval):
     """
     I'm not sure I trust this one. Write some unit tests 
-    against Autocorrelation class first
+    against Autocorrelation class first. But the corr_matrix function
+    works, so this shouldn't be needed. 
 
     Returns the autocorrelation of a multichannel signal
 
