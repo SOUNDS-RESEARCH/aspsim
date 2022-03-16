@@ -12,7 +12,6 @@ from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
 
 import ancsim.saveloadsession as sess
 import ancsim.experiment.plotscripts as psc
-import ancsim.experiment.multiexperimentutils as meu
 import ancsim.presets as preset
 import ancsim.diagnostics.core as diacore
 

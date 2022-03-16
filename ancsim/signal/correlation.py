@@ -29,7 +29,7 @@ def cov_est_oas(sample_cov, n, verbose=False):
     rho_oas = min(rho, 1)
 
     reg_factor = rho_oas * tr_s / p
-    cov_est = (1-rho_oas) * sample_cov + shrink_factor * np.eye(p)
+    cov_est = (1-rho_oas) * sample_cov + reg_factor * np.eye(p)
 
     if verbose:
         print(f"OAS covariance estimate is {1-rho_oas} * sample_cov + {reg_factor} * I")
@@ -43,10 +43,12 @@ class SampleCorrelation:
     v(n) & w(n) by iteratively computing (1/N) sum_{n=0}^{N-1} v(n) w^T(n) 
     The goal is to estimate R = E[v(n) w^T(n)]
 
+    If delay is supplied, it will calculate E[v(n) w(n-delay)^T]
+
     Only the internal state will be changed by calling update()
     In order to update self.corr_mat, get_corr() must be called
     """
-    def __init__(self, forget_factor, size):
+    def __init__(self, forget_factor, size, delay=0):
         """
         size : scalar integer, correlation matrix is size x size. 
                 or tuple of length 2, correlation matrix is size
@@ -59,6 +61,9 @@ class SampleCorrelation:
         self.corr_mat = np.zeros(size)
         self.avg = fc.MovingAverage(forget_factor, size)
         self._preallocated_update = np.zeros_like(self.avg.state)
+        self._old_vec = np.zeros((size[1], 1))
+        self.delay = delay
+        self._saved_vecs = np.zeros((size[1], delay))
         self.n = 0
 
     def update(self, vec1, vec2=None):
@@ -68,8 +73,16 @@ class SampleCorrelation:
         """
         if vec2 is None:
             vec2 = vec1
-        np.matmul(vec1, vec2.T, out=self._preallocated_update)
-        self.avg.update(self._preallocated_update)
+
+        if self.delay > 0:
+            idx = self.n % self.delay
+            self._old_vec[...] = self._saved_vecs[:,idx:idx+1]
+            self._saved_vecs[:,idx:idx+1] = vec2
+            vec2 = self._old_vec
+
+        if self.n >= self.delay:
+            np.matmul(vec1, vec2.T, out=self._preallocated_update)
+            self.avg.update(self._preallocated_update)
         self.n += 1
 
     def get_corr(self, autocorr=False, est_method="plain", pos_def=False):
@@ -162,7 +175,7 @@ class Autocorrelation:
         if new_first:
             self.corr_mat = corr_matrix_from_autocorrelation(self.corr.state)
         else:
-            mat.block_transpose(corr_matrix_from_autocorrelation(self.corr.state), max_lag ,out=self.corr_mat)
+            self.corr_mat = mat.block_transpose(corr_matrix_from_autocorrelation(self.corr.state), max_lag)
 
         self.corr_mat = mat.ensure_hermitian(self.corr_mat)
         if pos_def:
