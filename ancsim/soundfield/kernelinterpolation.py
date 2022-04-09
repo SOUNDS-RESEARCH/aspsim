@@ -2,10 +2,7 @@ import numpy as np
 import scipy.spatial.distance as distfuncs
 import scipy.special as special
 import scipy.signal as sig
-import quadpy as qp
 import numba as nb
-
-from pathos.helpers import freeze_support
 
 import ancsim.utilities as util
 import ancsim.signal.filterdesign as fd

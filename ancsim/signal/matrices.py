@@ -2,7 +2,6 @@ import numpy as np
 import scipy.signal as spsig
 import scipy.linalg as splin
 
-
 def to_length(ar, length, axis=-1):
     """Either truncates or pads ndarray at the end with zeros, 
         so that the length along axis is equal to length."""
@@ -132,7 +131,11 @@ def block_diag_multiply(mat, block_left=None, block_right=None, out_matrix=None)
     num_blocks = mat_size // block_size
     
     if out_matrix is None:
-        out_matrix = np.zeros((mat_size, mat_size))
+        if any(np.issubdtype(m.dtype, np.complexfloating) for m in (mat, block_left, block_right)):
+            dtp = complex
+        else:
+            dtp = float
+        out_matrix = np.zeros((mat_size, mat_size), dtype=dtp)
 
     if block_left is not None and block_right is not None:
         for i in range(num_blocks):
@@ -153,13 +156,176 @@ def block_diag_multiply(mat, block_left=None, block_right=None, out_matrix=None)
     return out_matrix
 
 
+
+def broadcast_func(mat, func, *args, out_shape=None, dtype=float, **kwargs):
+    """
+    Applies the same function to each matrix in the array
+    mat is of shape (*tuple, a, b)
+        it can also be a tuple of multiple matrices of the same shape
+    func is applied to the matrices in the last two axes
+
+    out_shape is the shape of the return value for a single matrix.
+    It must be provided if the output is not a scalar
+
+    output is shape (*tuple, out_shape)
+    """
+    if isinstance(mat, (tuple, list)):
+        assert all([mat[0].shape == m.shape for m in mat])
+        mat_lst = mat
+        mat = mat[0]
+    else:
+        mat_lst = (mat,)
+
+    assert mat.ndim >= 2
+    if mat.ndim == 2:
+        return func(*mat_lst, *args, **kwargs)
+
+    broadcast_shape = mat.shape[:-2]
+    if out_shape is None:
+        out_shape = broadcast_shape
+    else:
+        out_shape = (*broadcast_shape, *out_shape)
+
+    out = np.empty(out_shape, dtype=dtype)
+    for i in np.ndindex(broadcast_shape):
+        input_arg = (m[(*i,slice(None), slice(None))] for m in mat_lst)
+        out[(*i, Ellipsis)] = func(*input_arg, *args, **kwargs)
+    return out
+
+
+def apply_blockwise(mat, func, out_shape, *args, num_blocks=None, block_size=None, separate_axis=False, dtype=float, **kwargs):
+    """
+    Applies the same function to each block in the block matrix mat. 
+    Assumes that the matrix mat is square, and each block is square. 
+
+    Either num_blocks or block_size must be supplied. 
+
+    the func should return a matrix of shape out_shape
+
+    if separate_axis is False, out_shape must be length-2 tuple
+        , or the keyword 'same', in which case the returned blocks are same size as the input
+        the output will be of shape (num_blocks*out_shape[0], num_blocks*out_shape[1])
+    if separate_axis is True, out_shape can be a scalar value or a tuple of any length
+        the output will be of shape (*out_shape, num_blocks, num_blocks)
+
+    """
+    assert mat.ndim == 2
+    assert mat.shape[0] == mat.shape[1]
+    mat_size = mat.shape[0]
+    if num_blocks is not None:
+        assert block_size is None
+        block_size = mat_size // num_blocks
+    elif block_size is not None:
+        assert num_blocks is None
+        num_blocks = mat_size // block_size
+    assert block_size * num_blocks == mat_size
+
+    if out_shape == "same":
+        out_shape = (block_size, block_size)
+    elif not isinstance(out_shape, (tuple, list, np.ndarray)):
+        out_shape = (out_shape,)
+
+    if separate_axis:
+        raise NotImplementedError
+    else:
+        out = np.zeros((num_blocks * out_shape[0], num_blocks * out_shape[1]), dtype=dtype)
+        for i in range(num_blocks):
+            for j in range(num_blocks):
+                out[i*out_shape[0]:(i+1)*out_shape[0], j*out_shape[1]:(j+1)*out_shape[1]] = \
+                    func(mat[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size], *args, **kwargs)
+    return out
+
+# def broadcast_func(mat, func, *args, out_shape=None, dtype=float, **kwargs):
+#     """
+#     Applies the same function to each matrix in the array
+#     mat is of shape (*tuple, a, b).
+#     func is applied to the matrices in the last two axes
+
+#     out_shape is the shape of the return value for a single matrix.
+#     It must be provided if the output is not a scalar
+
+#     output is shape (*tuple, out_shape)
+#     """
+#     assert mat.ndim >= 2
+#     if mat.ndim == 2:
+#         return func(mat, *args, **kwargs)
+
+#     broadcast_shape = mat.shape[:-2]
+#     if out_shape is None:
+#         out_shape = broadcast_shape
+#     else:
+#         out_shape = (*broadcast_shape, *out_shape)
+
+#     out = np.empty(out_shape, dtype=dtype)
+#     for i in np.ndindex(broadcast_shape):
+#         out[(*i, Ellipsis)] = func(mat[(*i,slice(None), slice(None))], *args, *kwargs)
+#     return out
+
+
 def is_hermitian(mat):
+    return broadcast_func(mat, _is_hermitian, dtype=bool)
+
+def _is_hermitian(mat):
     assert mat.ndim == 2
     if mat.shape[0] != mat.shape[1]:
         return False
     return np.allclose(mat, mat.conj().T)
 
+def is_hermitian_hardcoded(mat):
+    """If ndim > 2, then the array is interpreted as an array of
+    multiple matrices
+
+    if mat has shape (a,a) then a single boolean is returned
+    
+    if mat has shape (*tpl, a, a), then a boolean array of shape
+    tpl is returned, with the truth value for each indivudal matrix 
+    """
+    assert mat.ndim >= 2
+    if mat.shape[-1] != mat.shape[-2]:
+        return False
+    if mat.ndim == 2:
+        return np.allclose(mat, mat.conj().T)
+
+    out = np.empty(mat.shape[:-2], dtype=bool)
+    for i in np.ndindex(out.shape):
+        out[i] = np.allclose(mat[(*i,slice(None), slice(None))], 
+                            mat[(*i,slice(None), slice(None))].conj().T)
+    return out
+
+
+# def _is_hermitian(mat):
+#     assert mat.ndim == 2
+#     if mat.shape[0] != mat.shape[1]:
+#         return False
+#     return np.allclose(mat, mat.conj().T)
+
+def is_pos_semidef(mat):
+    return broadcast_func(mat, _is_pos_semidef, dtype=bool)
+    
+def _is_pos_semidef(mat):
+    """
+    Assumes mat is hermitian without checking
+    """
+    assert mat.ndim == 2
+    evs = splin.eigh(mat, eigvals_only=True)
+    return np.all(evs >= 0)
+
+def is_pos_def(mat):
+    return broadcast_func(mat, _is_pos_def, dtype=bool)
+
+def _is_pos_def(mat):
+    """
+    Assumes mat is hermitian without checking.
+    Implementation should be changed to attempt 
+    to perform cholesky decomp. instead
+    """
+    assert mat.ndim == 2
+    evs = splin.eigh(mat, eigvals_only=True)
+    return np.all(evs > 0)
+
+
 def ensure_hermitian(mat, overwrite_ok=True):
+    assert mat.ndim == 2
     if not is_hermitian(mat):
         if overwrite_ok:
             mat += mat.conj().T
@@ -167,21 +333,6 @@ def ensure_hermitian(mat, overwrite_ok=True):
         else:
             mat = (mat + mat.conj().T) / 2
     return mat
-    
-def is_pos_semidef(mat):
-    """
-    Assumes mat is hermitian without checking
-    """
-    evs = splin.eigh(mat, eigvals_only=True)
-    return np.all(evs >= 0)
-
-def is_pos_def(mat):
-    """
-    Assumes mat is hermitian without checking
-    """
-    evs = splin.eigh(mat, eigvals_only=True)
-    return np.all(evs > 0)
-
 
 def ensure_pos_semidef(mat):
     """
@@ -191,11 +342,15 @@ def ensure_pos_semidef(mat):
     Assumes without checking that mat is hermitian
     If you are unsure, use ensure_hermitian first. 
     """
+    assert mat.ndim == 2
     evs, vec = splin.eigh(mat)
     evs[evs < 0] = 0
     return vec @ np.diag(evs) @ vec.T.conj()
 
 def ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
+    return broadcast_func(mat, _ensure_pos_def_adhoc, start_reg=start_reg, verbose=verbose, out_shape=mat.shape[-2:], dtype=mat.dtype)
+
+def _ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
     """
     Adds a scaled identity matrix to the matrix in
     order to ensure positive definiteness. Starts by 
@@ -206,14 +361,14 @@ def ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
     Checks for positive definiteness by attempting to compute 
     a cholesky decomposition.
     """
+    assert mat.ndim == 2
     psd = False
     reg = start_reg
     while not psd:
         new_mat = mat + 10**(reg) * np.eye(mat.shape[0])
-        try:
-            splin.cholesky(new_mat)
+        if _is_pos_def(new_mat):
             psd=True
-        except splin.LinAlgError:
+        else:
             reg += 1
     if verbose:
         print(f"To ensure positive definiteness, identity matrix scaled by 10**{reg} was added")

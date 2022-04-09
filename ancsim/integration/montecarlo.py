@@ -1,16 +1,18 @@
 import numpy as np
 import ancsim.utilities as util
-import dill
 
-dill.settings["recurse"] = True
-import pathos.multiprocessing as mp
-from pathos.helpers import freeze_support
 
 
 def integrateMp(
     func, pointGenerator, totNumSamples, totalVolume, numPerIter=5, verbose=False
 ):
     """Uses mcIntegrate but paralellized"""
+    import dill
+    dill.settings["recurse"] = True
+    import pathos.multiprocessing as mp
+    from pathos.helpers import freeze_support
+
+
     ncpu = mp.cpu_count()
     # ncpu = 2
     integrationSamples = int(np.ceil(totNumSamples / ncpu))

@@ -224,7 +224,9 @@ class IntervalCounter:
             self.intervals = intervals
             self.num_values = num_values
 
-        self.start, self.end = next(self.intervals)
+
+        self.start, self.end = next(self.intervals, (np.inf, np.inf))
+        
 
     @classmethod
     def from_frequency(cls, frequency, max_value, include_zero=False):

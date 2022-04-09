@@ -130,7 +130,7 @@ class Autocorrelation:
         self.num_channels = num_channels
 
         self.corr = fc.MovingAverage(forget_factor, (num_channels, num_channels, max_lag))
-        self.corr_mat = None
+        self.corr_mat = np.zeros((self.num_channels*self.max_lag, self.num_channels*self.max_lag))
 
         self._buffer = np.zeros((self.num_channels, self.max_lag-1))
 

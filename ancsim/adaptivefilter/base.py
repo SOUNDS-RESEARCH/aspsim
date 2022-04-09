@@ -226,19 +226,6 @@ class DebugProcessor(AudioProcessor):
 
 
 
-
-class SubbandProcessor(AudioProcessor):
-    def __init__(self, sim_info, arrays, blockSize, numBands, samplingFactor, **kwargs):
-        super().__init__(sim_info, arrays, blockSize, **kwargs)
-        self.numBands = numBands
-        self.samplingFactor = samplingFactor
-        
-
-    def process(self, numSamples):
-        pass
-
-
-
 class VolumeControl(AudioProcessor):
     def __init__(self, config, arrays, blockSize, volumeFactor, **kwargs):
         super().__init__(config, arrays, blockSize, **kwargs)
@@ -290,3 +277,5 @@ class ActiveNoiseControlProcessor(AudioProcessor):
     @abstractmethod
     def updateFilter(self):
         pass
+
+

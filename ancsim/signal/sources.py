@@ -57,7 +57,10 @@ class SineSource(Source):
 
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
 
-        self.metadata["power"] = self.power
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
         self.metadata["frequency"] = self.freq
 
     def get_samples(self, num_samples):
@@ -86,7 +89,10 @@ class MultiSineSource(Source):
         self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
         self.amplitude = np.sqrt(2 * self.power / self.numSines)
 
-        self.metadata["power"] = self.power
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
         self.metadata["frequency"] = self.freq
 
     def get_samples(self, num_samples):
@@ -109,7 +115,10 @@ class WhiteNoiseSource(Source):
         super().__init__(num_channels, rng)
         self.setPower(power)
 
-        self.metadata["power"] = self.power
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
 
     def get_samples(self, num_samples):
         return self.rng.normal(
@@ -143,7 +152,10 @@ class BandlimitedNoiseSource(Source):
         self.zi = spsig.sosfilt_zi(self.filtCoef)
         self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.num_channels,1))
 
-        self.metadata["power"] = power
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
         self.metadata["frequency span"] = freqLim
 
     def get_samples(self, num_samples):
@@ -378,7 +390,10 @@ class GoldSequenceSource(Source):
         self.idx = 0
         self.setPower(power)
         
-        self.metadata["power"] = self.power
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
         self.metadata["order"] = order
         self.metadata["sequence length"] = self.seqLength
 

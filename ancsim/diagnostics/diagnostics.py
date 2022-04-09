@@ -119,17 +119,51 @@ class SignalPower(diacore.SignalDiagnostic):
                         sim_info, 
                         block_size, 
                         export_at=None,
+                        sig_channels =slice(None),
                         **kwargs):
         super().__init__(sim_info, block_size, export_at, **kwargs)
         self.sig_name = sig_name
+        self.sig_channels = sig_channels
         self.power = np.full((sim_info.tot_samples), np.nan)
     
     def save(self, processor, chunkInterval, globInterval):
         self.power[globInterval[0]:globInterval[1]] = np.mean(np.abs(
-            processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]])**2, axis=0)
+            processor.sig[self.sig_name][self.sig_channels,chunkInterval[0]:chunkInterval[1]])**2, axis=0)
 
     def get_output(self):
         return self.power
+
+
+class SignalPowerRatio(diacore.SignalDiagnostic):
+    def __init__(self, 
+        numerator_name,
+        denom_name,
+        sim_info, 
+        block_size, 
+        export_at=None,
+        numerator_channels=slice(None),
+        denom_channels = slice(None),
+        **kwargs
+        ):
+        super().__init__(sim_info, block_size, export_at, **kwargs)
+        self.numerator_name = numerator_name
+        self.denom_name = denom_name
+        self.power_ratio = np.full((sim_info.tot_samples), np.nan)
+
+        self.numerator_channels = numerator_channels
+        self.denom_channels = denom_channels
+        
+    def save(self, processor, chunkInterval, globInterval):
+        smoother_num = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+        smoother_denom = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+
+        num = smoother_num.process(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
+        denom = smoother_denom.process(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
+
+        self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
+
+    def get_output(self):
+        return self.power_ratio
 
 
 

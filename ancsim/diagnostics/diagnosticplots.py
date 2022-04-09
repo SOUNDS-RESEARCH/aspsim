@@ -65,7 +65,6 @@ def smooth(smooth_len):
 
 
 
-
 def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="pdf", scaling="linear"):
     fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig.tight_layout(pad=4)
@@ -191,8 +190,8 @@ def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     if num_proc == 1:
         axes = [axes]
 
-    for ax, (proc_name, diag) in zip(axes, diags.items()):
-        clr = ax.matshow(diag.get_output())
+    for ax, (proc_name, output) in zip(axes, outputs.items()):
+        clr = ax.matshow(output)
         fig.colorbar(clr, ax=ax, orientation='vertical')
         ax.set_title(f"{name} - {proc_name}")
         ax.spines["right"].set_visible(False)

@@ -590,6 +590,12 @@ class MovingAverage:
             self.num_init = int(np.ceil(1 / self.forget_factor_inv))
 
     def update(self, new_data_point, count_as_updates=1):
+        """
+        
+        count_as_updates can be used if the datapoint is already average
+        outside of this class. So if new_data_point is the average of N data 
+        points, count_as_updates should be set to N.
+        """
         assert new_data_point.shape == self.state.shape
         if self.initialized:
             if count_as_updates > 1:
