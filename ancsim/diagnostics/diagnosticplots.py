@@ -101,12 +101,17 @@ def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="p
     outputPlot(printMethod, folder, name + "_" + str(time_idx))
 
 def plotMultipleChannels(ax, time_idx, signal, labels):
+    if signal.shape[-1] < 10:
+        marker = "x"
+    else:
+        marker = ""
     for i, label in enumerate(labels):
         ax.plot(
                 np.atleast_2d(time_idx).T,
                 signal[i:i+1,:].T,
                 alpha=0.8,
                 label=label,
+                marker=marker,
             )
     return ax
 

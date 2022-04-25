@@ -221,6 +221,7 @@ class Simulator:
     def runSimulation(self):
         self._setupSimulation()
 
+        assert len(self.processors) > 0
         blockSizes = [proc.blockSize for proc in self.processors]
         maxBlockSize = np.max(blockSizes)
 

@@ -30,19 +30,23 @@ class PhaseCounter:
 
     Extended implementation to blocksize != 1 can be done later
     """
-    def __init__(self, phase_def):
-        assert isinstance(phase_def, dict)
-        self.phase_def = phase_def
+    def __init__(self, phase_lengths):
+        assert isinstance(phase_lengths, dict)
+        self.phase_lengths = phase_lengths
         self.phase = None
         self.first_sample = True
 
-        self.phase_names = list(self.phase_def.keys())
+        phase_lengths = {name : length for name, length in self.phase_lengths.items() if length != 0}
+        self.phase_names = list(phase_lengths.keys())
         self.phase_names.append(None)
 
-        self.phase_idxs = [i if i > 0 else np.inf for i in self.phase_def.values()]
-        assert all([i != 0 for i in self.phase_idxs])
-        self.start_idxs = np.cumsum(self.phase_idxs).tolist()
-        self.start_idxs.insert(0,0)
+        #phase_idxs = [i for i in self.phase_lengths.values() if i != 0]
+        phase_idxs = [i if i > 0 else np.inf for i in phase_lengths.values()]
+        assert all([i != 0 for i in phase_idxs])
+        self._start_idxs = np.cumsum(phase_idxs).tolist()
+        self._start_idxs = [i if np.isinf(i) else int(i) for i in self._start_idxs]
+        self._start_idxs.insert(0,0)
+        self.start_idxs = {phase_name:start_idx for phase_name, start_idx in zip(self.phase_names, self._start_idxs)}
 
         self.idx = 0
         self.next_phase()
@@ -50,13 +54,15 @@ class PhaseCounter:
     def next_phase(self):
         print(f"Changed phase from {self.phase}")
         self.phase = self.phase_names.pop(0)
-        self.start_idxs.pop(0)
+        self._start_idxs.pop(0)
+        if len(self._start_idxs) == 0:
+            self._start_idxs.append(np.inf)
         self.first_sample = True
         print(f"to {self.phase}")
 
     def progress(self):
         self.idx += 1
-        if self.idx >= self.start_idxs[0]:
+        if self.idx >= self._start_idxs[0]:
             self.next_phase()
         else:
             self.first_sample = False

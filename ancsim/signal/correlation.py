@@ -343,6 +343,41 @@ def corr_matrix_distance(mat1, mat2):
 
 
 
+def periodic_autocorr(seq):
+    """seq is a single channel sequence of shape (1, period_length), 
+    that should be a single period of a periodic signal
+
+    This function calculates the periodic autocorrelation
+    
+    """
+    assert seq.ndim == 2
+    assert seq.shape[0] == 1
+    num_samples = seq.shape[1]
+    autocorr = np.zeros((num_samples))
+    for shift in range(num_samples):
+        autocorr[shift] = np.sum(seq[0,:num_samples-shift] * seq[0,shift:])
+        autocorr[shift] += np.sum(seq[0,num_samples-shift:] * seq[0,:shift])
+    autocorr /= num_samples
+    return autocorr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -369,6 +404,35 @@ def autocorrelation(sig, max_lag, interval):
                                             np.flip(sig[j,interval[0]:interval[1]]), "valid")
     # corr /= interval[1] - interval[0] #+ max_lag - 1
     return corr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

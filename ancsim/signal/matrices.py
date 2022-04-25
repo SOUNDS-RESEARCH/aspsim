@@ -347,10 +347,10 @@ def ensure_pos_semidef(mat):
     evs[evs < 0] = 0
     return vec @ np.diag(evs) @ vec.T.conj()
 
-def ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
+def ensure_pos_def_adhoc(mat, start_reg=-18, verbose=False):
     return broadcast_func(mat, _ensure_pos_def_adhoc, start_reg=start_reg, verbose=verbose, out_shape=mat.shape[-2:], dtype=mat.dtype)
 
-def _ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
+def _ensure_pos_def_adhoc(mat, start_reg=-18, verbose=False):
     """
     Adds a scaled identity matrix to the matrix in
     order to ensure positive definiteness. Starts by 
@@ -362,12 +362,16 @@ def _ensure_pos_def_adhoc(mat, start_reg=-10, verbose=False):
     a cholesky decomposition.
     """
     assert mat.ndim == 2
-    psd = False
     reg = start_reg
-    while not psd:
+    if _is_pos_def(mat):
+        if verbose:
+            print(f"Matrix was already positive definite")
+        return mat
+
+    while True:
         new_mat = mat + 10**(reg) * np.eye(mat.shape[0])
         if _is_pos_def(new_mat):
-            psd=True
+            break
         else:
             reg += 1
     if verbose:
