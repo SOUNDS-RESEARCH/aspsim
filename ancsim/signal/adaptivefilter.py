@@ -20,6 +20,14 @@ class AdaptiveFilterBase(ABC):
 
         self.x = np.zeros((self.num_in, self.ir_len, 1))  # Column vector
 
+        self.metadata = {
+            "name" : self.__class__.__name__,
+            "ir length" : self.ir_len, 
+            "num input channels" : self.num_in,
+            "num output channels" : self.num_out
+        }
+
+
     def insert_in_signal(self, ref):
         assert ref.shape[-1] == 1
         self.x = np.roll(self.x, 1, axis=1)
@@ -197,11 +205,22 @@ class LMS(AdaptiveFilterBase):
             init_len = 0
         self.phases = afutil.PhaseCounter({"init" : init_len, "processing" : np.inf})
 
+        self.metadata["step size"] = self.step_size
+        self.metadata["regularization"] = self.reg
+        self.metadata["normalization"] = normalization
+
     def _channel_indep_norm(self):
         return 1 / (self.reg + np.transpose(self.x, (0, 2, 1)) @ self.x)
 
     def _channel_common_norm(self):
-        return 1 / (self.reg + np.mean(np.transpose(self.x, (0, 2, 1)) @ self.x))
+        """
+        if the two signals are identical, this is currently twice as large as _channel_indep_norm
+        This allowed for step_size = 1 to be ideal step size with PSEQ training signal
+
+        Old version was (difference is mean vs sum over channels)
+        1 / (self.reg + np.mean(np.transpose(self.x, (0, 2, 1)) @ self.x))
+        """
+        return 1 / (self.reg + np.sum(np.transpose(self.x, (0, 2, 1)) @ self.x))
     
     def _no_norm(self):
         return 1
@@ -227,6 +246,22 @@ class LMS(AdaptiveFilterBase):
             self.phases.progress()
 
         return desired_est, error
+
+
+    # for i in range(self.idx-num_samples, self.idx):
+    #     self.sig["mic_est"][:,i] = np.squeeze(self.rir_est.process(self.sig["ls"][:,i:i+1]), axis=-1)
+    #     error = self.sig["mic"][:,i:i+1] - self.sig["mic_est"][:,i:i+1]
+
+    #     grad = np.flip(self.sig["ls"][:,None,i+1-self.rir_len:i+1], axis=-1) * \
+    #                     error[None,:,:]
+
+    #     normalization = 1 / (np.sum(self.sig["ls"][:,i+1-self.rir_len:i+1]**2) + self.beta)
+    #     self.rir_est.ir += self.step_size * normalization * grad
+        
+    # self.sig["ls"][:,self.idx:self.idx+num_samples] = self.train_src.get_samples(num_samples)
+
+
+
 
     # def update(self, ref, error):
     #     """Inputs should be of the shape (channels, num_samples)"""
@@ -385,7 +420,16 @@ class FastBlockWeightedLMS(FastBlockLMS):
 class RLS(AdaptiveFilterBase):
     """Dimension of filter is (input channels, output channels, IR length)"""
 
-    def __init__(self, ir_len, num_in, num_out, forget_factor, signal_power_est):
+    def __init__(
+        self, 
+        ir_len, 
+        num_in, 
+        num_out, 
+        forget_factor, 
+        signal_power_est,
+        wait_until_initialized = False,
+        ):
+
         super().__init__(ir_len, num_in, num_out)
         self.flat_ir_len = self.ir_len * self.num_in
 
@@ -393,12 +437,19 @@ class RLS(AdaptiveFilterBase):
         self.forget_inv = 1 - forget_factor
         self.signal_power_est = signal_power_est
 
-        # self.inv_corr = np.zeros((1, self.flat_ir_len, self.flat_ir_len))
-        # self.inv_corr[0, :, :] = np.eye(self.flat_ir_len) * signal_power_est
         self.inv_corr = np.zeros((self.flat_ir_len, self.flat_ir_len))
         self.inv_corr[:, :] = np.eye(self.flat_ir_len) * signal_power_est
         self.gain = np.zeros((self.num_in*self.ir_len, 1))
-        #self.crossCorr = np.zeros((self.num_out, self.flat_ir_len, 1))
+
+        if wait_until_initialized:
+            init_len = self.ir_len
+        else:
+            init_len = 0
+        self.phases = afutil.PhaseCounter({"init" : init_len, "processing" : np.inf})
+
+        self.metadata["forget factor"] = self.forget_factor
+        self.metadata["signal power estimate"] = self.signal_power_est
+
 
     def update_old(self, ref, desired):
         """Inputs should be of the shape (channels, numSamples)"""
@@ -420,21 +471,23 @@ class RLS(AdaptiveFilterBase):
             self.filt.ir = np.transpose(
                 newFilt.reshape((self.num_out, self.num_in, self.ir_len)), (1, 0, 2)
             )
+
     def update(self, ref, desired):
         assert ref.shape[-1] == desired.shape[-1]
         num_samples = ref.shape[-1]
         for i in range(num_samples):
             mic_est = self.filt.process(ref[:,i:i+1])
             error = desired[:,i:i+1] - mic_est
-
             self.insert_in_signal(ref[:, i:i+1])
-            X = self.x.reshape((-1, 1))
-            #X = np.flip(self.sig["ls"][:,i-self.rir_len+1:i+1],axis=-1).reshape(-1,1)
-            x_times_corr = self.inv_corr @ X
+            if self.phases.current_phase_is("processing"):
+                X = self.x.reshape((-1, 1))
+                #X = np.flip(self.sig["ls"][:,i-self.rir_len+1:i+1],axis=-1).reshape(-1,1)
+                x_times_corr = self.inv_corr @ X
 
-            self.gain = x_times_corr / (self.forget_factor + X.T @ x_times_corr)
-            self.inv_corr = (self.inv_corr - self.gain @ x_times_corr.T) / self.forget_factor
-            self.filt.ir += self.gain.reshape(self.num_in, 1, self.ir_len) * error[None,:,:]
+                self.gain = x_times_corr / (self.forget_factor + X.T @ x_times_corr)
+                self.inv_corr = (self.inv_corr - self.gain @ x_times_corr.T) / self.forget_factor
+                self.filt.ir += self.gain.reshape(self.num_in, 1, self.ir_len) * error[None,:,:]
+            self.phases.progress()
 
 
 
