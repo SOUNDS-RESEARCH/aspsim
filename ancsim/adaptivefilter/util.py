@@ -30,11 +30,13 @@ class PhaseCounter:
 
     Extended implementation to blocksize != 1 can be done later
     """
-    def __init__(self, phase_lengths):
+    def __init__(self, phase_lengths, verbose=False):
         assert isinstance(phase_lengths, dict)
         self.phase_lengths = phase_lengths
+        self.verbose = verbose
         self.phase = None
         self.first_sample = True
+        
 
         phase_lengths = {name : length for name, length in self.phase_lengths.items() if length != 0}
         self.phase_names = list(phase_lengths.keys())
@@ -52,13 +54,17 @@ class PhaseCounter:
         self.next_phase()
 
     def next_phase(self):
-        print(f"Changed phase from {self.phase}")
+        if self.verbose:
+            print(f"Changed phase from {self.phase}")
+            
         self.phase = self.phase_names.pop(0)
         self._start_idxs.pop(0)
         if len(self._start_idxs) == 0:
             self._start_idxs.append(np.inf)
         self.first_sample = True
-        print(f"to {self.phase}")
+        
+        if self.verbose:
+            print(f"to {self.phase}")
 
     def progress(self):
         self.idx += 1
