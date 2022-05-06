@@ -100,7 +100,13 @@ class EventCounter:
         self.event_def = event_def
         self.event = []
 
+        self.freq = {name : freq for name, (freq, offset) in event_def.items()}
+        self.offset = {name : offset for name, (freq, offset) in event_def.items()}
+
         self.idx = 0
+
+    def add_event(self, name, freq, offset):
+        self.event_def[name] = (freq, offset)
 
     def check_events(self):
         self.event = []
