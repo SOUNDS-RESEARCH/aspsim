@@ -195,6 +195,8 @@ class StatePower(diacore.StateDiagnostic):
         return self.power
 
 
+
+
 class StateMSE(diacore.StateDiagnostic):
     def __init__(self, est_state_name,
                         true_state_name,
@@ -355,6 +357,86 @@ class CosSimilarity(diacore.StateDiagnostic):
         
     def get_output(self):
         return self.sim
+
+
+
+class StateComparison(diacore.StateDiagnostic):
+    """
+        compare_func should take the two states as argument, and 
+        return a single value representing the comparison (distance or MSE for example)
+    """
+    def __init__(self, compare_func, name_state1, name_state2, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.compare_func = compare_func
+        self.get_state1 = attritemgetter(name_state1)
+        self.get_state2 = attritemgetter(name_state2)
+
+        self.compare_value = np.full((self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+        self.diag_idx = 0
+
+        self.plot_data["title"] = compare_func.__name__
+
+    def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
+        state1 = self.get_state1(processor)
+        state2 = self.get_state2(processor)
+
+        self.compare_value[self.diag_idx] = self.compare_func(state1, state2)
+        self.time_indices[self.diag_idx] = globInterval[0]
+        self.diag_idx += 1
+        
+    def get_output(self):
+        return self.compare_value
+
+
+
+class StateSummary(diacore.StateDiagnostic):
+    """
+        summary_func should take the state as argument and return a single scalar
+        representing the state (norm or power for example)
+    """
+    def __init__(self, summary_func, state_name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.summary_func = summary_func
+        self.get_state = attritemgetter(state_name)
+
+        self.summary_value = np.full((self.save_at.num_values), np.nan)
+        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
+        self.diag_idx = 0
+
+        self.plot_data["title"] = summary_func.__name__
+        
+
+    def save(self, processor, chunkInterval, globInterval):
+        assert globInterval[1] - globInterval[0] == 1
+        state = self.get_state(processor)
+
+        self.summary_value[self.diag_idx] = self.summary_func(state)
+        self.time_indices[self.diag_idx] = globInterval[0]
+        self.diag_idx += 1
+
+    def get_output(self):
+        return self.summary_value
+
+
+
+
+
+
+def mse(state1, state2):
+    """Normalized with size of state 2"""
+    return np.sum(np.abs(state1 - state2)**2) / np.sum(np.abs(state2)**2)
+
+
+
+
+
+
+
+
+
+
 
 
 class SoundfieldPower(diacore.Diagnostic):
