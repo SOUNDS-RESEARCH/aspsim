@@ -86,11 +86,12 @@ class SampleCorrelation:
         self.n += 1
 
     def get_corr(self, autocorr=False, est_method="plain", pos_def=False):
-        """Returns the correlation matrix but will ensure
-        positive semi-definiteness and hermitian-ness. If pos_def=True
-        it will even ensure that the matrix is positive definite. 
+        """Returns the correlation matrix and stores it in self.corr_mat
         
-        est_method can be 'oas', 'plain', possibly 'wl' if implemented
+            Will ensure positive semi-definiteness and hermitian-ness if autocorr is True
+            If pos_def=True it will even ensure that the matrix is positive definite. 
+        
+            est_method can be 'oas' or 'plain'
         """
         if not autocorr:
             self.corr_mat[...] = self.avg.state
@@ -185,6 +186,19 @@ class Autocorrelation:
         return self.corr_mat
 
 
+
+def autocorr(sig, max_lag, normalize=True):
+    num_channels = sig.shape[0]
+    padded_len = sig.shape[-1]
+    num_samples = padded_len - max_lag + 1
+    r = np.zeros((num_channels, num_channels, max_lag))
+    for ch1 in range(num_channels):
+        for ch2 in range(num_channels):
+            for i in range(max_lag-1, padded_len):
+                r[ch1, ch2, :] += sig[ch1,i] * np.flip(sig[ch2, i-max_lag+1:i+1])
+    if normalize:
+        r /= num_samples
+    return r
 
 
 
@@ -285,16 +299,34 @@ def is_autocorr_func(func, verbose=False):
     """
     An autocorrelation function should be of shape
     (num_channels, num_channels, max_lag)
-    """
-    raise NotImplementedError
-    assert func.ndim == 3
-    equal_channels = func.shape[0] == func.shape[1]
-    symmetric = False
 
-    if verbose:
-        print(f"Has equal number of channels: {equal_channels}")
-    
-    return all((equal_channels,))
+    Assumes the autocorrelation is real valued, from a real-valued stochastic process
+
+    The evenness property is inherent in the representation as 
+        func = [r(0), r(1), ..., r(max_lag-1)], as only one side is recorded
+    """
+    if func.ndim == 1:
+        func = func[None,:]
+    if func.ndim == 2:
+        new_func = np.zeros((func.shape[0], func.shape[0], func.shape[1]), dtype=func.dtype)
+        for i in range(func.shape[0]):
+            new_func[i,i,:] = func[i,:]
+            func = new_func
+    assert func.ndim == 3
+    assert func.shape[0] == func.shape[1]
+    num_channels = func.shape[0]
+
+    max_at_zero = True
+    for i in range(num_channels):
+        if np.any(func[i,i,0] < func[i,i,1:]):
+            max_at_zero = False
+
+    symmetric = True
+    for i in range(num_channels): 
+        for j in range(num_channels):
+            if not np.allclose(func[i,j,:], func[j,i,:]):
+                symmetric = False
+    return all((symmetric, max_at_zero))
 
 def _func_is_symmetric(func):
     raise NotImplementedError
@@ -364,7 +396,23 @@ def periodic_autocorr(seq):
 
 
 
+def get_filter_for_autocorrelation(autocorr):
+    """
+    autocorr is of shape (num_channels, max_lag)
+        
+    computes a filter h(i) such that y(n) has the autocorrelation provided
+        if y(n) = h(i) * x(n), where * is convolution, and x(n) is white
 
+    returns an IR of shape (num_channels, max_lag*2-1)
+    """
+    ac_full = np.concatenate((autocorr, np.flip(autocorr[:,1:],axis=-1)), axis=-1)
+    psd = np.fft.fft(ac_full, axis=-1)
+    psd = np.real_if_close(psd)
+    assert np.allclose(np.imag(psd), 0) 
+    freq_func = np.sqrt(psd)
+    ir = np.real_if_close(np.fft.ifft(freq_func, axis=-1))
+    assert np.allclose(np.imag(ir), 0)  
+    return ir
 
 
 
@@ -439,19 +487,6 @@ def autocorrelation(sig, max_lag, interval):
 
 # These should be working correctly, but are written only for testing purposes.
 # Might be removed at any time and moved to test module. 
-
-def autocorr(sig, max_lag, normalize=True):
-    num_channels = sig.shape[0]
-    padded_len = sig.shape[-1]
-    num_samples = padded_len - max_lag + 1
-    r = np.zeros((num_channels, num_channels, max_lag))
-    for ch1 in range(num_channels):
-        for ch2 in range(num_channels):
-            for i in range(max_lag-1, padded_len):
-                r[ch1, ch2, :] += sig[ch1,i] * np.flip(sig[ch2, i-max_lag+1:i+1])
-    if normalize:
-        r /= num_samples
-    return r
 
 def autocorr_ref_spsig(sig, max_lag):
     num_channels = sig.shape[0]

@@ -1,7 +1,7 @@
 import numpy as np
 import itertools as it
 import ancsim.signal.freqdomainfiltering as fdf
-import scipy.signal as sig
+import scipy.signal as spsig
 import numba as nb
 import numexpr as ne
 
@@ -131,12 +131,13 @@ class FilterSumDynamic:
 
 
 
-# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
-# Ex. a (3,2,5) filter has 6 (3x2) IRs each of length 5
-# First dimension sets the number of inputs
-# Second dimension sets the number of outputs
-# (3,None) in, (2,None) out
-class FilterSum_npy:
+class FilterIndividualInputs:
+    """Acts as the FilterSum filter before the sum,
+    with each input channel having an indiviudal set of IRs.
+    IR should be (inputChannels, outputChannels, irLength)
+    Input to process method is (inputChannels, numSamples)
+    output of process method is (inputChannels, outputChannels, numSamples)"""
+
     def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
         if ir is not None:
             self.ir = ir
@@ -156,15 +157,14 @@ class FilterSum_npy:
         numSamples = dataToFilter.shape[-1]
         bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
 
-        filtered = np.zeros((self.numOut, numSamples))
+        filtered = np.zeros((self.numIn, self.numOut, numSamples))
         for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[outIdx,:] += np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
-            # filtered[outIdx, :] += sig.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
-            # filtered[outIdx,:] += sig.fftconvolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            filtered[inIdx, outIdx, :] = spsig.convolve(
+                self.ir[inIdx, outIdx, :], bufferedInput[inIdx, :], "valid"
+            )
 
         self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
         return filtered
-
 
     def setIR(self, irNew):
         if irNew.shape != self.ir.shape:
@@ -213,7 +213,7 @@ class FilterMD_IntBuffer:
         for idxs in it.product(*[range(d) for d in self.outputDims]):
             # filtered[idxs+(slice(None),)] = np.convolve(self.ir[idxs[0:self.numIrDims]+(slice(None),)],
             #                                             bufferedInput[idxs[-self.numDataDims:]+(slice(None),)], "valid")
-            filtered[idxs + (slice(None),)] = sig.convolve(
+            filtered[idxs + (slice(None),)] = spsig.convolve(
                 self.ir[idxs[0 : self.numIrDims] + (slice(None),)],
                 bufferedInput[idxs[-self.numDataDims :] + (slice(None),)],
                 "valid",
@@ -229,6 +229,24 @@ class FilterMD_IntBuffer:
             self.numIrDims = len(self.irDims)
             self.buffer = np.zeros(self.dataDims + (self.irLen - 1,))
         self.ir = irNew
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class FilterMD_Freqdomain:
@@ -432,148 +450,19 @@ class FilterSum_Freqdomain:
             )
 
 
-class FilterIndividualInputs:
-    """Acts as the FilterSum filter before the sum,
-    with each input channel having an indiviudal set of IRs.
-    IR should be (inputChannels, outputChannels, irLength)
-    Input to process method is (inputChannels, numSamples)
-    output of process method is (inputChannels, outputChannels, numSamples)"""
-
-    def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
-        if ir is not None:
-            self.ir = ir
-            self.numIn = ir.shape[0]
-            self.numOut = ir.shape[1]
-            self.irLen = ir.shape[2]
-        elif (irLen is not None) and (numIn is not None) and (numOut is not None):
-            self.ir = np.zeros((numIn, numOut, irLen))
-            self.irLen = irLen
-            self.numIn = numIn
-            self.numOut = numOut
-        else:
-            raise Exception("Not enough constructor arguments")
-        self.buffer = np.zeros((self.numIn, self.irLen - 1))
-
-    def process(self, dataToFilter):
-        numSamples = dataToFilter.shape[-1]
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
-
-        filtered = np.zeros((self.numIn, self.numOut, numSamples))
-        for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[inIdx, outIdx, :] = sig.convolve(
-                self.ir[inIdx, outIdx, :], bufferedInput[inIdx, :], "valid"
-            )
-
-        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
-        return filtered
-
-    def setIR(self, irNew):
-        if irNew.shape != self.ir.shape:
-            self.numIn = irNew.shape[0]
-            self.numOut = irNew.shape[1]
-            self.irLen = irNew.shape[2]
-            self.buffer = np.zeros((self.numIn, self.irLen - 1))
-        self.ir = irNew
 
 
-# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
-# Ex. a (2,3,5) filter has 6 (2x3) IRs each of length 5
-# First dimension sets the number of outputs
-# Second dimension sets the number of inputs
-# (3,None) in, (2,None) out
-class FilterSum_ExtBuffer:
-    def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
-        if ir is not None:
-            self.ir = ir
-            self.numIn = ir.shape[0]
-            self.numOut = ir.shape[1]
-            self.irLen = ir.shape[2]
-        elif (irLen is not None) and (numIn is not None) and (numOut is not None):
-            self.ir = np.zeros((numOut, numIn, irLen))
-            self.irLen = irLen
-            self.numIn = numIn
-            self.numOut = numOut
-        else:
-            raise Exception("Not enough constructor arguments")
-
-    def setIR(self, irNew):
-        if irNew.shape != self.ir.shape:
-            self.numIn = irNew.shape[0]
-            self.numOut = irNew.shape[1]
-            self.irLen = irNew.shape[2]
-        self.ir = irNew
-
-    def process(self, dataToFilter, currentIdx, numSamples):
-        dataBlock = np.flip(
-            dataToFilter[:, currentIdx + 1 - self.irLen : currentIdx + numSamples + 1],
-            axis=-1,
-        )
-
-        filtered = np.zeros((self.numOut, numSamples))
-
-        for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[outIdx] += sig.convolve(
-                self.ir[inIdx, outIdx, :], dataBlock[inIdx, :], "valid", axis=-1
-            )
-
-        return filtered
 
 
-# Single dimensional filter with internal buffer
-# if multiple input channels are set,
-# the same filter will be used for all input channels
-class Filter_IntBuffer:
-    def __init__(self, ir=None, irLen=None, numIn=1, dtype=np.float64):
-        if ir is not None:
-            self.ir = ir
-            self.irLen = ir.shape[-1]
-        elif irLen is not None:
-            self.ir = np.zeros((irLen), dtype=dtype)
-            self.irLen = irLen
-        else:
-            raise Exception("Not enough constructor arguments")
-        self.numIn = numIn
-        self.buffer = np.zeros((numIn, self.irLen - 1), dtype=dtype)
-
-    def process(self, dataToFilter):
-        numSamples = dataToFilter.shape[-1]
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
-        filtered = np.zeros((self.numIn, numSamples))
-        for i in range(self.numIn):
-            filtered[i, :] = sig.convolve(self.ir, bufferedInput[i, :], "valid")
-
-        # self.buffer[:,:] = bufferedInput[:,-self.irLen+1:]
-        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
-        return filtered
-
-    def setIR(self, irNew):
-        if irNew.shape != self.ir.shape:
-            self.irLen = irNew.shape[-1]
-        self.ir = irNew
 
 
-class SinglePoleLowPass:
-    def __init__(self, forgetFactor, dim, dtype=np.float64):
-        self.state = np.zeros(dim, dtype=dtype)
-        self.forgetFactor = forgetFactor
-        self.invForgetFactor = 1 - forgetFactor
-        self.initialized = False
 
-    def setForgetFactor(self, cutoff, samplerate):
-        """Set cutoff in in Hz"""
-        wc = 2 * np.pi * cutoff / samplerate
-        y = 1 - np.cos(wc)
-        self.forgetFactor = -y + np.sqrt(y ** 2 + 2 * y)
-        self.invForgetFactor = 1 - self.forgetFactor
 
-    def update(self, newDataPoint):
-        assert newDataPoint.shape == self.state.shape
-        if self.initialized:
-            self.state *= self.forgetFactor
-            self.state += newDataPoint * self.invForgetFactor
-        else:
-            self.state = newDataPoint
-            self.initialized = True
+
+
+
+
+
 
 
 class MovingAverage:
@@ -625,6 +514,205 @@ class MovingAverage:
         self.init_counter = 0
 
 
+
+
+class SinglePoleLowPass:
+    def __init__(self, forgetFactor, dim, dtype=np.float64):
+        self.state = np.zeros(dim, dtype=dtype)
+        self.forgetFactor = forgetFactor
+        self.invForgetFactor = 1 - forgetFactor
+        self.initialized = False
+
+    def setForgetFactor(self, cutoff, samplerate):
+        """Set cutoff in in Hz"""
+        wc = 2 * np.pi * cutoff / samplerate
+        y = 1 - np.cos(wc)
+        self.forgetFactor = -y + np.sqrt(y ** 2 + 2 * y)
+        self.invForgetFactor = 1 - self.forgetFactor
+
+    def update(self, newDataPoint):
+        assert newDataPoint.shape == self.state.shape
+        if self.initialized:
+            self.state *= self.forgetFactor
+            self.state += newDataPoint * self.invForgetFactor
+        else:
+            self.state = newDataPoint
+            self.initialized = True
+
+
+
+
+
+
+class IIRFilter:
+    """
+    
+    """
+    def __init__(self, num_coeffs, denom_coeffs):
+        self.num_coeffs = num_coeffs
+        self.denom_coeffs = denom_coeffs
+        self.order = max(len(self.num_coeffs), len(self.denom_coeffs))
+        self.filter_state = spsig.lfiltic(self.num_coeffs, self.denom_coeffs, np.zeros((len(self.denom_coeffs)-1)))
+
+    def process(self, data_to_filter):
+        assert data_to_filter.ndim == 2
+        num_channels = data_to_filter.shape[0]
+        num_samples = data_to_filter.shape[1]
+        if num_channels > 1:
+            raise NotImplementedError
+
+        filtered_sig, self.filter_state = spsig.lfilter(self.num_coeffs, self.denom_coeffs, data_to_filter[0,:], axis=-1, zi=self.filter_state)
+        return filtered_sig[None,:]
+
+
+
+
+
+
+
+
+
+
+
+
+# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
+# Ex. a (3,2,5) filter has 6 (3x2) IRs each of length 5
+# First dimension sets the number of inputs
+# Second dimension sets the number of outputs
+# (3,None) in, (2,None) out
+class FilterSum_npy:
+    """
+    Deprecated, to be removed
+    """
+    def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
+        if ir is not None:
+            self.ir = ir
+            self.numIn = ir.shape[0]
+            self.numOut = ir.shape[1]
+            self.irLen = ir.shape[2]
+        elif (irLen is not None) and (numIn is not None) and (numOut is not None):
+            self.ir = np.zeros((numIn, numOut, irLen))
+            self.irLen = irLen
+            self.numIn = numIn
+            self.numOut = numOut
+        else:
+            raise Exception("Not enough constructor arguments")
+        self.buffer = np.zeros((self.numIn, self.irLen - 1))
+
+    def process(self, dataToFilter):
+        numSamples = dataToFilter.shape[-1]
+        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+
+        filtered = np.zeros((self.numOut, numSamples))
+        for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
+            filtered[outIdx,:] += np.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            # filtered[outIdx, :] += spsig.convolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+            # filtered[outIdx,:] += spsig.fftconvolve(self.ir[inIdx,outIdx,:], bufferedInput[inIdx,:], "valid")
+
+        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        return filtered
+
+
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.numIn = irNew.shape[0]
+            self.numOut = irNew.shape[1]
+            self.irLen = irNew.shape[2]
+            self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.ir = irNew
+
+
+
+
+
+
+
+# The ir is a 3D array, where each entry in the first two dimensions is an impulse response
+# Ex. a (2,3,5) filter has 6 (2x3) IRs each of length 5
+# First dimension sets the number of outputs
+# Second dimension sets the number of inputs
+# (3,None) in, (2,None) out
+class FilterSum_ExtBuffer:
+    """
+    Deprecated, to be removed
+    """
+    def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
+        if ir is not None:
+            self.ir = ir
+            self.numIn = ir.shape[0]
+            self.numOut = ir.shape[1]
+            self.irLen = ir.shape[2]
+        elif (irLen is not None) and (numIn is not None) and (numOut is not None):
+            self.ir = np.zeros((numOut, numIn, irLen))
+            self.irLen = irLen
+            self.numIn = numIn
+            self.numOut = numOut
+        else:
+            raise Exception("Not enough constructor arguments")
+
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.numIn = irNew.shape[0]
+            self.numOut = irNew.shape[1]
+            self.irLen = irNew.shape[2]
+        self.ir = irNew
+
+    def process(self, dataToFilter, currentIdx, numSamples):
+        dataBlock = np.flip(
+            dataToFilter[:, currentIdx + 1 - self.irLen : currentIdx + numSamples + 1],
+            axis=-1,
+        )
+
+        filtered = np.zeros((self.numOut, numSamples))
+
+        for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
+            filtered[outIdx] += spsig.convolve(
+                self.ir[inIdx, outIdx, :], dataBlock[inIdx, :], "valid", axis=-1
+            )
+
+        return filtered
+
+
+
+
+
+# Single dimensional filter with internal buffer
+# if multiple input channels are set,
+# the same filter will be used for all input channels
+class Filter_IntBuffer:
+    """
+    Deprecated, to be removed
+    """
+    def __init__(self, ir=None, irLen=None, numIn=1, dtype=np.float64):
+        if ir is not None:
+            self.ir = ir
+            self.irLen = ir.shape[-1]
+        elif irLen is not None:
+            self.ir = np.zeros((irLen), dtype=dtype)
+            self.irLen = irLen
+        else:
+            raise Exception("Not enough constructor arguments")
+        self.numIn = numIn
+        self.buffer = np.zeros((numIn, self.irLen - 1), dtype=dtype)
+
+    def process(self, dataToFilter):
+        numSamples = dataToFilter.shape[-1]
+        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+        filtered = np.zeros((self.numIn, numSamples))
+        for i in range(self.numIn):
+            filtered[i, :] = spsig.convolve(self.ir, bufferedInput[i, :], "valid")
+
+        # self.buffer[:,:] = bufferedInput[:,-self.irLen+1:]
+        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        return filtered
+
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.irLen = irNew.shape[-1]
+        self.ir = irNew
+
+
+
 # Free function for applying a filtersum once
 # Edge effects will be present
 def applyFilterSum(data, ir):
@@ -635,5 +723,5 @@ def applyFilterSum(data, ir):
     out = np.zeros((numOut, data.shape[1] + filtLen - 1))
     for outIdx in range(numOut):
         for inIdx in range(numIn):
-            out[outIdx, :] += sig.convolve(data[inIdx, :], ir[inIdx, outIdx, :], "full")
+            out[outIdx, :] += spsig.convolve(data[inIdx, :], ir[inIdx, outIdx, :], "full")
     return out

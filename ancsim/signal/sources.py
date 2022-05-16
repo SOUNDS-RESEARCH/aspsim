@@ -1,11 +1,13 @@
+from enum import auto
 import numpy as np
-import numba as nb
-import pathlib
 import scipy.signal as spsig
+import scipy.linalg as splin
 import soundfile as sf
 from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
+import ancsim.signal.correlation as cr
+import ancsim.signal.filterclasses as fc
 
 class Source(ABC):
     def __init__(self, num_channels, rng=None):
@@ -113,7 +115,7 @@ class MultiSineSource(Source):
 class WhiteNoiseSource(Source):
     def __init__(self, num_channels, power, rng=None):
         super().__init__(num_channels, rng)
-        self.setPower(power)
+        self.set_power(power)
 
         if isinstance(self.power, (np.ndarray)):
             self.metadata["power"] = self.power.tolist()
@@ -125,7 +127,7 @@ class WhiteNoiseSource(Source):
             loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
         ).T
     
-    def setPower(self, newPower):
+    def set_power(self, newPower):
         self.power = newPower
         self.stdDev = np.sqrt(newPower)
 
@@ -147,7 +149,7 @@ class BandlimitedNoiseSource(Source):
 
         testSig = spsig.sosfilt(self.filtCoef, self.rng.normal(size=(self.num_channels,10000)))
         self.testSigPow = np.mean(testSig ** 2)
-        self.setPower(power)
+        self.set_power(power)
 
         self.zi = spsig.sosfilt_zi(self.filtCoef)
         self.zi = np.tile(np.expand_dims(self.zi,1), (1,self.num_channels,1))
@@ -163,7 +165,7 @@ class BandlimitedNoiseSource(Source):
         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
         return filtNoise
 
-    def setPower(self, newPower):
+    def set_power(self, newPower):
         self.power = newPower
         self.amplitude = np.sqrt(newPower / self.testSigPow)
 
@@ -174,6 +176,10 @@ class BandlimitedNoiseSource(Source):
 
 
 class Counter(Source):
+    """
+    Counts from start_number and adds one per sample
+        used primarily for debugging
+    """
     def __init__(self, num_channels, start_number=0):
         super().__init__(num_channels)
         if num_channels > 1:
@@ -225,52 +231,6 @@ class PulseTrain(Source):
 
 
 
-class LinearChirpSource(Source):
-    def __init__(self, num_channels, amplitude, freqRange, samplesToSweep, samplerate, rng=None):
-        raise NotImplementedError #change amplitude to power
-
-        super.__init__(num_channels, rng)
-        assert len(freqRange) == 2
-        self.amp = amplitude
-        self.samplerate = samplerate
-        self.freqRange = freqRange
-
-        self.samplesToSweep = samplesToSweep
-        self.deltaFreq = (freqRange[1] - freqRange[0]) / samplesToSweep
-        self.freq = freqRange[0]
-        self.freqCounter = 0
-        self.phase = self.rng.uniform(low=0, high=2 * np.pi)
-
-    def nextPhase(self):
-        self.phase += (self.freq / self.samplerate) + (
-            self.deltaFreq / (2 * self.samplerate)
-        )
-        self.phase = self.phase % 1
-        self.freq = self.freq + self.deltaFreq
-
-    def get_samples(self, num_samples):
-        noise = np.zeros((1, num_samples))
-        samplesLeft = num_samples
-        n = 0
-        for blocks in range(1 + num_samples // self.samplesToSweep):
-            blockSize = min(samplesLeft, self.samplesToSweep - self.freqCounter)
-            for _ in range(blockSize):
-                noise[0, n] = np.cos(2 * np.pi * self.phase)
-                self.nextPhase()
-
-                n += 1
-                self.freqCounter += 1
-
-                if self.samplesToSweep <= self.freqCounter:
-                    self.deltaFreq = -self.deltaFreq
-                    # if self.deltaFreq > 0:
-                    #    self.freq = self.freqRange[0]
-                    # else:
-                    #    self.freq = self.freqRange[1]
-                    self.freqCounter = 0
-            samplesLeft -= blockSize
-        noise *= self.amp
-        return noise
 
 class AudioSource(Source):
     def __init__(self, audio, amp_factor = 1, end_mode = "repeat"):
@@ -350,6 +310,82 @@ def load_audio_file(file_name, desired_sr = None, verbose=False):
         return audio
 
 
+
+
+
+
+def ar_coeffs_from_autocorr(autocorr):
+    """
+    returns the parameter vector a = [a_1, ..., a_p]
+        that implements the AR system
+        y(n) = a_1 y(n-1) + a_2 y(n-2) + ... + a_p y(n-p) + s(n)
+
+        where s(n) is a white noise process with variance awgn_power
+
+    """
+    assert autocorr.ndim <= 2
+    if autocorr.ndim == 2:
+        assert autocorr.shape[0] == 1
+        autocorr = autocorr[0,:]
+    ar_coeffs = splin.solve_toeplitz(autocorr[:-1], autocorr[1:])
+    noise_power = autocorr[0] - np.sum(autocorr[1:] * ar_coeffs)
+    return ar_coeffs, noise_power
+
+def ar_coeffs_to_transfer_function(ar_coeffs):
+    """
+    Gives the rational transfer function that will give rise to 
+        the provided AR process, if a white noise is filtered
+        through the returned filter.
+
+    According to scipy.signal.lfilter which implements the system
+        a_0 y(n) = b_0 x(n) + b_1 x(n-1) + ... + b_t x(n-t) 
+                    -a_1 y(n-1) - a_2 y(n-2) - ... - a_p y(n-p)
+    """
+
+    denom_coeffs = np.concatenate(([1], -ar_coeffs))
+    num_coeffs = np.array([1], dtype=float)
+    return num_coeffs, denom_coeffs 
+
+class AutocorrSource(Source):
+    """
+
+    autocorr is array of shape (num_channels, corr_len)
+        with autocorr[:,0] being lag 0. 
+
+    All channels are all independent. 
+    Could be extended in the future to accept autocorr of shape 
+        (num_channels, num_channels, corr_len) which could 
+        include cross-correlations
+
+    """
+    def __init__(self, num_channels, autocorr, rng=None):
+        super().__init__(num_channels, rng)
+        assert autocorr.shape[0] == num_channels
+        if autocorr.shape[0] > 1:
+            raise NotImplementedError
+        assert cr.is_autocorr_func(autocorr)
+        ar_coeffs, self.noise_power = ar_coeffs_from_autocorr(autocorr)
+        num_coeffs, denom_coeffs = ar_coeffs_to_transfer_function(ar_coeffs)
+        self.filt = fc.IIRFilter(num_coeffs, denom_coeffs)
+        self.prepare()
+
+    def prepare(self):
+        self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power), size=(self.num_channels, self.filt.order)))
+    
+    def get_samples(self, num_samples):
+        return self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power), size=(self.num_channels, num_samples)))
+
+
+
+
+
+
+
+
+
+
+
+
 class MLS(Source):
     """Generates a maximum length sequence"""
     def __init__(self, num_channels, order, polynomial, state=None):
@@ -388,7 +424,7 @@ class GoldSequenceSource(Source):
         self.num_channels = num_channels
         self.seqLength = 2 ** order - 1
         self.idx = 0
-        self.setPower(power)
+        self.set_power(power)
         
         if isinstance(self.power, (np.ndarray)):
             self.metadata["power"] = self.power.tolist()
@@ -429,7 +465,7 @@ class GoldSequenceSource(Source):
             self.idx = (self.idx + blockLen) % self.seqLength
         return outSignal * self.amplitude
 
-    def setPower(self, newPower):
+    def set_power(self, newPower):
         if isinstance(newPower, (int, float)) or newPower.ndim == 0:
             self.power = np.ones((1,1)) * newPower
         elif newPower.ndim == 1:
@@ -443,3 +479,50 @@ class GoldSequenceSource(Source):
 
 
 
+
+class LinearChirpSource(Source):
+    def __init__(self, num_channels, amplitude, freqRange, samplesToSweep, samplerate, rng=None):
+        raise NotImplementedError #change amplitude to power
+
+        super.__init__(num_channels, rng)
+        assert len(freqRange) == 2
+        self.amp = amplitude
+        self.samplerate = samplerate
+        self.freqRange = freqRange
+
+        self.samplesToSweep = samplesToSweep
+        self.deltaFreq = (freqRange[1] - freqRange[0]) / samplesToSweep
+        self.freq = freqRange[0]
+        self.freqCounter = 0
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi)
+
+    def nextPhase(self):
+        self.phase += (self.freq / self.samplerate) + (
+            self.deltaFreq / (2 * self.samplerate)
+        )
+        self.phase = self.phase % 1
+        self.freq = self.freq + self.deltaFreq
+
+    def get_samples(self, num_samples):
+        noise = np.zeros((1, num_samples))
+        samplesLeft = num_samples
+        n = 0
+        for blocks in range(1 + num_samples // self.samplesToSweep):
+            blockSize = min(samplesLeft, self.samplesToSweep - self.freqCounter)
+            for _ in range(blockSize):
+                noise[0, n] = np.cos(2 * np.pi * self.phase)
+                self.nextPhase()
+
+                n += 1
+                self.freqCounter += 1
+
+                if self.samplesToSweep <= self.freqCounter:
+                    self.deltaFreq = -self.deltaFreq
+                    # if self.deltaFreq > 0:
+                    #    self.freq = self.freqRange[0]
+                    # else:
+                    #    self.freq = self.freqRange[1]
+                    self.freqCounter = 0
+            samplesLeft -= blockSize
+        noise *= self.amp
+        return noise

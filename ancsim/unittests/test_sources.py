@@ -7,6 +7,7 @@ import scipy.signal.windows as win
 import scipy.signal as spsig
 
 import ancsim.signal.sources as sources
+import ancsim.signal.correlation as cr
 
 # @pytest.mark.parametrize("src", [sources.SineSource(1,100,8000)])
 # def test_source_blocks(src, ):
@@ -161,6 +162,17 @@ def test_pulse_train(bs, num_samples, num_channels):
 
 
 
+def test_autocorr_of_AutocorrSource():
+    #autocorr = np.array([[2,0.5,0.5,0.2,0.1]], dtype=float)
+    autocorr = np.zeros((1, 100))
+    autocorr[0,0] = 1
+    autocorr[0,99] = 0.5
+    src = sources.AutocorrSource(1, autocorr)
+    sig = src.get_samples(int(1e6))
+    ac = cr.Autocorrelation(1, autocorr.shape[-1], autocorr.shape[0])
+    ac.update(sig)
+    print(ac.corr.state)
+    pass # todo: calculate the power of the white noise. The relative sizes of the resulting autocorr is correct
 
 
 
