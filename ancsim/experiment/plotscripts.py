@@ -56,7 +56,7 @@ def outputPlot(printMethod, folder, name="", keepOnlyLatestTikz=True):
                 edgecolor="w",
                 orientation="portrait",
                 format="pdf",
-                transparent=False,
+                transparent=True,
                 bbox_inches=None,
                 pad_inches=0.2,
             )
@@ -71,8 +71,18 @@ def outputPlot(printMethod, folder, name="", keepOnlyLatestTikz=True):
                 edgecolor="w",
                 orientation="portrait",
                 format="pdf",
-                transparent=False,
+                transparent=True,
                 #bbox_inches=None,
+                bbox_inches="tight",
+                pad_inches=0.2,
+            )
+    elif printMethod == "svg":
+        if folder is not None:
+            plt.savefig(
+                str(folder.joinpath(name + ".svg")),
+                dpi=300,
+                format="svg",
+                transparent=True,
                 bbox_inches="tight",
                 pad_inches=0.2,
             )
@@ -88,6 +98,14 @@ def setBasicPlotLook(ax):
     ax.grid(True)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
+
+def remove_axes_and_labels(ax):
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
 
 def plot3Din2D(ax, posData, symbol="x", name=""):
     uniqueZValues = np.unique(posData[:,2].round(decimals=4))
