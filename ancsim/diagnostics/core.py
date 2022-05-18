@@ -121,7 +121,7 @@ class DiagnosticExporter:
         preproc = one_diag_object.preprocess
         export_time_idx = one_diag_object.next_export()
         for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
-            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, **exp_kwarg)
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, printMethod=self.sim_info.plot_output, **exp_kwarg)
 
         for diag in diag_dict.values():
             diag.progress_export()
