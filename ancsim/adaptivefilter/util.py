@@ -21,7 +21,7 @@ class PhaseCounter:
     The number is how many samples that each phase should be
     The first phase will start at sample 0.
 
-    Either np.inf or -1 represents an infinite length
+    np.inf represents an infinite length
     This should naturally only be used for the last phase
     If all phases has finished, the phase will be None. 
 
@@ -38,17 +38,26 @@ class PhaseCounter:
         self.first_sample = True
         
 
-        phase_lengths = {name : length for name, length in self.phase_lengths.items() if length != 0}
-        self.phase_names = list(phase_lengths.keys())
-        self.phase_names.append(None)
-
+        #phase_lengths = {name : length for name, length in self.phase_lengths.items() if length != 0}
+        #phase_lengths = {name : length for name, length in self.phase_lengths.items()}
+        
         #phase_idxs = [i for i in self.phase_lengths.values() if i != 0]
-        phase_idxs = [i if i > 0 else np.inf for i in phase_lengths.values()]
-        assert all([i != 0 for i in phase_idxs])
-        self._start_idxs = np.cumsum(phase_idxs).tolist()
-        self._start_idxs = [i if np.isinf(i) else int(i) for i in self._start_idxs]
-        self._start_idxs.insert(0,0)
-        self.start_idxs = {phase_name:start_idx for phase_name, start_idx in zip(self.phase_names, self._start_idxs)}
+        self.phase_lengths = {name : i if i >= 0 else np.inf for name, i in self.phase_lengths.items()}
+        #assert all([i != 0 for i in p_len])
+        self.start_idxs = np.cumsum(list(self.phase_lengths.values())).tolist()
+        self.start_idxs = [i if np.isinf(i) else int(i) for i in self.start_idxs]
+        self.start_idxs.insert(0,0)
+
+        self.phase_names = list(self.phase_lengths.keys())
+        if self.start_idxs[-1] < np.inf:
+            self.phase_names.append(None)
+        else:
+            self.start_idxs.pop()
+
+        self.start_idxs = {phase_name:start_idx for phase_name, start_idx in zip(self.phase_names, self.start_idxs)}
+
+        self._phase_names = [phase_name for phase_name, phase_len in self.phase_lengths.items() if phase_len > 0]
+        self._start_idxs = [start_idx for start_idx, phase_len in zip(self.start_idxs.values(), self.phase_lengths.values()) if phase_len > 0]
 
         self.idx = 0
         self.next_phase()
@@ -57,7 +66,7 @@ class PhaseCounter:
         if self.verbose:
             print(f"Changed phase from {self.phase}")
             
-        self.phase = self.phase_names.pop(0)
+        self.phase = self._phase_names.pop(0)
         self._start_idxs.pop(0)
         if len(self._start_idxs) == 0:
             self._start_idxs.append(np.inf)
