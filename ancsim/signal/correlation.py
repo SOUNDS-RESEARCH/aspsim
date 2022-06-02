@@ -311,7 +311,7 @@ def is_autocorr_func(func, verbose=False):
         new_func = np.zeros((func.shape[0], func.shape[0], func.shape[1]), dtype=func.dtype)
         for i in range(func.shape[0]):
             new_func[i,i,:] = func[i,:]
-            func = new_func
+        func = new_func
     assert func.ndim == 3
     assert func.shape[0] == func.shape[1]
     num_channels = func.shape[0]
