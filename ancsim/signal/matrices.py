@@ -336,16 +336,22 @@ def ensure_hermitian(mat, overwrite_ok=True):
 
 def ensure_pos_semidef(mat):
     """
-    Ensures matrix is positive semidefinite by setting all
-    negative eigenvalues to 0. 
+    Ensures matrix is positive semidefinite
+        now uses ensure_pos_def_adhoc. Change implementation
+        if there is a better way to ensure positive semidefiniteness
 
     Assumes without checking that mat is hermitian
     If you are unsure, use ensure_hermitian first. 
     """
     assert mat.ndim == 2
-    evs, vec = splin.eigh(mat)
-    evs[evs < 0] = 0
-    return vec @ np.diag(evs) @ vec.T.conj()
+    if _is_pos_semidef(mat):
+        return mat
+
+    # The following seems sensible but appears to be awful numerically
+    # evs, vec = splin.eigh(mat)
+    # evs[evs < 0] = 0
+    # new_mat = vec @ np.diag(evs) @ vec.T.conj()
+    return ensure_pos_def_adhoc(mat)
 
 def ensure_pos_def_adhoc(mat, start_reg=-18, verbose=False):
     return broadcast_func(mat, _ensure_pos_def_adhoc, start_reg=start_reg, verbose=verbose, out_shape=mat.shape[-2:], dtype=mat.dtype)
