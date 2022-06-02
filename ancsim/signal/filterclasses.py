@@ -1,5 +1,7 @@
 import numpy as np
 import itertools as it
+
+from sympy import denom
 import ancsim.signal.freqdomainfiltering as fdf
 import scipy.signal as spsig
 import numba as nb
@@ -311,6 +313,7 @@ class FilterMD_Freqdomain:
         return outputSamples
 
     def setFilter(self, tfNew):
+        raise NotImplementedError
         if tfNew.shape != self.tf.shape:
             self.irLen = self.tf.shape[0] // 2
             self.numFreq = self.tf.shape[0]
@@ -434,6 +437,7 @@ class FilterSum_Freqdomain:
         raise NotImplementedError
 
     def setFilter(self, tfNew):
+        raise NotImplementedError
         if tfNew.shape != self.tf.shape:
             self.irLen = tfNew.shape[0] // 2
             self.numFreq = tfNew.shape[0]
@@ -510,7 +514,7 @@ class MovingAverage:
 
     def reset(self):
         self.initialized = False
-        self.num_init = ceil(1 / self.forget_factor_inv)
+        self.num_init = np.ceil(1 / self.forget_factor_inv)
         self.init_counter = 0
 
 
@@ -546,23 +550,35 @@ class SinglePoleLowPass:
 
 class IIRFilter:
     """
-    
+    num_coeffs and denom_coeffs should be a list of ndarrays,
+        containing the parameters of the rational transfer function
+        If only one channel is desired, the arguments can just be a ndarray
     """
     def __init__(self, num_coeffs, denom_coeffs):
+
+        if not isinstance(num_coeffs, (list, tuple)):
+            assert not isinstance(denom_coeffs, (list, tuple))
+            num_coeffs = [num_coeffs]
+            denom_coeffs = [denom_coeffs]
+        assert isinstance(denom_coeffs, (list, tuple))
         self.num_coeffs = num_coeffs
         self.denom_coeffs = denom_coeffs
-        self.order = max(len(self.num_coeffs), len(self.denom_coeffs))
-        self.filter_state = spsig.lfiltic(self.num_coeffs, self.denom_coeffs, np.zeros((len(self.denom_coeffs)-1)))
+
+        self.num_channels = len(self.num_coeffs)
+        assert len(self.num_coeffs) == len(self.denom_coeffs)
+
+        self.order = [max(len(nc), len(dc)) for nc, dc in zip(self.num_coeffs, self.denom_coeffs)]
+        self.filter_state = [spsig.lfiltic(nc, dc, np.zeros((len(dc)-1))) 
+                                        for nc, dc in zip(self.num_coeffs, self.denom_coeffs)]
 
     def process(self, data_to_filter):
         assert data_to_filter.ndim == 2
         num_channels = data_to_filter.shape[0]
-        num_samples = data_to_filter.shape[1]
-        if num_channels > 1:
-            raise NotImplementedError
-
-        filtered_sig, self.filter_state = spsig.lfilter(self.num_coeffs, self.denom_coeffs, data_to_filter[0,:], axis=-1, zi=self.filter_state)
-        return filtered_sig[None,:]
+        #num_samples = data_to_filter.shape[1]
+        filtered_sig = np.zeros_like(data_to_filter)
+        for ch_idx in range(num_channels):
+            filtered_sig[ch_idx,:], self.filter_state[ch_idx] = spsig.lfilter(self.num_coeffs[ch_idx], self.denom_coeffs[ch_idx], data_to_filter[ch_idx,:], axis=-1, zi=self.filter_state[ch_idx])
+        return filtered_sig
 
 
 
