@@ -53,6 +53,23 @@ class RecordFilter(diacore.InstantDiagnostic):
         return self.prop
 
 
+class RecordFilterDifference(RecordFilter):
+    """
+    """
+    def __init__(self, 
+        state_name,
+        state_name_subtract,
+        *args,
+        **kwargs):
+        super().__init__(state_name, *args, **kwargs)
+        self.get_state_subtract = attritemgetter(state_name_subtract)
+
+    def save(self, processor, chunkInterval, globInterval):
+        self.prop = copy.deepcopy(self.get_prop(processor)) - copy.deepcopy(self.get_state_subtract(processor))
+
+
+
+
 class RecordSignal(diacore.SignalDiagnostic):
     def __init__(self, 
         sig_name, 
@@ -111,6 +128,10 @@ class RecordState(diacore.StateDiagnostic):
 
     def get_output(self):
         return self.state_values
+
+
+
+
 
 
 
