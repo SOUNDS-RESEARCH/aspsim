@@ -66,7 +66,8 @@ def smooth(smooth_len):
 
 
 def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="pdf", scaling="linear"):
-    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+    #fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(7, 4))
     fig.tight_layout(pad=4)
 
     for proc_name, diag in diags.items():
