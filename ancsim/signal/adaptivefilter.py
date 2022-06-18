@@ -96,85 +96,20 @@ class AdaptiveFilterFreq(ABC):
 
 
 
-class LMS_sig_operator:
-    """Sample by sample processing, although it accepts block inputs
-    Dimension of filter is (input channels, output channels, IR length)
-    
-    Not at all finished
-    """
-
-    def __init__(
-        self,
-        ir_len,
-        in_name,
-        out_name,
-        est_name,
-        sig, 
-        step_size,
-        regularization,
-        normalization="channel_independent",
-        filter_type=None,
-    ):
-        raise NotImplementedError
-
-        filter_dim = (num_in, num_out, ir_len)
-        self.num_in = sig[in_name].shape[0]
-        self.num_out = sig[out_name].shape[0]
-        self.ir_len = ir_len
-
-        if filter_type is not None:
-            self.filt = filter_type(ir=np.zeros(filter_dim))
-        else:
-            self.filt = fc.FilterSum(ir=np.zeros(filter_dim))
-        
-        
-        
-        self.step_size = step_size
-        self.reg = regularization
-        if normalization == "channel_independent":
-            self.norm_func = self._channel_indep_norm
-        elif normalization == "channel_common":
-            self.norm_func = self._channel_common_norm
-        elif normalization == "none":
-            self.norm_func = self._no_norm
-
-    def _channel_indep_norm(self):
-        return 1 / (self.reg + np.transpose(self.x, (0, 2, 1)) @ self.x)
-
-    def _channel_common_norm(self):
-        return 1 / (self.reg + np.mean(np.transpose(self.x, (0, 2, 1)) @ self.x))
-    
-    def _no_norm(self):
-        return 1
-
-    def update(self, ref, error):
-        """Inputs should be of the shape (channels, num_samples)"""
-        assert ref.shape[-1] == error.shape[-1]
-        num_samples = ref.shape[-1]
-
-        for n in range(num_samples):
-            self.insert_in_signal(ref[:, n : n + 1])
-            normalization = self.norm_func()
-            self.filt.ir += (
-                self.step_size
-                * normalization
-                * np.squeeze(
-                    error[None, :, None, n : n + 1] * self.x[:, None, :, :], axis=-1
-                )
-            )
-
-    def process(self, signalToProcess):
-        return self.filt.process(signalToProcess)
-
-
-
 
 class LMS(AdaptiveFilterBase):
     """Sample by sample processing, although it accepts block inputs
-    Dimension of filter is (input channels, output channels, IR length)
-    
-    If wait_until_initialized is True, the ir will not be updated until 
-    the full buffer of reference signals is filled. 
+    - Dimension of filter is (input channels, output channels, IR length)
+
+    - ir_len, num_in, num_out are integers
+    - step_size is either a real positive scalar, or a generator that 
+        outputs a real positive scalar for each sample
+    - regularization is a real positive scalar
+    - normalization is a string corresponding to one of the normalization options
+
+    - If wait_until_initialized is True, the ir will not be updated until 
+        the full buffer of reference signals is filled. 
+    - filter_type is deprecated and will be removed later.
     """
 
     def __init__(
@@ -189,8 +124,15 @@ class LMS(AdaptiveFilterBase):
         filter_type=None,
     ):
         super().__init__(ir_len, num_in, num_out, filter_type)
-        self.step_size = step_size
         self.reg = regularization
+
+        if isinstance(step_size, (int, float)):
+            def step_size_gen():
+                while True:
+                    yield step_size
+            self.step_size = step_size_gen()
+        else: # already a generator
+            self.step_size = step_size()
 
         if normalization == "channel_independent":
             self.norm_func = self._channel_indep_norm
@@ -205,7 +147,7 @@ class LMS(AdaptiveFilterBase):
             init_len = 0
         self.phases = afutil.PhaseCounter({"init" : init_len, "processing" : np.inf})
 
-        self.metadata["step size"] = self.step_size
+        #self.metadata["step size"] = self.step_size
         self.metadata["regularization"] = self.reg
         self.metadata["normalization"] = normalization
 
@@ -235,9 +177,10 @@ class LMS(AdaptiveFilterBase):
         for n in range(num_samples):
             self.insert_in_signal(ref[:, n : n + 1])
             if self.phases.current_phase_is("processing"):
+                step_size = next(self.step_size)
                 normalization = self.norm_func()
                 self.filt.ir += (
-                    self.step_size
+                    step_size
                     * normalization
                     * np.squeeze(
                         error[None, :, None, n : n + 1] * self.x[:, None, :, :], axis=-1
@@ -491,67 +434,76 @@ class RLS(AdaptiveFilterBase):
 
 
 
-# class RLS_singleRef(AdaptiveFilterBase):
-#     """Dimension of filter is (input channels, output channels, IR length)
-#     Only works for input channels == 1.
-#     If more is needed, stack the vectors into one instead"""
-
-#     def __init__(self, ir_len, num_in, num_out, forgetting_factor=0.999, signal_power_est=10):
-#         assert num_in == 1
-#         super().__init__(ir_len, num_in, num_out)
-
-#         self.forget = forgetting_factor
-#         self.forget_inv = 1 / forgetting_factor
-#         self.signal_power_est = signal_power_est
-
-#         self.invRefCorr = np.zeros((1, self.ir_len, self.ir_len))
-#         self.invRefCorr[:, :, :] = np.eye(self.ir_len) * signal_power_est
-#         self.crossCorr = np.zeros((self.num_out, self.ir_len, 1))
-
-#     def update(self, ref, desired):
-#         """Inputs should be of the shape (channels, numSamples)"""
-#         assert ref.shape[-1] == desired.shape[-1]
-#         numSamples = ref.shape[-1]
-
-#         for n in range(numSamples):
-#             self.insert_in_signal(ref[:, n : n + 1])
-
-#             tempMat = self.invRefCorr @ self.x
-#             g = tempMat @ np.transpose(tempMat, (0, 2, 1))
-#             denom = self.forget + np.transpose(self.x, (0, 2, 1)) @ tempMat
-#             self.invRefCorr = self.forget_inv * (self.invRefCorr - g / denom)
-
-#             self.crossCorr *= self.forget
-#             self.crossCorr += desired[:, n, None, None] * self.x
-#             self.filt.ir = np.transpose(self.invRefCorr @ self.crossCorr, (2, 0, 1))
 
 
-# class RLS_1d_only(AdaptiveFilterBase):
-#     """Dimension of filter is (input channels, output channels, IR length)"""
 
-#     def __init__(self, filter_dim, forgetting_factor=0.999, signal_power_est=10):
-#         super().__init__(filter_dim)
-#         assert filter_dim[0] == filter_dim[1] == 1
-#         self.forget = forgetting_factor
-#         self.forget_inv = 1 / forgetting_factor
-#         self.signal_power_est = signal_power_est
+class LMS_sig_operator:
+    """Sample by sample processing, although it accepts block inputs
+    Dimension of filter is (input channels, output channels, IR length)
+    
+    Not at all finished
+    """
 
-#         self.invRefCorr = np.zeros((1, self.ir_len, self.ir_len))
-#         self.invRefCorr[:, :, :] = np.eye(self.ir_len) * signal_power_est
-#         self.crossCorr = np.zeros((1, self.ir_len, 1))
+    def __init__(
+        self,
+        ir_len,
+        in_name,
+        out_name,
+        est_name,
+        sig, 
+        step_size,
+        regularization,
+        normalization="channel_independent",
+        filter_type=None,
+    ):
+        raise NotImplementedError
 
-#     def update(self, ref, desired):
-#         assert ref.shape[-1] == desired.shape[-1]
-#         numSamples = ref.shape[-1]
+        filter_dim = (num_in, num_out, ir_len)
+        self.num_in = sig[in_name].shape[0]
+        self.num_out = sig[out_name].shape[0]
+        self.ir_len = ir_len
 
-#         for n in range(numSamples):
-#             self.insert_in_signal(ref[:, n : n + 1])
+        if filter_type is not None:
+            self.filt = filter_type(ir=np.zeros(filter_dim))
+        else:
+            self.filt = fc.FilterSum(ir=np.zeros(filter_dim))
+        
+        
+        
+        self.step_size = step_size
+        self.reg = regularization
+        if normalization == "channel_independent":
+            self.norm_func = self._channel_indep_norm
+        elif normalization == "channel_common":
+            self.norm_func = self._channel_common_norm
+        elif normalization == "none":
+            self.norm_func = self._no_norm
 
-#             tempMat = self.invRefCorr @ self.x
-#             g = tempMat @ np.transpose(tempMat, (0, 2, 1))
-#             denom = self.forget + np.transpose(self.x, (0, 2, 1)) @ tempMat
-#             self.invRefCorr = self.forget_inv * (self.invRefCorr - g / denom)
+    def _channel_indep_norm(self):
+        return 1 / (self.reg + np.transpose(self.x, (0, 2, 1)) @ self.x)
 
-#             self.crossCorr *= self.forget
-#             self.crossCorr += desired[:, n] * self.x
-#             self.filt.ir = np.transpose(self.invRefCorr @ self.crossCorr, (0, 2, 1))
+    def _channel_common_norm(self):
+        return 1 / (self.reg + np.mean(np.transpose(self.x, (0, 2, 1)) @ self.x))
+    
+    def _no_norm(self):
+        return 1
+
+    def update(self, ref, error):
+        """Inputs should be of the shape (channels, num_samples)"""
+        assert ref.shape[-1] == error.shape[-1]
+        num_samples = ref.shape[-1]
+
+        for n in range(num_samples):
+            self.insert_in_signal(ref[:, n : n + 1])
+            normalization = self.norm_func()
+            self.filt.ir += (
+                self.step_size
+                * normalization
+                * np.squeeze(
+                    error[None, :, None, n : n + 1] * self.x[:, None, :, :], axis=-1
+                )
+            )
+
+    def process(self, signalToProcess):
+        return self.filt.process(signalToProcess)
+

@@ -361,19 +361,26 @@ class AutocorrSource(Source):
     def __init__(self, num_channels, autocorr, rng=None):
         super().__init__(num_channels, rng)
         assert autocorr.shape[0] == num_channels
-        if autocorr.shape[0] > 1:
-            raise NotImplementedError
+        
         assert cr.is_autocorr_func(autocorr)
-        ar_coeffs, self.noise_power = ar_coeffs_from_autocorr(autocorr)
-        num_coeffs, denom_coeffs = ar_coeffs_to_transfer_function(ar_coeffs)
+        num_coeffs = []
+        denom_coeffs = []
+        self.noise_power = np.zeros(self.num_channels)
+        for ch_idx in range(self.num_channels):
+            ar_coeffs, self.noise_power[ch_idx] = ar_coeffs_from_autocorr(autocorr[ch_idx:ch_idx+1,:])
+            nc, dc = ar_coeffs_to_transfer_function(ar_coeffs)
+            num_coeffs.append(nc)
+            denom_coeffs.append(dc)
+
         self.filt = fc.IIRFilter(num_coeffs, denom_coeffs)
         self.prepare()
 
     def prepare(self):
-        self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power), size=(self.num_channels, self.filt.order)))
+        for ch_idx in range(self.num_channels):
+            self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power[ch_idx]), size=(self.num_channels, self.filt.order[ch_idx])))
     
     def get_samples(self, num_samples):
-        return self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power), size=(self.num_channels, num_samples)))
+        return self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power)[:,None], size=(self.num_channels, num_samples)))
 
 
 
