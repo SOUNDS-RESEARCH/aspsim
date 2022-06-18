@@ -1,7 +1,7 @@
 import numpy as np
 import numexpr as ne
 import scipy.signal as spsig
-import scipy.linalg as splinalg
+import scipy.linalg as splin
 
 import ancsim.signal.matrices as mat
 import ancsim.signal.filterclasses as fc
@@ -9,7 +9,7 @@ import ancsim.signal.filterclasses as fc
 
 def cov_est_oas(sample_cov, n, verbose=False):
     """
-    Implements the OAS covariance estimator with shrinkage from
+    Implements the OAS covariance estimator with linear shrinkage from
     Shrinkage Algorithms for MMSE Covariance Estimation
 
     n is the number of sample vectors that the sample covariance is 
@@ -34,6 +34,85 @@ def cov_est_oas(sample_cov, n, verbose=False):
     if verbose:
         print(f"OAS covariance estimate is {1-rho_oas} * sample_cov + {reg_factor} * I")
     return cov_est
+
+
+def cov_est_qis(sample_cov, n):
+    """
+    Implements the quadratic-inverse shrinkage, the non-linear shrinkage from 
+    "Quadratic shrinkage for large covariance matrices" by Ledoit and Wolf. 
+
+    Sample vectors in the sample covariance matrix should be i.i.d and zero mean. 
+    
+    n is the sample size of the covariance matrix. If the sample mean was subtracted 
+        (if the variables were not zero mean), the sample size should be adjusted to n-1.
+
+    Code slightly adapted, but mostly taken straight from
+    https://github.com/pald22/covShrinkage by Patrick Ledoit
+    
+    """
+    #Pre-Conditions: Y is a valid pd.dataframe and optional arg- k which can be
+    #    None, np.nan or int
+    #Post-Condition: Sigmahat dataframe is returned
+
+    #Set df dimensions
+    N = Y.shape[0]                                              #num of columns
+    p = Y.shape[1]                                                 #num of rows
+
+    #default setting
+    if (k is None or math.isnan(k)):
+        Y = Y.sub(Y.mean(axis=0), axis=1)                               #demean
+        k = 1
+
+    #vars
+    n = N-k                                      # adjust effective sample size
+    c = p/n                                               # concentration ratio
+
+    #Cov df: sample covariance matrix
+    sample = pd.DataFrame(np.matmul(Y.T.to_numpy(),Y.to_numpy()))/n     
+    sample = (sample+sample.T)/2                              #make symmetrical
+
+    #Spectral decomp
+    lambda1, u = np.linalg.eigh(sample)            #use Cholesky factorisation 
+    #                                               based on hermitian matrix
+    lambda1 = lambda1.real.clip(min=0)              #reset negative values to 0
+    dfu = pd.DataFrame(u,columns=lambda1)   #create df with column names lambda
+    #                                        and values u
+    dfu.sort_index(axis=1,inplace = True)              #sort df by column index
+    lambda1 = dfu.columns                              #recapture sorted lambda
+
+    #COMPUTE Quadratic-Inverse Shrinkage estimator of the covariance matrix
+    h = (min(c**2,1/c**2)**0.35)/p**0.35                   #smoothing parameter
+    invlambda = 1/lambda1[max(1,p-n+1)-1:p]  #inverse of (non-null) eigenvalues
+    dfl = pd.DataFrame()
+    dfl['lambda'] = invlambda
+    Lj = dfl[np.repeat(dfl.columns.values,min(p,n))]          #like  1/lambda_j
+    Lj = pd.DataFrame(Lj.to_numpy())                        #Reset column names
+    Lj_i = Lj.subtract(Lj.T)                    #like (1/lambda_j)-(1/lambda_i)
+
+    theta = Lj.multiply(Lj_i).div(Lj_i.multiply(Lj_i).add(
+        Lj.multiply(Lj)*h**2)).mean(axis = 0)          #smoothed Stein shrinker
+    Htheta = Lj.multiply(Lj*h).div(Lj_i.multiply(Lj_i).add(
+        Lj.multiply(Lj)*h**2)).mean(axis = 0)                    #its conjugate
+    Atheta2 = theta**2+Htheta**2                         #its squared amplitude
+
+    if p<=n:               #case where sample covariance matrix is not singular
+        delta = 1 / ((1-c)**2*invlambda+2*c*(1-c)*invlambda*theta \
+                    +c**2*invlambda*Atheta2)    #optimally shrunk eigenvalues
+        delta = delta.to_numpy()
+    else:
+        delta0 = 1/((c-1)*np.mean(invlambda.to_numpy())) #shrinkage of null 
+        #                                                 eigenvalues
+        delta = np.repeat(delta0,p-n)
+        delta = np.concatenate((delta, 1/(invlambda*Atheta2)), axis=None)
+
+    deltaQIS = delta*(sum(lambda1)/sum(delta))                  #preserve trace
+    
+    temp1 = dfu.to_numpy()
+    temp2 = np.diag(deltaQIS)
+    temp3 = dfu.T.to_numpy().conjugate()
+    #reconstruct covariance matrix
+    sigmahat = pd.DataFrame(np.matmul(np.matmul(temp1,temp2),temp3))
+    return sigmahat
 
 
 
@@ -371,7 +450,48 @@ def corr_matrix_distance(mat1, mat2):
     return 1 - np.trace(mat1 @ mat2) / (norm1 * norm2)
 
 
+def covariance_distance_riemannian(mat1, mat2):
+    """
+    Computes the covariance matrix distance as proposed in 
+        A Metric for Covariance Matrices - Wolfgang Förstner, Boudewijn Moonen
+        http://www.ipb.uni-bonn.de/pdfs/Forstner1999Metric.pdf
 
+    It is the distance of a canonical invariant Riemannian metric on the space 
+        Sym+(n, R) of real symmetric positive definite matrices. 
+
+    When the metric of the space is the fisher information metric, this is the 
+        distance of the space. See COVARIANCE CLUSTERING ON RIEMANNIAN MANIFOLDS
+        FOR ACOUSTIC MODEL COMPRESSION - Shinohara, Masukp, Akamine
+
+    Invariant to affine transformations and inversions. 
+    It is a distance measure, so 0 means equal and then it goes to infinity
+        and the matrices become more unequal.
+
+    """
+    eigvals = splin.eigh(mat1, mat2, eigvals_only=True)
+    return np.sqrt(np.sum(np.log(eigvals)**2))
+
+
+def covariance_distance_kl_divergence(mat1, mat2):
+    """
+    It is the Kullback Leibler divergence between two Gaussian
+        distributions that has mat1 and mat2 as their covariance matrices. 
+        Assumes both of these distributions has zero mean
+
+    It is a distance measure, so 0 means equal and then it goes to infinity
+        and the matrices become more unequal.
+    
+    """
+    assert mat1.shape == mat2.shape
+    assert mat1.shape[0] == mat1.shape[1]
+    assert mat.ndim == 2
+    N = mat1.shape[0]
+    eigvals = splin.eigh(mat1, mat2, eigvals_only=True)
+
+    det1 = splin.det(mat1)
+    det2 = splin.det(mat2)
+    common_trace = np.sum(eigvals)
+    return np.sqrt((np.log(det2 / det1) + common_trace - N) / 2)
 
 
 

@@ -353,10 +353,10 @@ def ensure_pos_semidef(mat):
     # new_mat = vec @ np.diag(evs) @ vec.T.conj()
     return ensure_pos_def_adhoc(mat)
 
-def ensure_pos_def_adhoc(mat, start_reg=-18, verbose=False):
+def ensure_pos_def_adhoc(mat, start_reg=-12, verbose=False):
     return broadcast_func(mat, _ensure_pos_def_adhoc, start_reg=start_reg, verbose=verbose, out_shape=mat.shape[-2:], dtype=mat.dtype)
 
-def _ensure_pos_def_adhoc(mat, start_reg=-18, verbose=False):
+def _ensure_pos_def_adhoc(mat, start_reg=-12, verbose=False):
     """
     Adds a scaled identity matrix to the matrix in
     order to ensure positive definiteness. Starts by 
