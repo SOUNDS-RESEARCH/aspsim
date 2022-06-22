@@ -7,9 +7,6 @@ import dill
 
 import ancsim.utilities as util
 import ancsim.configutil as configutil
-from ancsim.simulatorlogging import addToSimMetadata
-from ancsim.signal.filterclasses import FilterSum
-import ancsim.experiment.multiexperimentutils as meu
 import ancsim.array as ar
 
 
@@ -17,15 +14,8 @@ import ancsim.array as ar
 def saveSession(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
     sessionPath = util.getUniqueFolderName("session_" + extraprefix, sessionFolder)
 
-    # config = getConfig()
-    # pos = setupPos(config)
-    # sourceFilters, speakerFilters, irMetadata = setupIR(pos, config)
-
     sessionPath.mkdir()
     saveArrays(sessionPath, arrays)
-    # savePositions(sessionPath, pos)
-    # saveSourceFilters(sessionPath, sourceFilters)
-    # saveSpeakerFilters(sessionPath, speakerFilters)
     saveConfig(sessionPath, config)
     if simMetadata is not None:
         addToSimMetadata(sessionPath, simMetadata)
@@ -38,10 +28,6 @@ def loadSession(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
     print("Loaded Session: ", str(sessionToLoad))
     loadedArrays = loadArrays(sessionToLoad)
     
-    # pos = loadPositions(sessionToLoad)
-    # srcFilt = loadSourceFilters(sessionToLoad)
-    # spkFilt = loadSpeakerFilters(sessionToLoad)
-    #copySimMetadata(sessionToLoad, newFolderPath)
     return loadedArrays
     
 def loadFromPath(sessionPathToLoad, newFolderPath=None):
@@ -88,20 +74,6 @@ def saveRawData(filters, timeIdx, folderPath):
         dill.dump(filters[0].processor.src, f)
 
 
-def loadControlFilter(sessionPath):
-    filePath = meu.getHighestNumberedFile(sessionPath, "controlFilter_", ".npy")
-    controlFilt = np.load(sessionPath.joinpath("controlFilter"))
-    return controlFilt
-
-
-# def saveConfig(pathToSave, config):
-#     with open(pathToSave.joinpath("configfile.json"), "w") as f:
-#         json.dump(config, f, indent=4)
-
-# def loadConfig(sessionPath):
-#     with open(sessionPath.joinpath("configfile.json"), "r") as f:
-#         conf = json.load(f)
-#     return conf
 def saveConfig(pathToSave, config):
     if pathToSave is not None:
         with open(pathToSave.joinpath("config.yaml"), "w") as f:
@@ -124,40 +96,26 @@ def saveArrays(pathToSave, arrays):
         with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
             dill.dump(arrays, f)
 
-def saveSpeakerFilters(folderPath, speakerFilters):
-    np.savez(folderPath.joinpath("speakerfilters.npz"), **speakerFilters)
 
 
-def loadSpeakerFilters(folderPath):
-    with np.load(folderPath.joinpath("speakerfilters.npz")) as loadedFile:
-        speakerFilters = {}
-        for key in loadedFile.files:
-            speakerFilters[key] = loadedFile[key]
-    return speakerFilters
+def addToSimMetadata(folderPath, dictToAdd):
+    try:
+        with open(folderPath.joinpath("metadata_sim.json"), "r") as f:
+            oldData = json.load(f)
+            totData = {**oldData, **dictToAdd}
+    except FileNotFoundError:
+        totData = dictToAdd
+    with open(folderPath.joinpath("metadata_sim.json"), "w") as f:
+        json.dump(totData, f, indent=4)
 
 
-def saveSourceFilters(folderPath, sourceFilters):
-    np.savez(
-        folderPath.joinpath("sourcefilters.npz"),
-        **{key: filt.ir for key, filt in sourceFilters.items()}
-    )
-
-
-def loadSourceFilters(folderPath):
-    with np.load(folderPath.joinpath("sourcefilters.npz")) as srcFilt:
-        sourceFilters = {}
-        for key in srcFilt.files:
-            sourceFilters[key] = FilterSum(srcFilt[key])
-    return sourceFilters
-
-
-def savePositions(path, pos):
-    np.savez(path.joinpath("pos.npz"), **pos)
-
-
-def loadPositions(folder):
-    with np.load(folder.joinpath("pos.npz")) as loadedPos:
-        pos = {}
-        for key in loadedPos.files:
-            pos[key] = loadedPos[key]
-    return pos
+def writeFilterMetadata(filters, folderPath):
+    if folderPath is None:
+        return
+        
+    fileName = "metadata_processor.json"
+    totMetadata = {}
+    for filt in filters:
+        totMetadata[filt.name] = filt.metadata
+    with open(folderPath.joinpath(fileName), "w") as f:
+        json.dump(totMetadata, f, indent=4)

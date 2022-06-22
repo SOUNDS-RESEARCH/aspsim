@@ -1,4 +1,3 @@
-from enum import auto
 import numpy as np
 import scipy.signal as spsig
 import scipy.linalg as splin

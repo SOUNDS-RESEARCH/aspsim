@@ -5,7 +5,7 @@ from abc import ABC
 import copy
 import matplotlib.pyplot as plt
 
-from ancsim.experiment.plotscripts import outputPlot
+from ancsim.diagnostics.plotscripts import output_plot
 import ancsim.soundfield.roomimpulseresponse as rir
 import ancsim.soundfield.geometry as geo
 
@@ -268,7 +268,7 @@ class ArrayCollection():
         ax.grid(True)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
-        outputPlot(print_method, fig_folder, "array_pos")
+        output_plot(print_method, fig_folder, "array_pos")
 
 
     # def get_paths_src_subset(self, selectedSrc):

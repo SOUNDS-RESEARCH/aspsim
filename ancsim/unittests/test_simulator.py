@@ -8,7 +8,7 @@ import pytest
 
 from ancsim.simulator import SimulatorSetup
 import ancsim.array as ar
-import ancsim.adaptivefilter.base as bse
+import ancsim.processor as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.diagnostics.diagnosticutils as diautil
@@ -82,7 +82,7 @@ def test_trajectory_mic(sim_setup):
     reset_sim_setup(sim_setup)
     sim_setup.config["reverb"] = "ism"
     sim_setup.config["rt60"] = 0.15
-    room_size : [4, 3, 3]
+    #room_size = [4, 3, 3]
     sim_setup.config["max_room_ir_length"] = 256
     sim_setup.arrays = ar.ArrayCollection()
     mic_traj = ar.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])

@@ -5,7 +5,7 @@ import copy
 
 import ancsim.array as ar
 import ancsim.utilities as util
-import ancsim.experiment.plotscripts as psc
+import ancsim.diagnostics.plotscripts as psc
 import ancsim.signal.filterclasses as fc
 import ancsim.signal.correlation as corr
 import ancsim.diagnostics.diagnosticplots as dplot

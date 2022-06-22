@@ -5,7 +5,7 @@ import operator as op
 
 import ancsim.array as ar
 import ancsim.utilities as util
-import ancsim.experiment.plotscripts as psc
+import ancsim.diagnostics.plotscripts as psc
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.diagnosticplots as dplot
 import ancsim.diagnostics.diagnosticsummary as dsum

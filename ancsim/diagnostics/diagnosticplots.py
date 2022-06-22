@@ -3,8 +3,8 @@ import scipy.signal as spsig
 import matplotlib.pyplot as plt
 import soundfile as sf
 
-from ancsim.experiment.plotscripts import outputPlot
-import ancsim.experiment.multiexperimentutils as meu
+from ancsim.diagnostics.plotscripts import output_plot
+import ancsim.fileutility as fu
 import ancsim.utilities as util
 
 
@@ -99,7 +99,7 @@ def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="p
     ax.set_xlabel(diag.plot_data["xlabel"])
     ax.set_ylabel(diag.plot_data["ylabel"])
     ax.set_title(diag.plot_data["title"] + " - " + name)
-    outputPlot(printMethod, folder, name + "_" + str(time_idx))
+    output_plot(printMethod, folder, name + "_" + str(time_idx))
 
 def plotMultipleChannels(ax, time_idx, signal, labels):
     if signal.shape[-1] < 10:
@@ -139,7 +139,7 @@ def savenpz(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     np.savez_compressed(folder.joinpath(f"{name}_{time_idx}"), **outputs)
 
     if list(diags.values())[0].keep_only_last_export:
-        earlierFiles = meu.findAllEarlierFiles(folder, name, time_idx, nameIncludesIdx=False)
+        earlierFiles = fu.findAllEarlierFiles(folder, name, time_idx, nameIncludesIdx=False)
         for f in earlierFiles:
             if f.suffix == ".npz":
                 f.unlink()
@@ -186,7 +186,7 @@ def plotIR(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
         legendWithoutDuplicates(ax, "upper right")
         #ax.legend(loc="upper right")
         
-    outputPlot(printMethod, folder, f"{name}_{time_idx}")
+    output_plot(printMethod, folder, f"{name}_{time_idx}")
 
 def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
@@ -202,7 +202,7 @@ def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
         ax.set_title(f"{name} - {proc_name}")
         ax.spines["right"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-    outputPlot(printMethod, folder, f"{name}_{time_idx}")
+    output_plot(printMethod, folder, f"{name}_{time_idx}")
 
 
 def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):

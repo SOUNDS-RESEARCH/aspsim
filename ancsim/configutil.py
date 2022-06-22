@@ -37,7 +37,7 @@ PARAM_CATEGORIES = {"simulation" : ["tot_samples", "sim_buffer", "sim_chunk_size
                                 "plot_output", "output_smoothing", 
                                 "auto_save_load"]}
 
-def getDefaultConfig():
+def get_default_config():
     with open(Path(__file__).parent.joinpath("config.yaml")) as f:
         config = yaml.safe_load(f)
     return config

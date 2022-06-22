@@ -6,7 +6,7 @@ import ancsim.utilities as util
 
 import matplotlib.pyplot as plt
 
-import ancsim.adaptivefilter.base as base
+import ancsim.processor as processor
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
@@ -18,7 +18,7 @@ import ancsim.signal.filterdesign as fd
 
 
 
-class SoundzoneFIR(base.AudioProcessor):
+class SoundzoneFIR(processor.AudioProcessor):
     def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs):
         super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.name = "Soundzone processor"
@@ -97,7 +97,7 @@ class SoundzoneFIR(base.AudioProcessor):
 
 
 
-class SoundzoneFIR_superposition(base.AudioProcessor):
+class SoundzoneFIR_superposition(processor.AudioProcessor):
     def __init__(self, sim_info, arrays, blockSize, src, ctrlFiltLen, **kwargs):
         super().__init__(sim_info, arrays, blockSize, **kwargs)
         self.name = "Abstract Soundzone Processor"

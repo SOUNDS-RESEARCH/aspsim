@@ -8,7 +8,7 @@ import pytest
 
 from ancsim.simulator import SimulatorSetup
 import ancsim.array as ar
-import ancsim.adaptivefilter.base as bse
+import ancsim.processor as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.diagnostics.diagnosticutils as diautil

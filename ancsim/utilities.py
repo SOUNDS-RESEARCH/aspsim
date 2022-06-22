@@ -29,7 +29,7 @@ def pol2cart(r, angle):
 def cart2spherical(cartCoord):
     """cartCoord is shape = (numPoints, 3)
         returns (r, angle), defined as in spherical2cart"""
-    r = np.linalg.norm(cardCoord, axis=1)
+    r = np.linalg.norm(cartCoord, axis=1)
     raise NotImplementedError
 
 def spherical2cart(r, angle):
