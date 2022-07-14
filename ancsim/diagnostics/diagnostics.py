@@ -15,9 +15,30 @@ import ancsim.diagnostics.diagnosticsummary as dsum
 import ancsim.diagnostics.core as diacore
 
 
+# def attritemgetter(name):
+#     assert name[0] != "["
+#     attributes = name.replace("]", "").replace("'", "")
+#     attributes = attributes.split(".")
+#     attributes = [attr.split("[") for attr in attributes]
+
+#     def getter (obj):
+#         for sub_list in attributes:
+#             obj = getattr(obj, sub_list[0])
+#             for item in sub_list[1:]:
+#                 obj = obj[item]
+#         return obj
+#     return getter
+
 def attritemgetter(name):
+    """
+    If you have a dictionary with strings, use the name "dict_obj['key']"
+    Without apostrophes, the key is assumed to be a list index, and is converted to integer.
+
+    TODO: Possibly allow for objects other than integers, such as indexing arrays
+    
+    """
     assert name[0] != "["
-    attributes = name.replace("]", "").replace("'", "")
+    attributes = name.replace("]", "")
     attributes = attributes.split(".")
     attributes = [attr.split("[") for attr in attributes]
 
@@ -25,6 +46,12 @@ def attritemgetter(name):
         for sub_list in attributes:
             obj = getattr(obj, sub_list[0])
             for item in sub_list[1:]:
+                if item[0] == "'":
+                    if not item[-1] == "'":
+                        raise ValueError("Unmatched apostrophes")
+                    item = item.replace("'", "")
+                else:
+                    item = int(item)
                 obj = obj[item]
         return obj
     return getter
