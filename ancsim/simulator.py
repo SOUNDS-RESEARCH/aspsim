@@ -34,6 +34,8 @@ class SimulatorSetup:
     def addArrays(self, arrayCollection):
         for ar in arrayCollection:
             self.arrays.add_array(ar)
+        self.arrays.set_path_types(arrayCollection.path_type)
+        pass
             #if ar.is_source:
             #    self.arrays.paths[ar.name] = {}
 
