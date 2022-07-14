@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from ancsim.experiment.plotscripts import outputPlot
 import ancsim.soundfield.roomimpulseresponse as rir
 import ancsim.soundfield.geometry as geo
+import ancsim.utilities as util
 
 class ArrayCollection():
     def __init__(self):
@@ -507,5 +508,56 @@ class LinearTrajectory(Trajectory):
 
     #     return cls(pos_func)
 
+class CircularTrajectory(Trajectory):
+    def __init__(self, radius, center, z, radial_period, angle_period, samplerate):
+        """
+        Moves around a circle in one angle_period, while it moves from the outside
+            of the disc to the center and back again in one radial_period
 
+        The circle is defined by its center and radius
+
+        center is a list of length 3 or a ndarray with ndim==1 of length 3
+        radius is in meters
+        radial_period, angle_period is in seconds
+        samplerate is the sample rate of the simulation
+        """
+        self.radius = radius
+        self.center = center
+        self.z = z
+        self.radial_period = radial_period
+        self.angle_period = angle_period
+        self.samplerate = samplerate
+
+        def pos_func(t):
+            angle_period_samples = t % (angle_period * samplerate)
+            radial_period_samples = t % (radial_period * samplerate)
+
+            angle_portion = angle_period_samples / (angle_period * samplerate)
+            radial_portion = radial_period_samples / (radial_period * samplerate)
+
+            angle = 2 * np.pi * angle_portion
+
+            if radial_portion < 0.5:
+                rad = radius * (1 - 2 * radial_portion)
+            else:
+                rad = radius * (radial_portion-0.5)*2
+
+            (x,y) = util.pol2cart(rad, angle)
+            return np.array([[x,y,z]]) + center
+
+        super().__init__(pos_func)
+
+    def plot(self, ax, symbol, label):
+        approx_num_points = 1000
+        max_samples = self.samplerate*max(self.radial_period, self.angle_period)
+        samples_per_point = max_samples // approx_num_points
+        t = np.arange(0, max_samples, samples_per_point)
+        num_points = t.shape[0]
+
+        pos = np.zeros((num_points, 3))
+        for i in range(num_points):
+            pos[i,:] = np.squeeze(self.pos_func(t[i]))
+        ax.plot(pos[:,0], pos[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
+
+        # ax.plot(self.anchor_points[:,0], self.anchor_points[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
 
