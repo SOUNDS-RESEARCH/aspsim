@@ -272,39 +272,6 @@ class ArrayCollection():
         outputPlot(print_method, fig_folder, "array_pos")
 
 
-    # def get_paths_src_subset(self, selectedSrc):
-    #     ir = {}
-
-    #     if isinstance(src, ArrayType):
-    #         return {src, mic, path for self.iter_paths() if src.typ == selectedSrc}
-    #     elif isinstance(src, str):
-    #         return {src, mic, path for self.iter_paths() if src.name == selectedSrc}
-        
-    # def of_type(self, typ):
-    #     """typ is an ArrayType Enum object, 
-    #         specifying which type of array to iterate over"""
-    #     for ar in self.arrays.values():
-    #         if ar.typ == typ:
-    #             yield ar
-    
-
-
-# class ArrayType(Enum):
-#     MIC = 0
-#     REGION = 1
-#     CTRLSOURCE = 2
-#     FREESOURCE = 3
-
-#     @property
-#     def is_mic(self):
-#         return self in (ArrayType.MIC, ArrayType.REGION)
-    
-#     @property
-#     def is_source(self):
-#         return self in (ArrayType.CTRLSOURCE, ArrayType.FREESOURCE)
-
-
-
 class Array(ABC):
     is_mic = False
     is_source = False

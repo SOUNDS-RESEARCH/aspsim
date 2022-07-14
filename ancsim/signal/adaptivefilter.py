@@ -301,7 +301,7 @@ class FastBlockLMS(AdaptiveFilterFreq):
         return 1 / (self.refPowerEstimate.state + self.beta)
     
     def channelIndependentNormalization(self, ref, freqRef):
-        return 1 / (np.mean(np.abs(X)**2,axis=0, keepdims=True) + self.beta)
+        return 1 / (np.mean(np.abs(freqRef)**2,axis=0, keepdims=True) + self.beta)
 
 
     def update(self, ref, error):
