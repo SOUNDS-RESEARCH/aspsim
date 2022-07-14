@@ -196,6 +196,7 @@ class AudioProcessor(ABC):
         and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
         if isinstance(dim, int):
             dim = (dim,)
+        assert isinstance(dim, tuple)
         assert name not in self.sig
         self.sig[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
 
