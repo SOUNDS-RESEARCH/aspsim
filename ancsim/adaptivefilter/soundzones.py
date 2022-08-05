@@ -56,7 +56,7 @@ class SoundzoneFIR(base.AudioProcessor):
         self.control_filters = [fc.createFilter(ir) for ir in control_filter_ir]
 
         #diag_preset_power_of_signals(self)
-        self.diag.add_diagnostic(f"power_ls_tot", dia.SignalPower(f"ls_tot", self.sim_info, self.blockSize, preprocess=[[dplot.smooth(self.sim_info.output_smoothing), dplot.db_power]]))
+        self.diag.add_diagnostic(f"power_ls_tot", dia.SignalPower(f"ls_tot", self.sim_info, self.blockSize, preprocess=[[dplot.smooth(self.sim_info.output_smoothing), dplot.db_power, dplot.clip(-5, 10)]]))
         for k in range(self.num_zones):
             self.diag.add_diagnostic(f"power_audio_signal_{k}", dia.SignalPower(f"audio_sig_{k}", self.sim_info, self.blockSize, preprocess=[[dplot.smooth(self.sim_info.output_smoothing), dplot.db_power]]))
             self.diag.add_diagnostic(f"power_ls_{k}", dia.SignalPower(f"ls_{k}", self.sim_info, self.blockSize, preprocess=[[dplot.smooth(self.sim_info.output_smoothing), dplot.db_power]]))
