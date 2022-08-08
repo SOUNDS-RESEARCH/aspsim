@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import ancsim.fileutilities as fu
 import ancsim.saveloadsession as sess
 import ancsim.diagnostics.plotscripts as ps
-import ancsim.soundfield.roomimpulseresponse as rir
-import ancsim.soundfield.geometry as geo
+import ancsim.room.roomimpulseresponse as rir
+import ancsim.room.geometry as geo
 #from ancsim.simulatorsetup import setupSource
 import ancsim.signal.sources
 from ancsim.signal.filterclasses import FilterSum
@@ -359,7 +359,7 @@ def sf_plot(ax, pos, sig, title="", arrays_to_plot = {}):
 
     ax.legend()
     ax.set_title(title)
-    ps.setBasicPlotLook(ax)
+    ps.set_basic_plot_look(ax)
     ax.axis("equal")
     plt.colorbar(im, ax=ax, orientation='vertical')
     #plt.colorbar(ax=ax)

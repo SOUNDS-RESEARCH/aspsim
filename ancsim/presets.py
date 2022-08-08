@@ -3,9 +3,9 @@ import numpy as np
 # np.random.seed(1)
 import copy
 
-import ancsim.soundfield.generatepoints as gp
+import ancsim.room.generatepoints as gp
 import ancsim.array as ar
-import ancsim.soundfield.geometry as geo
+import ancsim.room.geometry as geo
 import ancsim.signal.sources as src
 
 def debug (config):

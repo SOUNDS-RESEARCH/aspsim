@@ -6,8 +6,8 @@ import copy
 import matplotlib.pyplot as plt
 
 from ancsim.diagnostics.plotscripts import output_plot
-import ancsim.soundfield.roomimpulseresponse as rir
-import ancsim.soundfield.geometry as geo
+import ancsim.room.roomimpulseresponse as rir
+import ancsim.room.geometry as geo
 
 class ArrayCollection():
     def __init__(self):

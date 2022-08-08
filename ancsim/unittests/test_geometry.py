@@ -3,8 +3,8 @@ from hypothesis import given
 import hypothesis.strategies as st
 import numpy as np
 
-from ancsim.soundfield.geometryutilities import getCenterOfCircle
-from ancsim.soundfield.generatepoints import equiangularCircle
+from ancsim.room.geometryutilities import getCenterOfCircle
+from ancsim.room.generatepoints import equiangularCircle
 
 
 # CURRENTLY NOT BEING TESTED;

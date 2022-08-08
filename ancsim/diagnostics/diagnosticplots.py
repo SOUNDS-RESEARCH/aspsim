@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal as spsig
 import matplotlib.pyplot as plt
+import tikzplotlib
 import soundfile as sf
 
 from ancsim.diagnostics.plotscripts import output_plot
@@ -55,6 +56,129 @@ def smooth(smooth_len):
         return spsig.oaconvolve(signal, ir, mode="full", axes=-1)[:,:signal.shape[-1]]
     return smooth_internal
 
+
+
+
+
+
+
+
+
+
+
+
+
+def delete_earlier_tikz_plot(folder, name):
+    currentIdx = fu.findIndexInName(name)
+    if currentIdx is None:
+        return
+
+    earlierFiles = fu.findAllEarlierFiles(folder, name, currentIdx)
+    for f in earlierFiles:
+        if f.is_dir():
+            for plotFile in f.iterdir():
+                # assert(plotFile.stem.startswith(startName))
+                try:
+                    if plotFile.suffix == ".pdf":
+                        plotFile.rename(
+                            folder.joinpath(plotFile.stem + plotFile.suffix)
+                        )
+                    else:
+                        assert plotFile.suffix == ".tsv" or plotFile.suffix == ".tex"
+                        plotFile.unlink()
+                except PermissionError:
+                    pass
+            try:
+                f.rmdir()
+            except PermissionError:
+                pass
+
+def output_plot(printMethod, folder, name="", keepOnlyLatestTikz=True):
+    if printMethod == "show":
+        plt.show()
+    elif printMethod == "tikz":
+        if folder is not None:
+            nestedFolder = folder.joinpath(name)
+            try:
+                nestedFolder.mkdir()
+            except FileExistsError:
+                pass
+            tikzplotlib.save(
+                str(nestedFolder.joinpath(name + ".tex")),
+                externalize_tables=True,
+                tex_relative_path_to_data="../figs/" + name + "/",
+                float_format=".8g",
+            )
+            plt.savefig(
+                str(nestedFolder.joinpath(name + ".pdf")),
+                dpi=300,
+                facecolor="w",
+                edgecolor="w",
+                orientation="portrait",
+                format="pdf",
+                transparent=True,
+                bbox_inches=None,
+                pad_inches=0.2,
+            )
+            if keepOnlyLatestTikz:
+                delete_earlier_tikz_plot(folder, name)
+    elif printMethod == "pdf":
+        if folder is not None:
+            plt.savefig(
+                str(folder.joinpath(name + ".pdf")),
+                dpi=300,
+                facecolor="w",
+                edgecolor="w",
+                orientation="portrait",
+                format="pdf",
+                transparent=True,
+                #bbox_inches=None,
+                bbox_inches="tight",
+                pad_inches=0.2,
+            )
+    elif printMethod == "svg":
+        if folder is not None:
+            plt.savefig(
+                str(folder.joinpath(name + ".svg")),
+                dpi=300,
+                format="svg",
+                transparent=True,
+                bbox_inches="tight",
+                pad_inches=0.2,
+            )
+    elif printMethod == "none":
+        pass
+    else:
+        raise ValueError
+    plt.close("all")
+
+
+
+def set_basic_plot_look(ax):
+    ax.grid(True)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+def remove_axes_and_labels(ax):
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+def plot_3d_in_2d(ax, posData, symbol="x", name=""):
+    uniqueZValues = np.unique(posData[:,2].round(decimals=4))
+    
+    # if len(uniqueZValues) == 1:
+    #     alpha = np.array([1])
+    # else:
+    #     alpha = np.linspace(0.4, 1, len(uniqueZValues))
+
+    for i, zVal in enumerate(uniqueZValues):
+        idx = np.where(np.around(posData[:,2],4) == zVal)[0]
+
+        ax.plot(posData[idx,0], posData[idx,1], symbol, label=f"{name}: z = {zVal}")
 
 
 

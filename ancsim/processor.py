@@ -7,7 +7,6 @@ import ancsim.signal.filterclasses as fc
 
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
-import ancsim.signal.freqdomainfiltering as fdf
 
 
 
