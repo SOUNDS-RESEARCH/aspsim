@@ -6,7 +6,6 @@ import soundfile as sf
 
 
 import ancsim.fileutilities as fu
-import ancsim.utilities as util
 
 
 

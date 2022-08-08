@@ -63,7 +63,7 @@ class Sequence(Source):
     def get_samples(self, num_samples):
         sig = np.zeros((self.num_channels, num_samples))
         if self.end_mode == "repeat":
-            block_lengths = util.calcBlockSizes(num_samples, self.current_sample, self.tot_samples)
+            block_lengths = util.calc_block_sizes(num_samples, self.current_sample, self.tot_samples)
             i = 0
             for block_len in block_lengths:
                 sig[:,i:i+block_len] = self.audio[:,self.current_sample:self.current_sample+block_len]

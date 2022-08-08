@@ -12,35 +12,35 @@ import ancsim.array as ar
 
 
 
-def saveSession(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
+def save_session(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
     sessionPath = futil.getUniqueFolderName("session_" + extraprefix, sessionFolder)
 
     sessionPath.mkdir()
-    saveArrays(sessionPath, arrays)
-    saveConfig(sessionPath, config)
+    save_arrays(sessionPath, arrays)
+    save_config(sessionPath, config)
     if simMetadata is not None:
-        addToSimMetadata(sessionPath, simMetadata)
+        add_to_sim_metadata(sessionPath, simMetadata)
 
-def loadSession(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
+def load_session(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
     """sessionsPath refers to the folder where all sessions reside 
         This function will load a session matching the chosenConfig 
         and chosenArrays if it exists"""
-    sessionToLoad = searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays)
+    sessionToLoad = search_for_matching_session(sessionsPath, chosenConfig, chosenArrays)
     print("Loaded Session: ", str(sessionToLoad))
-    loadedArrays = loadArrays(sessionToLoad)
+    loadedArrays = load_arrays(sessionToLoad)
     
     return loadedArrays
     
-def loadFromPath(sessionPathToLoad, newFolderPath=None):
-    loadedArrays = loadArrays(sessionPathToLoad)
-    loadedConfig = loadConfig(sessionPathToLoad)
+def load_from_path(sessionPathToLoad, newFolderPath=None):
+    loadedArrays = load_arrays(sessionPathToLoad)
+    loadedConfig = load_config(sessionPathToLoad)
 
     if newFolderPath is not None:
-        copySimMetadata(sessionPathToLoad, newFolderPath)
-        saveConfig(newFolderPath, loadedConfig)
+        copy_sim_metadata(sessionPathToLoad, newFolderPath)
+        save_config(newFolderPath, loadedConfig)
     return loadedConfig, loadedArrays
 
-def copySimMetadata(fromFolder, toFolder):
+def copy_sim_metadata(fromFolder, toFolder):
     shutil.copy(
         fromFolder.joinpath("metadata_sim.json"), toFolder.joinpath("metadata_sim.json")
     )
@@ -48,12 +48,12 @@ def copySimMetadata(fromFolder, toFolder):
 
 class MatchingSessionNotFoundError(ValueError): pass
 
-def searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays):
+def search_for_matching_session(sessionsPath, chosenConfig, chosenArrays):
     for dirPath in sessionsPath.iterdir():
         if dirPath.is_dir():
             #currentSess = sessionsPath.joinpath(dirPath)
-            loadedConfig = loadConfig(dirPath)
-            loadedArrays = loadArrays(dirPath)
+            loadedConfig = load_config(dirPath)
+            loadedArrays = load_arrays(dirPath)
             #print("configs", configutil.configMatch(chosenConfig, loadedConfig))
             #print("arrays", chosenArrays == loadedArrays)
             if configutil.configMatch(chosenConfig, loadedConfig, chosenArrays.path_type) and \
@@ -62,44 +62,31 @@ def searchForMatchingSession(sessionsPath, chosenConfig, chosenArrays):
     raise MatchingSessionNotFoundError("No matching saved sessions")
 
 
-def saveRawData(filters, timeIdx, folderPath):
-    controlFiltDict = {}
-    for filt in filters:
-        controlFiltDict[filt.processor.name] = filt.processor.controlFilter.ir
-
-    np.savez_compressed(
-        file=folderPath.joinpath("controlFilter_" + str(timeIdx)), **controlFiltDict
-    )
-
-    with open(folderPath.joinpath("input_source.pickle"), "wb") as f:
-        dill.dump(filters[0].processor.src, f)
-
-
-def saveConfig(pathToSave, config):
+def save_config(pathToSave, config):
     if pathToSave is not None:
         with open(pathToSave.joinpath("config.yaml"), "w") as f:
             yaml.dump(config, f, sort_keys=False)
 
-def loadConfig(sessionPath):
+def load_config(sessionPath):
     with open(sessionPath.joinpath("config.yaml")) as f:
         config = yaml.safe_load(f)
     return config
 
 
-def loadArrays(sessionPath):
+def load_arrays(sessionPath):
     with open(sessionPath.joinpath("arrays.pickle"), "rb") as f:
         arrays = dill.load(f)
     return arrays
 
 
-def saveArrays(pathToSave, arrays):
+def save_arrays(pathToSave, arrays):
     if pathToSave is not None:
         with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
             dill.dump(arrays, f)
 
 
 
-def addToSimMetadata(folderPath, dictToAdd):
+def add_to_sim_metadata(folderPath, dictToAdd):
     try:
         with open(folderPath.joinpath("metadata_sim.json"), "r") as f:
             oldData = json.load(f)
@@ -110,13 +97,13 @@ def addToSimMetadata(folderPath, dictToAdd):
         json.dump(totData, f, indent=4)
 
 
-def writeFilterMetadata(filters, folderPath):
+def write_processor_metadata(processors, folderPath):
     if folderPath is None:
         return
         
     fileName = "metadata_processor.json"
     totMetadata = {}
-    for filt in filters:
-        totMetadata[filt.name] = filt.metadata
+    for proc in processors:
+        totMetadata[proc.name] = proc.metadata
     with open(folderPath.joinpath(fileName), "w") as f:
         json.dump(totMetadata, f, indent=4)

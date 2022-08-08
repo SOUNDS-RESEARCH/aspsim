@@ -353,7 +353,7 @@ class GoldSequenceSource(src.Source):
 
     def get_samples(self, num_samples):
         outSignal = np.zeros((self.num_channels, num_samples))
-        blockLengths = util.calcBlockSizes(num_samples, self.idx, self.seqLength)
+        blockLengths = util.calc_block_sizes(num_samples, self.idx, self.seqLength)
         outIdx = 0
         for blockLen in blockLengths:
             outSignal[:, outIdx : outIdx + blockLen] = self.sequences[

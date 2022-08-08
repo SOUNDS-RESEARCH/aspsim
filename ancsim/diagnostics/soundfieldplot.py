@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import ancsim.fileutilities as fu
-import ancsim.saveloadsession as sess
+import ancsim.saveload_session as sess
 import ancsim.room.geometry as geo
 import ancsim.signal.filterclasses as fc
 import ancsim.utilities as util
@@ -22,7 +22,7 @@ def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
 def makeSoundfieldPlot(singleRunFolder, sessionFolder, arrays_sim, normalize=True):
     sim_info, proc_info, arrays, filterCoeffs, source = setupSession(singleRunFolder, sessionFolder, arrays_sim)
     
-    # config, pos, source, filterCoeffs, sourceRIR, speakerRIR = loadSession(
+    # config, pos, source, filterCoeffs, sourceRIR, speakerRIR = load_session(
     #     singleRunFolder, sessionFolder, numPixels
     # )
 
@@ -189,8 +189,8 @@ def genSpeakerSignals(
 
 
 def setupSession(singleRunFolder, sessionFolder, arrays):
-    #config, arrays = sess.loadFromPath(singleRunFolder)
-    config = sess.loadConfig(singleRunFolder)
+    #config, arrays = sess.load_from_path(singleRunFolder)
+    config = sess.load_config(singleRunFolder)
     
     newArrays = ar.ArrayCollection()
     for src in arrays.sources():
@@ -203,11 +203,11 @@ def setupSession(singleRunFolder, sessionFolder, arrays):
     newArrays.set_default_path_type(sim_info.reverb)
     if config["auto_save_load"]:
         try:
-            newArrays = sess.loadSession(sessionFolder, None, config, newArrays)
+            newArrays = sess.load_session(sessionFolder, None, config, newArrays)
         except sess.MatchingSessionNotFoundError:
             irMetadata = newArrays.setupIR(sim_info)
-            sess.saveSession(sessionFolder, config, newArrays, simMetadata=irMetadata)
-            #sess.addToSimMetadata(folderPath, irMetadata)     
+            sess.save_session(sessionFolder, config, newArrays, simMetadata=irMetadata)
+            #sess.add_to_sim_metadata(folderPath, irMetadata)     
     else:
         newArrays.setupIR(sim_info)
 
@@ -237,13 +237,13 @@ def setupSession(singleRunFolder, sessionFolder, arrays):
     return sim_info, proc_info, newArrays, filterCoeffs, source
 
 
-def loadSession(singleRunFolder, sessionFolder, numPixels):
-    config = sess.loadConfig(singleRunFolder)
+def load_session(singleRunFolder, sessionFolder, numPixels):
+    config = sess.load_config(singleRunFolder)
     config["TARGETPOINTSPLACEMENT"] = "image"
     config["NUMTARGET"] = numPixels
 
-    if config["LOADSESSION"]:
-        pos, sourceRIR, speakerRIR = sess.loadSession(
+    if config["load_session"]:
+        pos, sourceRIR, speakerRIR = sess.load_session(
             sessionFolder, singleRunFolder, config
         )
     else:

@@ -383,7 +383,7 @@ class EventCounter:
 
 
 
-def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):
+def calc_block_sizes_with_buffer(numSamples, idx, bufferSize, chunkSize):
     leftInBuffer = chunkSize + bufferSize - idx
     sampleCounter = 0
     blockSizes = []
@@ -397,7 +397,7 @@ def calcBlockSizes(numSamples, idx, bufferSize, chunkSize):
     return blockSizes
 
 
-def findFirstIndexForBlock(earliestStartIndex, indexToEndAt, blockSize):
+def find_first_index_for_block(earliestStartIndex, indexToEndAt, blockSize):
     """If processing in fixed size blocks, this function will give the index
         to start at if the processing should end at a specific index.
         Useful for preparation processing, where the exact startpoint isn't important
@@ -407,7 +407,7 @@ def findFirstIndexForBlock(earliestStartIndex, indexToEndAt, blockSize):
     indexToStartAt = indexToEndAt - blockSize*numBlocks
     return indexToStartAt
 
-def blockProcessUntilIndex(earliestStartIndex, indexToEndAt, blockSize):
+def block_process_until_index(earliestStartIndex, indexToEndAt, blockSize):
     """Use as 
         for startIdx, endIdx in blockProcessUntilIndex(earliestStart, indexToEnd, blockSize):
             process(signal[...,startIdx:endIdx])
@@ -423,7 +423,7 @@ def blockProcessUntilIndex(earliestStartIndex, indexToEndAt, blockSize):
     for i in range(numBlocks):
         yield indexToStartAt+i*blockSize, indexToStartAt+(i+1)*blockSize
 
-def getWhiteNoiseAtSNR(rng, signal, dim, snr, identicalChannelPower=False):
+def generate_white_noise_at_snr(rng, signal, dim, snr, identicalChannelPower=False):
     """generates Additive White Gaussian Noise
     signal to calculate signal level. time dimension is last dimension
     dim is dimension of output AWGN

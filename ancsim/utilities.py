@@ -1,92 +1,27 @@
 import numpy as np
-import datetime
 import time
 from functools import wraps
 import numpy as np
 
-# only scalar for now
-def isPowerOf2(x):
-    return isInteger(np.log2(x))
 
-def isInteger(x):
-    if np.all(np.isclose(x, x.astype(int))):
-        return True
-    return False
-
-def cart2pol(x, y):
-    r = np.hypot(x, y)
-    angle = np.arctan2(y, x)
-    return (r, angle)
-
-def pol2cart(r, angle):
-    x = r * np.cos(angle)
-    y = r * np.sin(angle)
-    return (x, y)
-
-def cart2spherical(cartCoord):
-    """cartCoord is shape = (numPoints, 3)
-        returns (r, angle), defined as in spherical2cart"""
-    r = np.linalg.norm(cartCoord, axis=1)
-    raise NotImplementedError
-
-def spherical2cart(r, angle):
-    """r is shape (numPoints, 1) or (numPoints)
-        angle is shape (numPoints, 2)
-        angle[:,0] is theta
-        angle[:,1] is phi
-        theta is normal polar coordinate angle, 0 is x direction, pi/2 is y direction
-        phi is azimuth, 0 is z direction, pi is negative z direction"""
-    numPoints = r.shape[0]
-    cartCoord = np.zeros((numPoints,3))
-    cartCoord[:,0] = np.squeeze(r) * np.cos(angle[:,0]) * np.sin(angle[:,1])
-    cartCoord[:,1] = np.squeeze(r) * np.sin(angle[:,0]) * np.sin(angle[:,1])
-    cartCoord[:,2] = np.squeeze(r) * np.cos(angle[:,1])
-    return cartCoord
-
-def getSmallestCoprime(N):
-    assert N > 2 #don't have to deal with 1 and 2 at this point
-    for i in range(2,N):
-        if np.gcd(i,N):
-            return i
-
-def nextDivisible(divisor, minValue):
-    """Gives the smallest integer divisible by divisor, 
-        that is strictly larger than minValue"""
-    rem = (minValue + divisor) % divisor
-    return minValue + divisor - rem
-
-def db2mag(db):
-    return 10 ** (db / 20)
-
-def mag2db(amp):
-    return 20 * np.log10(amp)
-
-def db2pow(db):
-    return 10 ** (db / 10)
-
-def pow2db(power):
-    return 10 * np.log10(power)
-
-def avgPower(signal, axis=None):
-    return np.mean(np.abs(signal) ** 2, axis=axis)
+def calc_block_sizes(num_samples, start_idx, block_size):
+    left_in_block = block_size - start_idx
+    sample_counter = 0
+    block_sizes = []
+    while sample_counter < num_samples:
+        block_len = np.min((num_samples - sample_counter, left_in_block))
+        block_sizes.append(block_len)
+        sample_counter += block_len
+        left_in_block -= block_len
+        if left_in_block == 0:
+            left_in_block = block_size
+    return block_sizes
 
 
-def calcBlockSizes(numSamples, startIdx, blockSize):
-    leftInBlock = blockSize - startIdx
-    sampleCounter = 0
-    blockSizes = []
-    while sampleCounter < numSamples:
-        blockLen = np.min((numSamples - sampleCounter, leftInBlock))
-        blockSizes.append(blockLen)
-        sampleCounter += blockLen
-        leftInBlock -= blockLen
-        if leftInBlock == 0:
-            leftInBlock = blockSize
-    return blockSizes
-
-
-# edited, originally from JBirdVegas, stackoverflow
 def measure(name):
+    """
+        edited, originally from JBirdVegas, stackoverflow
+    """
     def measure_internal(func):
         @wraps(func)
         def _time_it(*args, **kwargs):
@@ -100,37 +35,28 @@ def measure(name):
     return measure_internal
 
 
-def flattenDict(dictToFlatten, parentKey="", sep="~"):
+def flatten_dict(dict_to_flatten, parent_key="", sep="~"):
     items = []
-    for key, value in dictToFlatten.items():
-        newKey = parentKey + sep + key if parentKey else key
+    for key, value in dict_to_flatten.items():
+        new_key = parent_key + sep + key if parent_key else key
         if isinstance(value, dict):
-            items.extend(flattenDict(value, newKey, sep).items())
+            items.extend(flatten_dict(value, new_key, sep).items())
         else:
-            items.append((newKey, value))
-    newDict = dict(items)
-    return newDict
+            items.append((new_key, value))
+    new_dict = dict(items)
+    return new_dict
 
 
-def restackDict(dictToStack, sep="~"):
+def restack_dict(dict_to_stack, sep="~"):
     """Only accepts dicts of depth 2.
     All elements must be of that depth."""
-    extractedData = {}
-    for multiKey in dictToStack.keys():
-        keyList = multiKey.split(sep)
-        if len(keyList) > 2:
+    extracted_data = {}
+    for multi_key in dict_to_stack.keys():
+        key_list = multi_key.split(sep)
+        if len(key_list) > 2:
             raise NotImplementedError
-        if keyList[0] not in extractedData:
-            extractedData[keyList[0]] = {}
-        extractedData[keyList[0]][keyList[1]] = dictToStack[multiKey]
-    return extractedData
+        if key_list[0] not in extracted_data:
+            extracted_data[key_list[0]] = {}
+        extracted_data[key_list[0]][key_list[1]] = dict_to_stack[multi_key]
+    return extracted_data
 
-
-# def restackDict(dictToStack, sep="~"):
-#     extractedData = {}
-#     for key in data.keys():
-#         keyList = key.split(sep)
-#         if a[0] not in extractedData:
-#             extractedData[a[0]] = {}
-#         extractedData[a[0]][a[1]] = data[key]
-#     return extractedData

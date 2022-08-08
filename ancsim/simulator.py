@@ -10,7 +10,7 @@ import ancsim.configutil as configutil
 from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
 from ancsim.processor import ProcessorWrapper, FreeSourceHandler
 
-import ancsim.saveloadsession as sess
+import ancsim.saveload_session as sess
 import ancsim.presets as preset
 import ancsim.diagnostics.core as diacore
 
@@ -63,16 +63,16 @@ class SimulatorSetup:
 
     def load_from_path(self, sessionPath):
         self.folderPath = self._create_fig_folder(self.baseFolderPath)
-        loaded_config, loaded_arrays = sess.loadFromPath(sessionPath, self.folderPath)
+        loaded_config, loaded_arrays = sess.load_from_path(sessionPath, self.folderPath)
         self.setConfig(loaded_config)
         self.arrays = loaded_arrays
         #self.freeSrcProp.prepare(self.config, self.arrays)
 
-    # def loadSession(self, sessionPath=None, config=None):
+    # def load_session(self, sessionPath=None, config=None):
     #     if config is not None:
-    #         return sess.loadSession(sessionPath, self.folderPath, config)
+    #         return sess.load_session(sessionPath, self.folderPath, config)
     #     else:
-    #         return sess.loadSession(sessionPath, self.folderPath)
+    #         return sess.load_session(sessionPath, self.folderPath)
 
     def use_preset(self, preset_name, **kwargs):
         preset_functions = {
@@ -100,17 +100,17 @@ class SimulatorSetup:
 
         if self.config["auto_save_load"] and self.sessionFolder is not None:
             try:
-                finished_arrays = sess.loadSession(self.sessionFolder, folderPath, self.config, finished_arrays)
+                finished_arrays = sess.load_session(self.sessionFolder, folderPath, self.config, finished_arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
                 irMetadata = finished_arrays.setupIR(sim_info)
-                sess.saveSession(self.sessionFolder, self.config, finished_arrays, simMetadata=irMetadata)
-                #sess.addToSimMetadata(folderPath, irMetadata)     
+                sess.save_session(self.sessionFolder, self.config, finished_arrays, simMetadata=irMetadata)
+                #sess.add_to_sim_metadata(folderPath, irMetadata)     
         else:
             finished_arrays.setupIR(sim_info)
 
         # LOGGING AND DIAGNOSTICS
-        sess.saveConfig(folderPath, self.config)
+        sess.save_config(folderPath, self.config)
         finished_arrays.plot(folderPath, self.config["plot_output"])
         finished_arrays.save_metadata(folderPath)
         return Simulator(sim_info, finished_arrays, folderPath)
@@ -153,7 +153,7 @@ class Simulator:
             
     def _setup_simulation(self):
         set_unique_processor_names(self.processors)
-        sess.writeFilterMetadata(self.processors, self.folderPath)
+        sess.write_processor_metadata(self.processors, self.folderPath)
 
         self.plot_exporter = diacore.DiagnosticExporter(
             self.sim_info, self.processors
