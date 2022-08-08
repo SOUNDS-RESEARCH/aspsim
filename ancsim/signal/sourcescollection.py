@@ -4,9 +4,10 @@ import scipy.linalg as splin
 import soundfile as sf
 
 import ancsim.utilities as util
-import ancsim.signal.correlation as cr
 import ancsim.signal.filterclasses as fc
 import ancsim.signal.sources as src
+
+import aspcol.correlation as cr
 
 #SOURCES
 class SineSource(src.Source):

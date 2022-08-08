@@ -1,14 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
-import itertools as it
-import operator as op
 
-import ancsim.array as ar
-import ancsim.utilities as util
-import ancsim.diagnostics.plotscripts as psc
-import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.diagnosticplots as dplot
-import ancsim.diagnostics.diagnosticsummary as dsum
 
 
 """

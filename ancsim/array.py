@@ -194,11 +194,11 @@ class ArrayCollection():
             path = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
         elif reverb == "ism":
             if sim_info.spatial_dims == 3:
-                path = rir.irRoomImageSource3d(
+                path = rir.ir_room_image_source_3d(
                         src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
                         sim_info.max_room_ir_length, sim_info.rt60, 
                         sim_info.samplerate, sim_info.c,
-                        calculateMetadata=return_path_info,
+                        calculate_metadata=return_path_info,
                         verbose = verbose)
                 if return_path_info:
                     path, path_info["ism_info"] = path
@@ -206,10 +206,10 @@ class ArrayCollection():
                 raise ValueError
         elif reverb == "freespace":
             if sim_info.spatial_dims == 3:
-                path = rir.irPointSource3d(
+                path = rir.ir_point_source_3d(
                 src.pos, mic.pos, sim_info.samplerate, sim_info.c)
             elif sim_info.spatial_dims == 2:
-                path = rir.irPointSource2d(
+                path = rir.ir_point_source_2d(
                     src.pos, mic.pos, sim_info.samplerate, sim_info.c
                 )
             else:

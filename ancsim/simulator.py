@@ -11,7 +11,6 @@ from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, Fre
 from ancsim.processor import ProcessorWrapper, FreeSourceHandler
 
 import ancsim.saveloadsession as sess
-import ancsim.diagnostics.plotscripts as psc
 import ancsim.presets as preset
 import ancsim.diagnostics.core as diacore
 

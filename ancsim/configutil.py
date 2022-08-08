@@ -1,4 +1,3 @@
-import ancsim.utilities as util
 from pathlib import Path
 import yaml
 

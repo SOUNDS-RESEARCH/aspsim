@@ -3,7 +3,6 @@ import scipy.linalg as splin
 import copy
 
 
-import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.core as diacore
 
 import aspcol.correlation as corr

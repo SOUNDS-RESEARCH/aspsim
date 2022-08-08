@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import dill
 import numpy as np
