@@ -95,7 +95,7 @@ class Sequence(Source):
         return sig * self.amp_factor
 
 
-class Counter(src.Source):
+class Counter(Source):
     """
     Counts from start_number and adds one per sample
         used primarily for debugging

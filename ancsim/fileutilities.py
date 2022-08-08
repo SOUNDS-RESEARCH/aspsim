@@ -146,3 +146,17 @@ def toNum(val):
         except ValueError:
             pass
 
+
+
+def find_index_in_name(name):
+    idx = []
+    for ch in reversed(name):
+        if ch.isdigit():
+            idx.append(ch)
+        else:
+            break
+    if len(idx) == 0:
+        return None
+    idx = int("".join(idx[::-1]))
+    assert name.endswith(str(idx))
+    return idx

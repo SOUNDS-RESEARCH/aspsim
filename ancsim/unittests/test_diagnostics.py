@@ -11,7 +11,7 @@ import ancsim.array as ar
 import ancsim.processor as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
-import ancsim.diagnostics.diagnosticutils as diautil
+import ancsim.fileutilities as fu
 
 # @pytest.fixture(scope="session")
 # def sim_setup(tmp_path_factory):
@@ -59,7 +59,7 @@ def test_signal_diagnostics_simplest(sim_setup):
     for f in sim.folderPath.iterdir():
         if f.stem.startswith("mic"):
             one_file_saved = True
-            idx = diautil.find_index_in_name(f.stem)
+            idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
                 assert np.allclose(data, np.arange(sim.sim_info.sim_buffer, 
@@ -108,7 +108,7 @@ def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs
     
     for f in sim.folderPath.iterdir():
         if f.stem.startswith("mic"):
-            idx = diautil.find_index_in_name(f.stem)
+            idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
                 assert np.allclose(data, np.arange(sim.sim_info.sim_buffer, 
@@ -195,7 +195,7 @@ def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
     for f in sim.folderPath.iterdir():
         if f.stem.startswith("state"):
             one_file_saved = True
-            idx = diautil.find_index_in_name(f.stem)
+            idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
                 assert np.allclose(data, np.arange(bs, idx+1, bs))
@@ -296,7 +296,7 @@ def test_two_processors_with_different_diagnostics(sim_setup, bs):
 
     for f in sim.folderPath.iterdir():
         if f.stem.startswith("mic"):
-            idx = diautil.find_index_in_name(f.stem)
+            idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
                 assert np.allclose(data[:idx+1], np.arange(sim.sim_info.sim_buffer, 

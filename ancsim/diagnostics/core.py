@@ -487,6 +487,23 @@ class InstantDiagnostic(Diagnostic):
 
 
 
+def attritemgetter(name):
+    assert name[0] != "["
+    attributes = name.replace("]", "").replace("'", "")
+    attributes = attributes.split(".")
+    attributes = [attr.split("[") for attr in attributes]
+
+    def getter (obj):
+        for sub_list in attributes:
+            obj = getattr(obj, sub_list[0])
+            for item in sub_list[1:]:
+                obj = obj[item]
+        return obj
+    return getter
+
+
+
+
 def get_values_up_to_idx(signal, max_idx):
     """
     gives back signal values that correspond to time_values less than max_idx, 
