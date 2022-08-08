@@ -7,16 +7,12 @@ import matplotlib.pyplot as plt
 
 import ancsim.fileutilities as fu
 import ancsim.saveloadsession as sess
-import ancsim.diagnostics.plotscripts as ps
-import ancsim.room.roomimpulseresponse as rir
 import ancsim.room.geometry as geo
-#from ancsim.simulatorsetup import setupSource
-import ancsim.signal.sources
-from ancsim.signal.filterclasses import FilterSum
 import ancsim.signal.filterclasses as fc
 import ancsim.utilities as util
 import ancsim.configutil as configutil
 import ancsim.array as ar
+import ancsim.diagnostics.diagnosticplots as dplot
 
 
 def generateSoundfieldForFolder(singleSetFolder, sessionFolder):
@@ -86,7 +82,7 @@ def makeSoundfieldPlot(singleRunFolder, sessionFolder, arrays_sim, normalize=Tru
         ax.set_title(algoNames[i])
         ax.set_xlim(pointsToSim[:, 0].min(), pointsToSim[:, 0].max())
         ax.set_ylim(pointsToSim[:, 1].min(), pointsToSim[:, 1].max())
-    ps.output_plot("tikz", singleRunFolder, "soundfield")
+    dplot.output_plot("tikz", singleRunFolder, "soundfield")
 
     np.savez(singleRunFolder.joinpath("sf_raw"), **{algoName:sf for algoName, sf in zip(algoNames, avgSoundfields)})
     np.save(singleRunFolder.joinpath("sf_pos"), pointsToSim)
@@ -130,7 +126,7 @@ def soundSim(
         while i < numTotPoints:
             print(i)
             numPoints = np.min((maxPointsInIter, numTotPoints - i))
-            sourceToPointsFilt = FilterSum(
+            sourceToPointsFilt = fc.FilterSum(
                 sourceToPoints.ir[:, i : i + numPoints, :]
             )
             pointNoise = sourceToPointsFilt.process(sourceSig)[:, startBuffer:]
@@ -150,7 +146,7 @@ def soundSim(
             #sourceToPointsFilt = FilterSum(
             #    sourceToPoints.ir[:, i : i + numPoints, :]
             #)
-            speakerToPointsFilt = FilterSum(
+            speakerToPointsFilt = fc.FilterSum(
                 arrays.paths["speaker"]["image"][:, i : i + numPoints, :]
             )
             pointSig = speakerToPointsFilt.process(speakerSig)[:, -samplesToAverage:]
@@ -171,7 +167,7 @@ def genSpeakerSignals(
     outputs = []
     for ir in filterCoeffs.values():
         if ir.dtype == np.float64:
-            filt = FilterSum(ir)
+            filt = fc.FilterSum(ir)
             outputs.append(filt.process(sourceSig[:, :-blockSize])[:, ir.shape[-1] :])
         elif ir.dtype == np.complex128:
             idx = blockSize

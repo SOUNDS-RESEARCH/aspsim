@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import tikzplotlib
 import soundfile as sf
 
-from ancsim.diagnostics.plotscripts import output_plot
+
 import ancsim.fileutilities as fu
 import ancsim.utilities as util
 
