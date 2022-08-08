@@ -5,7 +5,7 @@ import tikzplotlib
 import os
 import pathlib
 import ancsim.utilities as util
-import ancsim.fileutility as fu
+import ancsim.fileutilities as fu
 
 
 def deleteEarlierTikzPlot(folder, name):

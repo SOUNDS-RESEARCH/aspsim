@@ -6,13 +6,14 @@ import yaml
 import dill
 
 import ancsim.utilities as util
+import ancsim.fileutilities as futil
 import ancsim.configutil as configutil
 import ancsim.array as ar
 
 
 
 def saveSession(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
-    sessionPath = util.getUniqueFolderName("session_" + extraprefix, sessionFolder)
+    sessionPath = futil.getUniqueFolderName("session_" + extraprefix, sessionFolder)
 
     sessionPath.mkdir()
     saveArrays(sessionPath, arrays)

@@ -5,7 +5,7 @@ import dill
 import numpy as np
 import matplotlib.pyplot as plt
 
-import ancsim.fileutility as fu
+import ancsim.fileutilities as fu
 import ancsim.saveloadsession as sess
 import ancsim.diagnostics.plotscripts as ps
 import ancsim.soundfield.roomimpulseresponse as rir

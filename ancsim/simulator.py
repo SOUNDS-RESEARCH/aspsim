@@ -4,6 +4,7 @@ from pathlib import Path
 import copy
 
 import ancsim.utilities as util
+import ancsim.fileutilities as futil
 import ancsim.configutil as configutil
 
 from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
@@ -120,7 +121,7 @@ class SimulatorSetup:
             return None
 
         if generateSubFolder:
-            folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
+            folderName = futil.getUniqueFolderName("figs_", folderForPlots, safeNaming)
             folderName.mkdir()
         else:
             folderName = folderForPlots

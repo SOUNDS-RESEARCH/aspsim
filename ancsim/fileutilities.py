@@ -1,11 +1,59 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import json
-import os
-import itertools as it
-import pathlib
+import datetime
 
-import ancsim.utilities as util
+
+
+
+def getTimeString(detailed=False):
+    tm = datetime.datetime.now()
+    timestr = (
+        str(tm.year)
+        + "_"
+        + str(tm.month).zfill(2)
+        + "_"
+        + str(tm.day).zfill(2)
+        + "_"
+        + str(tm.hour).zfill(2)
+        + "_"
+        + str(tm.minute).zfill(2)
+    )  # + "_"+\
+    # str(tm.second).zfill(2)
+    if detailed:
+        timestr += "_" + str(tm.second).zfill(2)
+        timestr += "_" + str(tm.microsecond).zfill(2)
+    return timestr
+
+
+def getUniqueFolderName(prefix, parentFolder, detailedNaming=False):
+    fileName = prefix + getTimeString(detailed=detailedNaming)
+    fileName += "_0"
+    folderName = parentFolder.joinpath(fileName)
+    if folderName.exists():
+        idx = 1
+        folderNameLen = len(folderName.name) - 2
+        while folderName.exists():
+            newName = folderName.name[:folderNameLen] + "_" + str(idx)
+            folderName = folderName.parent.joinpath(newName)
+            idx += 1
+    # folderName += "/"
+    return folderName
+
+
+def getMultipleUniqueFolderNames(prefix, parentFolder, numNames):
+    startPath = getUniqueFolderName(prefix, parentFolder)
+    subFolderName = startPath.parts[-1]
+    baseFolder = startPath.parent
+
+    startIdx = int(subFolderName.split("_")[-1])
+    startIdxLen = len(subFolderName.split("_")[-1])
+    baseName = subFolderName[:-startIdxLen]
+
+    folderNames = []
+    for i in range(numNames):
+        folderNames.append(baseFolder.joinpath(baseName + str(i + startIdx)))
+
+    return folderNames
+
+
 
 
 
