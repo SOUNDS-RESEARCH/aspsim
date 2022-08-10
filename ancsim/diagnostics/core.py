@@ -51,7 +51,6 @@ and as explained above, by the time data is saved to diagnostics, the globalIdx 
 
 
 
-
 class DiagnosticExporter:
     def __init__(self, sim_info, processors):
         self.sim_info = sim_info
@@ -303,7 +302,7 @@ class Diagnostic:
         """
         save_at_idx is an iterable which gives all indices for which to save data. 
                     Must be an integer multiple of the block size. (maybe change to 
-                    must be equal or larger than the block size) 
+                    must be equal or larger than the block size)
         """
         self.sim_info = sim_info
         self.block_size = block_size

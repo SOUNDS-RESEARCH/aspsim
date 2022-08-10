@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import ancsim.fileutilities as fu
-import ancsim.saveload_session as sess
+import ancsim.saveloadsession as sess
 import ancsim.room.geometry as geo
 import ancsim.signal.filterclasses as fc
 import ancsim.utilities as util
@@ -205,13 +205,13 @@ def setupSession(singleRunFolder, sessionFolder, arrays):
         try:
             newArrays = sess.load_session(sessionFolder, None, config, newArrays)
         except sess.MatchingSessionNotFoundError:
-            irMetadata = newArrays.setupIR(sim_info)
+            irMetadata = newArrays.setup_ir(sim_info)
             sess.save_session(sessionFolder, config, newArrays, simMetadata=irMetadata)
             #sess.add_to_sim_metadata(folderPath, irMetadata)     
     else:
-        newArrays.setupIR(sim_info)
+        newArrays.setup_ir(sim_info)
 
-    controlFilterPath = fu.getHighestNumberedFile(
+    controlFilterPath = fu.get_highest_numbered_file(
         singleRunFolder, "controlFilter_", ".npz"
     )
     if controlFilterPath is None:
@@ -249,7 +249,7 @@ def load_session(singleRunFolder, sessionFolder, numPixels):
     else:
         raise NotImplementedError
 
-    controlFilterPath = fu.getHighestNumberedFile(
+    controlFilterPath = fu.get_highest_numbered_file(
         singleRunFolder, "controlFilter_", ".npz"
     )
     if controlFilterPath is None:

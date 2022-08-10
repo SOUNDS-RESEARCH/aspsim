@@ -451,3 +451,40 @@ class FilterSum_Freqdomain:
                 (2, 1, 0),
             )
 
+
+
+
+# Single dimensional filter with internal buffer
+# if multiple input channels are set,
+# the same filter will be used for all input channels
+class Filter_IntBuffer:
+    """
+    Deprecated, to be removed
+    """
+    def __init__(self, ir=None, irLen=None, numIn=1, dtype=np.float64):
+        if ir is not None:
+            self.ir = ir
+            self.irLen = ir.shape[-1]
+        elif irLen is not None:
+            self.ir = np.zeros((irLen), dtype=dtype)
+            self.irLen = irLen
+        else:
+            raise Exception("Not enough constructor arguments")
+        self.numIn = numIn
+        self.buffer = np.zeros((numIn, self.irLen - 1), dtype=dtype)
+
+    def process(self, dataToFilter):
+        numSamples = dataToFilter.shape[-1]
+        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+        filtered = np.zeros((self.numIn, numSamples))
+        for i in range(self.numIn):
+            filtered[i, :] = spsig.convolve(self.ir, bufferedInput[i, :], "valid")
+
+        # self.buffer[:,:] = bufferedInput[:,-self.irLen+1:]
+        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        return filtered
+
+    def setIR(self, irNew):
+        if irNew.shape != self.ir.shape:
+            self.irLen = irNew.shape[-1]
+        self.ir = irNew

@@ -47,6 +47,7 @@ class RecordFilterDifference(RecordFilter):
 
 
 
+
 class RecordSignal(diacore.SignalDiagnostic):
     def __init__(self, 
         sig_name, 

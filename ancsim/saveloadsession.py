@@ -13,7 +13,7 @@ import ancsim.array as ar
 
 
 def save_session(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
-    sessionPath = futil.getUniqueFolderName("session_" + extraprefix, sessionFolder)
+    sessionPath = futil.get_unique_folder_name("session_" + extraprefix, sessionFolder)
 
     sessionPath.mkdir()
     save_arrays(sessionPath, arrays)
@@ -56,7 +56,7 @@ def search_for_matching_session(sessionsPath, chosenConfig, chosenArrays):
             loadedArrays = load_arrays(dirPath)
             #print("configs", configutil.configMatch(chosenConfig, loadedConfig))
             #print("arrays", chosenArrays == loadedArrays)
-            if configutil.configMatch(chosenConfig, loadedConfig, chosenArrays.path_type) and \
+            if configutil.config_match(chosenConfig, loadedConfig, chosenArrays.path_type) and \
                 ar.ArrayCollection.prototype_equals(chosenArrays, loadedArrays):
                 return dirPath
     raise MatchingSessionNotFoundError("No matching saved sessions")

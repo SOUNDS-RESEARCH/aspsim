@@ -5,7 +5,7 @@ import yaml
 
 class SimulatorInfo:
     def __init__(self, config):
-        checkConfig(config)
+        check_config(config)
         self.tot_samples = config["tot_samples"]
         self.sim_buffer = config["sim_buffer"]
         self.sim_chunk_size = config["sim_chunk_size"]
@@ -41,7 +41,7 @@ def get_default_config():
         config = yaml.safe_load(f)
     return config
 
-def checkConfig(conf):
+def check_config(conf):
     #check that all config params are categorized
     for key, val in conf.items():
         categorized = False
@@ -61,7 +61,7 @@ def checkConfig(conf):
 
    # assert numFilt == len(conf["BLOCKSIZE"])
 
-def getAudioAffectingParams(config, path_types):
+def get_audio_affecting_params(config, path_types):
     categories_to_check = ["audio"]
     if any("ism" in src_path_types.values() for src_path_types in path_types.values()):
         categories_to_check.append("ism")
@@ -79,8 +79,8 @@ def getAudioAffectingParams(config, path_types):
 
 
 
-def configMatch(config1, config2, path_types):
-    return getAudioAffectingParams(config1, path_types) == \
-            getAudioAffectingParams(config2, path_types)
+def config_match(config1, config2, path_types):
+    return get_audio_affecting_params(config1, path_types) == \
+            get_audio_affecting_params(config2, path_types)
 
 

@@ -5,7 +5,7 @@ import copy
 
 import ancsim.room.generatepoints as gp
 import ancsim.array as ar
-import ancsim.room.geometry as geo
+import ancsim.room.region as reg
 import ancsim.signal.sources as src
 
 def debug (config):
@@ -26,7 +26,7 @@ def debug (config):
     return arrays, propPaths
 
 
-def audioProcessing(config, 
+def audio_processing(config, 
                      numInput=1,
                      numOutput=1):
     if numInput > 1 or numOutput > 1:
@@ -47,7 +47,7 @@ def audioProcessing(config,
     propPaths = {"source":{"input":"isolated"}, "output" : {"input":"none"}}
     return arrays, propPaths
 
-def signalEstimation(config, 
+def signal_estimation(config, 
                      numInput=1,
                      numOutput=1):
 
@@ -68,7 +68,7 @@ def signalEstimation(config,
 
     return arrays, propPaths
 
-def ancMultiPoint(config, 
+def anc_multi_point(config, 
                     numError=4, 
                     numSpeaker=4, 
                     targetWidth=1.0,
@@ -78,7 +78,7 @@ def ancMultiPoint(config,
     arrays = ar.ArrayCollection()
 
     arrays.add_array(ar.MicArray("error",
-        gp.FourEquidistantRectangles(
+        gp.four_equidistant_rectangles(
             numError,
             targetWidth,
             0.03,
@@ -87,7 +87,7 @@ def ancMultiPoint(config,
     )))
 
     arrays.add_array(ar.ControllableSourceArray("speaker",
-        gp.stackedEquidistantRectangles(
+        gp.stacked_equidistant_rectangles(
             numSpeaker,
             2,
             [speakerWidth, speakerWidth],

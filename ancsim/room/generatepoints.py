@@ -2,34 +2,34 @@ import numpy as np
 import ancsim.utilities as util
 
 
-def concentricalCircles(
-    numPoints, numCircles, radius, zDistance=None, angleOffset="distribute"
+def concentrical_circles(
+    num_points, num_circles, radius, z_distance=None, angle_offset="distribute"
 ):
-    a = numCircles // 2
-    if zDistance is not None:
-        zValues = [i * zDistance for i in range(-a, -a + numCircles)]
-        if numCircles % 2 == 0:
-            zValues = [zVal + zDistance / 2 for zVal in zValues]
+    a = num_circles // 2
+    if z_distance is not None:
+        zValues = [i * z_distance for i in range(-a, -a + num_circles)]
+        if num_circles % 2 == 0:
+            zValues = [zVal + z_distance / 2 for zVal in zValues]
     else:
-        zValues = [None for i in range(numCircles)]
+        zValues = [None for i in range(num_circles)]
 
-    pointsPerCircle = [numPoints // numCircles for _ in range(numCircles)]
-    for i in range(numPoints - numCircles * (numPoints // numCircles)):
+    pointsPerCircle = [num_points // num_circles for _ in range(num_circles)]
+    for i in range(num_points - num_circles * (num_points // num_circles)):
         pointsPerCircle[i] += 1
 
-    if angleOffset == "random":
-        startAngles = np.random.rand(numCircles) * np.pi * 2
-    elif angleOffset == "same":
-        startAngles = np.zeros(numCircles)
-    elif angleOffset == "almostSame":
+    if angle_offset == "random":
+        startAngles = np.random.rand(num_circles) * np.pi * 2
+    elif angle_offset == "same":
+        startAngles = np.zeros(num_circles)
+    elif angle_offset == "almostSame":
         angleSection = 2 * np.pi / pointsPerCircle[0]
-        startAngles = np.random.rand(numCircles) * (angleSection / 10)
-    elif angleOffset == "distribute":
+        startAngles = np.random.rand(num_circles) * (angleSection / 10)
+    elif angle_offset == "distribute":
         angleSection = 2 * np.pi / pointsPerCircle[0]
-        startAngles = np.arange(numCircles) * angleSection / numCircles
+        startAngles = np.arange(num_circles) * angleSection / num_circles
 
     coords = [
-        equiangularCircle(circlePoints, radius, angle, zVal)
+        equiangular_circle(circlePoints, radius, angle, zVal)
         for i, (circlePoints, angle, zVal) in enumerate(
             zip(pointsPerCircle, startAngles, zValues)
         )
@@ -39,39 +39,39 @@ def concentricalCircles(
     return coords
 
 
-def equiangularCircle(numPoints, radius, startAngle=0, z=None, rng=None):
+def equiangular_circle(num_points, radius, start_angle=0, z=None, rng=None):
     """radius is a tuple of length two. The actual radia of the points
         is uniformly distributed between the two provided values. 
         Two dimensional points are returned if no z value is provided. """
     if rng is None:
         rng = np.random.default_rng()
 
-    angleStep = 2 * np.pi / numPoints
+    angleStep = 2 * np.pi / num_points
 
-    angles = startAngle + np.arange(numPoints) * angleStep
+    angles = start_angle + np.arange(num_points) * angleStep
     angles = np.mod(angles, 2 * np.pi)
-    radia = rng.uniform(radius[0], radius[1], size=numPoints)
+    radia = rng.uniform(radius[0], radius[1], size=num_points)
     [x, y] = util.pol2cart(radia, angles)
 
     if z is not None:
-        coords = np.zeros((numPoints, 3))
+        coords = np.zeros((num_points, 3))
         coords[:, 2] = z
     else:
-        coords = np.zeros((numPoints, 2))
+        coords = np.zeros((num_points, 2))
     coords[:, 0:2] = np.stack((x, y)).T
     return coords
 
 
-def uniformCylinder(numPoints, radius, height):
+def uniform_cylinder(num_points, radius, height):
     numPlanes = 4
     zVals = np.linspace(-height / 2, height / 2, numPlanes + 2)
     zVals = zVals[1:-1]
 
-    pointsPerPlane = numPoints // numPlanes
+    pointsPerPlane = num_points // numPlanes
     allPoints = np.zeros((pointsPerPlane * numPlanes, 3))
 
     for n in range(numPlanes):
-        xyPoints = sunflowerPattern(
+        xyPoints = sunflower_pattern(
             pointsPerPlane, radius, np.random.rand() * 2 * np.pi
         )
         allPoints[n * pointsPerPlane : (n + 1) * pointsPerPlane :, 0:2] = xyPoints
@@ -80,7 +80,7 @@ def uniformCylinder(numPoints, radius, height):
 
 
 
-def sunflowerPattern(N, radius, offsetAngle=0):
+def sunflower_pattern(N, radius, offset_angle=0):
     """ translated from user3717023's MATLAB code from stackoverflow
         could be updated using the method in this paper 
         'A better way to construct the sunflower head'"""
@@ -93,9 +93,9 @@ def sunflowerPattern(N, radius, offsetAngle=0):
     return np.stack((x, y)).T
 
 
-def uniformDisc(pointDistance, radius, zAxis=None):
+def uniform_disc(point_distance, radius, z_axis=None):
     lim = (-radius, radius)
-    numPoints = int(2 * radius / pointDistance)
+    numPoints = int(2 * radius / point_distance)
     x = np.linspace(lim[0], lim[1], numPoints)
     y = np.linspace(lim[0], lim[1], numPoints)
     [xGrid, yGrid] = np.meshgrid(x, y)
@@ -107,16 +107,16 @@ def uniformDisc(pointDistance, radius, zAxis=None):
     idxs2 = dist <= radius
     coordsCircle = coords[:, idxs2].T
 
-    if zAxis is not None:
+    if z_axis is not None:
         coordsCircle = np.concatenate(
-            (coordsCircle, np.full((coordsCircle.shape[0], 1), zAxis)), axis=-1
+            (coordsCircle, np.full((coordsCircle.shape[0], 1), z_axis)), axis=-1
         )
     return coordsCircle
 
 
-def uniformFilledRectangle(numPoints, lim=(-2.4, 2.4), zAxis=None):
-    pointsPerAxis = int(np.sqrt(numPoints))
-    assert np.isclose(pointsPerAxis ** 2, numPoints)
+def uniform_filled_rectangle(num_points, lim=(-2.4, 2.4), z_axis=None):
+    pointsPerAxis = int(np.sqrt(num_points))
+    assert np.isclose(pointsPerAxis ** 2, num_points)
     if len(lim) == 2:
         x = np.linspace(lim[0], lim[1], pointsPerAxis)
         y = np.linspace(lim[0], lim[1], pointsPerAxis)
@@ -127,31 +127,31 @@ def uniformFilledRectangle(numPoints, lim=(-2.4, 2.4), zAxis=None):
     [xGrid, yGrid] = np.meshgrid(x, y)
     evalPoints = np.vstack((xGrid.flatten(), yGrid.flatten())).T
 
-    if zAxis is not None:
+    if z_axis is not None:
         evalPoints = np.concatenate(
-            (evalPoints, np.full((pointsPerAxis ** 2, 1), zAxis)), axis=-1
+            (evalPoints, np.full((pointsPerAxis ** 2, 1), z_axis)), axis=-1
         )
     return evalPoints
 
-def uniformFilledCuboid(numPoints, dims, zNumPoints=4):
-    pointsPerAxis = int(np.sqrt(numPoints / zNumPoints))
-    assert np.isclose(pointsPerAxis ** 2 * zNumPoints, numPoints)
+def uniform_filled_cuboid(num_points, dims, z_num_points=4):
+    pointsPerAxis = int(np.sqrt(num_points / z_num_points))
+    assert np.isclose(pointsPerAxis ** 2 * z_num_points, num_points)
     x = np.linspace(-dims[0] / 2, dims[0] / 2, 2 * pointsPerAxis + 1)[1::2]
     y = np.linspace(-dims[1] / 2, dims[1] / 2, 2 * pointsPerAxis + 1)[1::2]
-    z = np.linspace(-dims[2] / 2, dims[2] / 2, 2 * zNumPoints + 1)[1::2]
+    z = np.linspace(-dims[2] / 2, dims[2] / 2, 2 * z_num_points + 1)[1::2]
     [xGrid, yGrid, zGrid] = np.meshgrid(x, y, z)
     evalPoints = np.vstack((xGrid.flatten(), yGrid.flatten(), zGrid.flatten())).T
 
     return evalPoints
 
 
-def FourEquidistantRectangles(
-    numPoints, sideLength, sideOffset, zLow, zHigh, offset="distributed"
+def four_equidistant_rectangles(
+    num_points, side_length, side_offset, z_low, z_high, offset="distributed"
 ):
     if offset != "distributed":
         raise NotImplementedError
-    points = np.zeros((numPoints, 3))
-    points[:, 0:2] = equidistantRectangle(numPoints, (sideLength, sideLength))
+    points = np.zeros((num_points, 3))
+    points[:, 0:2] = equidistant_rectangle(num_points, (side_length, side_length))
     # points[0::2,2] = zLow
     # points[1::2,2] = zHigh
 
@@ -168,46 +168,46 @@ def FourEquidistantRectangles(
     #     else:
     #         raise ValueError
     idxSet = np.sort(
-        np.concatenate((np.arange(numPoints)[2::4], np.arange(numPoints)[3::4]))
+        np.concatenate((np.arange(num_points)[2::4], np.arange(num_points)[3::4]))
     )
-    points[:, 2] = zLow
-    points[idxSet, 2] = zHigh
+    points[:, 2] = z_low
+    points[idxSet, 2] = z_high
     # points[]
     # points[0::2,2] = zLow
     # points[1::2,2] = zHigh
 
-    for i in np.arange(numPoints)[1::2]:
-        if np.isclose(points[i, 0], sideLength / 2):
-            points[i, 0] += sideOffset
-        elif np.isclose(points[i, 0], -sideLength / 2):
-            points[i, 0] -= sideOffset
-        elif np.isclose(points[i, 1], sideLength / 2):
-            points[i, 1] += sideOffset
-        elif np.isclose(points[i, 1], -sideLength / 2):
-            points[i, 1] -= sideOffset
+    for i in np.arange(num_points)[1::2]:
+        if np.isclose(points[i, 0], side_length / 2):
+            points[i, 0] += side_offset
+        elif np.isclose(points[i, 0], -side_length / 2):
+            points[i, 0] -= side_offset
+        elif np.isclose(points[i, 1], side_length / 2):
+            points[i, 1] += side_offset
+        elif np.isclose(points[i, 1], -side_length / 2):
+            points[i, 1] -= side_offset
         else:
             raise ValueError
     return points
 
 
-def stackedEquidistantRectangles(
-    numPoints, numRect, dims, zDistance, offset="distributed"
+def stacked_equidistant_rectangles(
+    num_points, num_rect, dims, z_distance, offset="distributed"
 ):
-    a = numRect // 2
-    zValues = [i * zDistance for i in range(-a, -a + numRect)]
-    if numRect % 2 == 0:
-        zValues = [zVal + zDistance / 2 for zVal in zValues]
+    a = num_rect // 2
+    zValues = [i * z_distance for i in range(-a, -a + num_rect)]
+    if num_rect % 2 == 0:
+        zValues = [zVal + z_distance / 2 for zVal in zValues]
 
-    pointsPerRect = [numPoints // numRect for _ in range(numRect)]
-    for i in range(numPoints - numRect * (numPoints // numRect)):
+    pointsPerRect = [num_points // num_rect for _ in range(num_rect)]
+    for i in range(num_points - num_rect * (num_points // num_rect)):
         pointsPerRect[i] += 1
 
-    offsets = np.linspace(0, 1, 2 * numRect + 1)[1::2]
+    offsets = np.linspace(0, 1, 2 * num_rect + 1)[1::2]
 
-    points = np.zeros((numPoints, 3))
+    points = np.zeros((num_points, 3))
     idxCount = 0
-    for i in range(numRect):
-        points[idxCount : idxCount + pointsPerRect[i], 0:2] = equidistantRectangle(
+    for i in range(num_rect):
+        points[idxCount : idxCount + pointsPerRect[i], 0:2] = equidistant_rectangle(
             pointsPerRect[i], dims, offset=offsets[i]
         )
         points[idxCount : idxCount + pointsPerRect[i], 2] = zValues[i]
@@ -215,21 +215,21 @@ def stackedEquidistantRectangles(
     return points
 
 
-def equidistantRectangle(numPoints, dims, offset=0.5, z=None):
-    if numPoints == 0:
+def equidistant_rectangle(num_points, dims, offset=0.5, z=None):
+    if num_points == 0:
         if z is None:
             return np.zeros((0, 2))
         else:
             return np.zeros((0,3))
     totalLength = 2 * (dims[0] + dims[1])
-    pointDist = totalLength / numPoints
+    pointDist = totalLength / num_points
 
-    points = np.zeros((numPoints, 2))
-    if numPoints < 4:
-        points = equidistantRectangle(4, dims)
+    points = np.zeros((num_points, 2))
+    if num_points < 4:
+        points = equidistant_rectangle(4, dims)
         #pointChoices = np.random.choice(4, numPoints, replace=False)
         #points = points[pointChoices, :]
-        points = points[:numPoints,:]
+        points = points[:num_points,:]
     else:
         lengths = [dims[0], dims[1], dims[0], dims[1]]
         xVal = [-dims[0] / 2, dims[0] / 2, dims[0] / 2, -dims[0] / 2]
@@ -257,19 +257,19 @@ def equidistantRectangle(numPoints, dims, offset=0.5, z=None):
     return points
 
 
-def equidistantRectangle_forfewer(numPoints, dims):
+def equidistant_rectangle_for_fewer(num_points, dims):
     totalLength = 2 * (dims[0] + dims[1])
-    pointDist = totalLength / numPoints
+    pointDist = totalLength / num_points
 
-    points = np.zeros((numPoints, 2))
-    if numPoints == 1:
+    points = np.zeros((num_points, 2))
+    if num_points == 1:
         points[0, 0] = np.random.rand() * dims[0] / 4 - dims[0] / 4
         points[0, 1] = np.random.choice([-1, 1]) * dims[1] / 2
-    elif numPoints == 2:
+    elif num_points == 2:
         points[:, 0] = np.random.rand(2) * dims[0] / 4 - dims[0] / 4
         points[0, 1] = dims[1] / 2
         points[1, 1] = dims[1] / 2
-    elif numPoints == 3:
+    elif num_points == 3:
         points[0:2, 0] = np.random.rand(2) * dims[0] / 4 - dims[0] / 4
         points[0, 1] = dims[1] / 2
         points[1, 1] = dims[1] / 2
@@ -284,7 +284,7 @@ def equidistantRectangle_forfewer(numPoints, dims):
         yFac = [0, 1, 0, -1]
         numCounter = 0
 
-        for i in range(np.min((4, numPoints))):
+        for i in range(np.min((4, num_points))):
             numAxisPoints = 1 + int((lengths[i] - startPos) / pointDist)
             axisPoints = startPos + np.arange(numAxisPoints) * pointDist
             distLeft = lengths[i] - axisPoints[-1]

@@ -2,7 +2,7 @@ import numpy as np
 import json
 
 
-def addToSummary(diagName, summaryValues, timeIdx, folderPath):
+def add_to_summary(diagName, summaryValues, timeIdx, folderPath):
     fullPath = folderPath.joinpath("summary_" + str(timeIdx) + ".json")
     try:
         with open(fullPath, "r") as f:
@@ -16,7 +16,7 @@ def addToSummary(diagName, summaryValues, timeIdx, folderPath):
         json.dump(summary, f, indent=4)
 
 
-def meanNearTimeIdx(outputs, timeIdx):
+def mean_near_time_idx(outputs, timeIdx):
     summaryValues = {}
     numToAverage = 3000
 
@@ -28,5 +28,5 @@ def meanNearTimeIdx(outputs, timeIdx):
     return summaryValues
 
 
-def lastValue():
+def last_value():
     raise NotImplementedError

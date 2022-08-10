@@ -1,7 +1,4 @@
 import numpy as np
-import time
-from functools import wraps
-import numpy as np
 
 
 def calc_block_sizes(num_samples, start_idx, block_size):
@@ -16,23 +13,6 @@ def calc_block_sizes(num_samples, start_idx, block_size):
         if left_in_block == 0:
             left_in_block = block_size
     return block_sizes
-
-
-def measure(name):
-    """
-        edited, originally from JBirdVegas, stackoverflow
-    """
-    def measure_internal(func):
-        @wraps(func)
-        def _time_it(*args, **kwargs):
-            start = int(round(time.time() * 1000))
-            try:
-                return func(*args, **kwargs)
-            finally:
-                end_ = int(round(time.time() * 1000)) - start
-                print(name + f" execution time: {end_ if end_ > 0 else 0} ms")
-        return _time_it
-    return measure_internal
 
 
 def flatten_dict(dict_to_flatten, parent_key="", sep="~"):

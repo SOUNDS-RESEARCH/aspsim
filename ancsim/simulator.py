@@ -10,7 +10,7 @@ import ancsim.configutil as configutil
 from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
 from ancsim.processor import ProcessorWrapper, FreeSourceHandler
 
-import ancsim.saveload_session as sess
+import ancsim.saveloadsession as sess
 import ancsim.presets as preset
 import ancsim.diagnostics.core as diacore
 
@@ -76,11 +76,9 @@ class SimulatorSetup:
 
     def use_preset(self, preset_name, **kwargs):
         preset_functions = {
-            "cuboid" : preset.getPositionsCuboid3d,
-            "cylinder" : preset.getPositionsCylinder3d,
-            "audio_processing" : preset.audioProcessing,
-            "signal_estimation" : preset.signalEstimation,
-            "anc_mpc" : preset.ancMultiPoint,
+            "audio_processing" : preset.audio_processing,
+            "signal_estimation" : preset.signal_estimation,
+            "anc_mpc" : preset.anc_multi_point,
             "debug" : preset.debug,
         }
 
@@ -103,11 +101,11 @@ class SimulatorSetup:
                 finished_arrays = sess.load_session(self.sessionFolder, folderPath, self.config, finished_arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                irMetadata = finished_arrays.setupIR(sim_info)
+                irMetadata = finished_arrays.setup_ir(sim_info)
                 sess.save_session(self.sessionFolder, self.config, finished_arrays, simMetadata=irMetadata)
                 #sess.add_to_sim_metadata(folderPath, irMetadata)     
         else:
-            finished_arrays.setupIR(sim_info)
+            finished_arrays.setup_ir(sim_info)
 
         # LOGGING AND DIAGNOSTICS
         sess.save_config(folderPath, self.config)
@@ -120,7 +118,7 @@ class SimulatorSetup:
             return None
 
         if generateSubFolder:
-            folderName = futil.getUniqueFolderName("figs_", folderForPlots, safeNaming)
+            folderName = futil.get_unique_folder_name("figs_", folderForPlots, safeNaming)
             folderName.mkdir()
         else:
             folderName = folderForPlots
@@ -145,7 +143,7 @@ class Simulator:
         self.processors = []
         self.rng = np.random.default_rng(1)
 
-    def addProcessor(self, processor):
+    def add_processor(self, processor):
         try:
             self.processors.extend(processor)
         except TypeError:
@@ -168,7 +166,7 @@ class Simulator:
             proc.prepare()
             
 
-    def runSimulation(self):
+    def run_simulation(self):
         self._setup_simulation()
 
         assert len(self.processors) > 0

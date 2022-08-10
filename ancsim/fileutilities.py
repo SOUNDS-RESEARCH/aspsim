@@ -3,7 +3,7 @@ import datetime
 
 
 
-def getTimeString(detailed=False):
+def get_time_string(detailed=False):
     tm = datetime.datetime.now()
     timestr = (
         str(tm.year)
@@ -23,10 +23,10 @@ def getTimeString(detailed=False):
     return timestr
 
 
-def getUniqueFolderName(prefix, parentFolder, detailedNaming=False):
-    fileName = prefix + getTimeString(detailed=detailedNaming)
+def get_unique_folder_name(prefix, parent_folder, detailed_naming=False):
+    fileName = prefix + get_time_string(detailed=detailed_naming)
     fileName += "_0"
-    folderName = parentFolder.joinpath(fileName)
+    folderName = parent_folder.joinpath(fileName)
     if folderName.exists():
         idx = 1
         folderNameLen = len(folderName.name) - 2
@@ -38,8 +38,8 @@ def getUniqueFolderName(prefix, parentFolder, detailedNaming=False):
     return folderName
 
 
-def getMultipleUniqueFolderNames(prefix, parentFolder, numNames):
-    startPath = getUniqueFolderName(prefix, parentFolder)
+def get_multiple_unique_folder_names(prefix, parent_folder, num_names):
+    startPath = get_unique_folder_name(prefix, parent_folder)
     subFolderName = startPath.parts[-1]
     baseFolder = startPath.parent
 
@@ -48,7 +48,7 @@ def getMultipleUniqueFolderNames(prefix, parentFolder, numNames):
     baseName = subFolderName[:-startIdxLen]
 
     folderNames = []
-    for i in range(numNames):
+    for i in range(num_names):
         folderNames.append(baseFolder.joinpath(baseName + str(i + startIdx)))
 
     return folderNames
@@ -57,15 +57,15 @@ def getMultipleUniqueFolderNames(prefix, parentFolder, numNames):
 
 
 
-def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
+def indices_same_in_all_folders(folder_name, prefix, suffix, excluded_folders=[]):
     firstSubFolder = True
     prevGoodIndices = []
-    for subFolderName in folderName.iterdir():
-        if subFolderName in excludedFolders:
+    for subFolderName in folder_name.iterdir():
+        if subFolderName in excluded_folders:
             continue
-        if folderName.joinpath(subFolderName).is_dir():
+        if folder_name.joinpath(subFolderName).is_dir():
             goodIndices = []
-            for filePath in folderName.joinpath(subFolderName).iterdir():
+            for filePath in folder_name.joinpath(subFolderName).iterdir():
                 filename = filePath.name
                 if filename.startswith(prefix) and filename.endswith(suffix):
                     summaryIdx = filename[len(prefix) : len(filename) - len(suffix)]
@@ -80,7 +80,7 @@ def indicesSameInAllFolders(folderName, prefix, suffix, excludedFolders=[]):
     return goodIndices
 
 
-def getHighestNumberedFile(folder, prefix, suffix):
+def get_highest_numbered_file(folder, prefix, suffix):
     highestFileIdx = -1
     for filePath in folder.iterdir():
         if filePath.name.startswith(prefix) and filePath.name.endswith(suffix):
@@ -99,7 +99,7 @@ def getHighestNumberedFile(folder, prefix, suffix):
         return folder.joinpath(fname)
 
 
-def findIndexInName(name):
+def find_index_in_name(name):
     idx = []
     for ch in reversed(name):
         if ch.isdigit():
@@ -113,11 +113,11 @@ def findIndexInName(name):
     return idx
 
 
-def findAllEarlierFiles(
-    folder, name, currentIdx, nameIncludesIdx=True, errorIfFutureFilesExist=True
+def find_all_earlier_files(
+    folder, name, current_idx, name_includes_idx=True, error_if_future_files_exist=True
 ):
-    if nameIncludesIdx:
-        name = name[: -len(str(currentIdx))]
+    if name_includes_idx:
+        name = name[: -len(str(current_idx))]
     else:
         name = name + "_"
 
@@ -125,19 +125,19 @@ def findAllEarlierFiles(
     for f in folder.iterdir():
         if f.stem.startswith(name) and f.stem[len(name):].isdigit():
             fIdx = int(f.stem[len(name) :])
-            if fIdx > currentIdx:
-                if errorIfFutureFilesExist:
+            if fIdx > current_idx:
+                if error_if_future_files_exist:
                     raise ValueError
                 else:
                     continue
-            elif fIdx == currentIdx:
+            elif fIdx == current_idx:
                 continue
             earlierFiles.append(f)
     return earlierFiles
 
 
 
-def toNum(val):
+def to_num(val):
     constructors = [int, float, str]
     for c in constructors:
         try:
