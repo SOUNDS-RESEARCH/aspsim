@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import ancsim.fileutilities as fu
 import ancsim.saveloadsession as sess
-import ancsim.room.geometry as geo
+import ancsim.room.region as reg
 import ancsim.signal.filterclasses as fc
 import ancsim.utilities as util
 import ancsim.configutil as configutil
