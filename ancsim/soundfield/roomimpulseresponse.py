@@ -117,6 +117,8 @@ def irRoomImageSource3d(
             materials=pra.Material(eAbsorption),
             fs=samplerate,
             max_order=maxOrder,
+            use_rand_ism = True, 
+            max_rand_disp = 0.05
         )
         # room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
 
