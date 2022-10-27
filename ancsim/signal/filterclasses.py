@@ -1,7 +1,6 @@
 import numpy as np
 import itertools as it
 
-from sympy import denom
 import ancsim.signal.freqdomainfiltering as fdf
 import scipy.signal as spsig
 import numba as nb
