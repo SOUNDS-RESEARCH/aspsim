@@ -46,7 +46,7 @@ def outputPlot(printMethod, folder, name="", keepOnlyLatestTikz=True):
             tikzplotlib.save(
                 str(nestedFolder.joinpath(name + ".tex")),
                 externalize_tables=True,
-                tex_relative_path_to_data="../figs/" + name + "/",
+                #tex_relative_path_to_data="../figs/" + name + "/",
                 float_format=".8g",
             )
             plt.savefig(

@@ -394,7 +394,7 @@ def sort_for_imshow(pos, sig, pos_decimals=5):
 
     sig = np.moveaxis(np.atleast_3d(sig),1,2)
     dims = sig.shape[:2]
-    sig_sorted = np.zeros((dims[0], dims[1], num_rows, num_cols))
+    sig_sorted = np.zeros((dims[0], dims[1], num_rows, num_cols), dtype=sig.dtype)
     for i in range(dims[0]):
         for j in range(dims[1]):
             single_sig = sig[i,j,:]
