@@ -265,6 +265,13 @@ class AudioSource(Source):
                 i += block_len
         elif self.end_mode == "zeros":
             raise NotImplementedError
+        elif self.end_mode == "raise":
+            if self.current_sample + num_samples >= self.tot_samples:
+                raise StopIteration("End of audio signal")
+
+            sig = self.audio[:,self.current_sample:self.current_sample+num_samples]
+            self.current_sample += num_samples
+            return sig
         else:
             raise ValueError("Invalid end mode")
 
@@ -361,8 +368,13 @@ class AutocorrSource(Source):
     def __init__(self, num_channels, autocorr, rng=None):
         super().__init__(num_channels, rng)
         assert autocorr.shape[0] == num_channels
-        
         assert cr.is_autocorr_func(autocorr)
+        if autocorr.ndim == 3:          #For channel inter-correlations
+            raise NotImplementedError
+        assert autocorr.ndim == 2
+
+        self.autocorr = autocorr
+
         num_coeffs = []
         denom_coeffs = []
         self.noise_power = np.zeros(self.num_channels)
