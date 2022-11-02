@@ -377,7 +377,7 @@ class Diagnostic:
 
 class SignalDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.functionOfTimePlot,
+        "plot" : dplot.function_of_time_plot,
         "npz" : dplot.savenpz,
         "text" : dplot.txt,
     }
@@ -414,7 +414,7 @@ class SignalDiagnostic(Diagnostic):
 
 class StateDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.functionOfTimePlot,
+        "plot" : dplot.function_of_time_plot,
         "npz" : dplot.savenpz,
     }
     def __init__ (
@@ -449,7 +449,7 @@ class StateDiagnostic(Diagnostic):
 
 class InstantDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.plotIR,
+        "plot" : dplot.plot_ir,
         "matshow" : dplot.matshow, 
         "npz" : dplot.savenpz,
         "text" : dplot.txt, 

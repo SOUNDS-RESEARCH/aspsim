@@ -1,5 +1,6 @@
 import numpy as np
 
+import aspcol.utilities as asputil
 
 class Trajectory:
     def __init__(self, pos_func):
@@ -124,7 +125,7 @@ class CircularTrajectory(Trajectory):
             else:
                 rad = radius * (radial_portion-0.5)*2
 
-            (x,y) = util.pol2cart(rad, angle)
+            (x,y) = asputil.pol2cart(rad, angle)
             return np.array([[x,y,z]]) + center
 
         super().__init__(pos_func)

@@ -3,6 +3,7 @@ import scipy.signal as spsig
 import matplotlib.pyplot as plt
 import tikzplotlib
 import soundfile as sf
+import json
 
 
 import ancsim.fileutilities as fu
@@ -35,7 +36,7 @@ def delete_earlier_tikz_plot(folder, name):
             except PermissionError:
                 pass
 
-def output_plot(printMethod, folder, name="", keepOnlyLatestTikz=True):
+def output_plot(printMethod, folder, name="", keep_only_latest_tikz=True):
     if printMethod == "show":
         plt.show()
     elif printMethod == "tikz":
@@ -62,7 +63,7 @@ def output_plot(printMethod, folder, name="", keepOnlyLatestTikz=True):
                 bbox_inches=None,
                 pad_inches=0.2,
             )
-            if keepOnlyLatestTikz:
+            if keep_only_latest_tikz:
                 delete_earlier_tikz_plot(folder, name)
     elif printMethod == "pdf":
         if folder is not None:
@@ -131,22 +132,14 @@ def plot_3d_in_2d(ax, posData, symbol="x", name=""):
 
 
 
-def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="pdf", scaling="linear"):
+def function_of_time_plot(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     #fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig, ax = plt.subplots(1, 1, figsize=(7, 4))
     fig.tight_layout(pad=4)
 
     for proc_name, diag in diags.items():
-        # output = np.atleast_2d(diag.get_output())
-        # assert output.ndim == 2
-        #num_channels = output.shape[0]
-
-        # if hasattr(diag, "time_indices"):
-        #     output, time_indices = get_values_from_selection(output, diag.time_indices, time_idx+1)
-        # else:
-        #     output, time_indices = get_values_up_to_idx(output, time_idx+1)
         output, time_indices = diag.get_processed_output(time_idx, preprocess)
-        #output = scale_data(output, scaling)
+
         num_channels = output.shape[0]
 
         if "label_suffix_channel" in diag.plot_data:
@@ -154,20 +147,20 @@ def functionOfTimePlot(name, diags, time_idx, folder, preprocess, printMethod="p
             assert len(labels) == num_channels
         else:
             labels = [proc_name for _ in range(num_channels)]
-        ax = plotMultipleChannels(ax, time_indices, output, labels)
+        ax = plot_multiple_channels(ax, time_indices, output, labels)
 
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.grid(True)
-    legendWithoutDuplicates(ax, "upper right")
+    legend_without_duplicates(ax, "upper right")
     #ax.legend(loc="upper right")
 
     ax.set_xlabel(diag.plot_data["xlabel"])
     ax.set_ylabel(diag.plot_data["ylabel"])
     ax.set_title(diag.plot_data["title"] + " - " + name)
-    output_plot(printMethod, folder, name + "_" + str(time_idx))
+    output_plot(print_method, folder, name + "_" + str(time_idx))
 
-def plotMultipleChannels(ax, time_idx, signal, labels):
+def plot_multiple_channels(ax, time_idx, signal, labels):
     if signal.shape[-1] < 10:
         marker = "x"
     else:
@@ -182,7 +175,7 @@ def plotMultipleChannels(ax, time_idx, signal, labels):
             )
     return ax
 
-def legendWithoutDuplicates(ax, loc):
+def legend_without_duplicates(ax, loc):
     handles, labels = ax.get_legend_handles_labels()
     newLabels, newHandles = [], []
     for handle, label in zip(handles, labels):
@@ -193,7 +186,7 @@ def legendWithoutDuplicates(ax, loc):
     ax.legend(newHandles, newLabels, loc=loc)
 
 
-def savenpz(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+def savenpz(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     """Keeps only the latest save.
     Assumes that the data in previous
     saves is present in the current data"""
@@ -227,7 +220,7 @@ def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 	
 
 
-def plotIR(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+def plot_ir(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     numSets = 0
     for algoName, diag in diags.items():
         for irSet in diag.get_output():
@@ -260,12 +253,12 @@ def plotIR(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         ax.grid(True)
-        legendWithoutDuplicates(ax, "upper right")
+        legend_without_duplicates(ax, "upper right")
         #ax.legend(loc="upper right")
         
-    output_plot(printMethod, folder, f"{name}_{time_idx}")
+    output_plot(print_method, folder, f"{name}_{time_idx}")
 
-def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+def matshow(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     
     num_proc = len(diags)
@@ -279,10 +272,10 @@ def matshow(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
         ax.set_title(f"{name} - {proc_name}")
         ax.spines["right"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-    output_plot(printMethod, folder, f"{name}_{time_idx}")
+    output_plot(print_method, folder, f"{name}_{time_idx}")
 
 
-def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None):
+def create_audio_files(name, outputs, metadata, timeIdx, folder, print_method=None):
     maxValue = np.NINF
     lastTimeIdx = np.Inf
     for output in outputs.values():
@@ -312,7 +305,7 @@ def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None)
 
 
 
-def spectrum_plot(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+def spectrum_plot(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     #outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     #outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()}
 
@@ -331,57 +324,11 @@ def spectrum_plot(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.grid(True)
-    legendWithoutDuplicates(ax, "upper right")
+    legend_without_duplicates(ax, "upper right")
         #ax.legend(loc="upper right")
 
         #ax.set_xlabel(diag.plot_data["xlabel"])
         #ax.set_ylabel(diag.plot_data["ylabel"])
         #ax.set_title(diag.plot_data["title"] + " - " + name)
-    outputPlot(printMethod, folder, name + "_" + str(time_idx))
-
-
-
-
-def spectrumRatioPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
-    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
-    fig.tight_layout(pad=4)
-
-    for algoName, (num, denom) in outputs.items():
-        if num.ndim == 1:
-            num = num[None, :]
-        if denom.ndim == 1:
-            denom = denom[None,:]
-        num = num[:, :timeIdx]
-        denom = denom[:, :timeIdx]
-
-        numFilterArray = np.logical_not(np.isnan(num))
-        denomFilterArray = np.logical_not(np.isnan(num))
-        assert np.isclose(numFilterArray, numFilterArray[0, :]).all()
-        assert np.isclose(denomFilterArray, numFilterArray[0, :]).all()
-        filterArray = numFilterArray[0, :]
-
-       #skip_initial = 2048
-        num_to_average = 40000
-        num = num[:,filterArray]
-        denom = denom[:,filterArray]
-        f, numSpec = spsig.welch(num[:,-num_to_average:] ,metadata["samplerate"], nperseg=256, scaling="spectrum", axis=-1)
-        _, denomSpec = spsig.welch(denom[:,-num_to_average:] ,metadata["samplerate"], nperseg=256, scaling="spectrum", axis=-1)
-        ratio = np.mean(numSpec,axis=0) / np.mean(denomSpec, axis=0)
-        #for i, label in enumerate(labels):
-        ax.plot(
-                f,
-                10*np.log10(ratio),
-                alpha=0.8,
-                label=algoName,
-            )
-
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.grid(True)
-    legendWithoutDuplicates(ax, "upper right")
-    #ax.legend(loc="upper right")
-    ax.set_xlabel(metadata["xlabel"])
-    ax.set_ylabel(metadata["ylabel"])
-    ax.set_title(metadata["title"] + " - " + name)
-    outputPlot(printMethod, folder, name+ "_" + str(timeIdx))
+    output_plot(print_method, folder, name + "_" + str(time_idx))
 
