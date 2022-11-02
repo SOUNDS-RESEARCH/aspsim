@@ -71,6 +71,13 @@ class Sequence(Source):
                 i += block_len
         elif self.end_mode == "zeros":
             raise NotImplementedError
+        elif self.end_mode == "raise":
+            if self.current_sample + num_samples >= self.tot_samples:
+                raise StopIteration("End of audio signal")
+
+            sig = self.audio[:,self.current_sample:self.current_sample+num_samples]
+            self.current_sample += num_samples
+            return sig
         else:
             raise ValueError("Invalid end mode")
 

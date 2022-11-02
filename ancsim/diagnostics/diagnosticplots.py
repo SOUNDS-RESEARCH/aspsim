@@ -211,6 +211,17 @@ def savenpz(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
                 f.unlink()
 
 
+def txt(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+    outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+    outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()} 
+    # only takes output even if time indices are provided
+    summary_val = {key : np.mean(val) for key, val in outputs.items()}
+    
+    with open(folder.joinpath(f"{name}_{time_idx}.json"), "w") as f:
+        json.dump(summary_val, f)
+    #np.savez_compressed(folder.joinpath(f"{name}_{time_idx}"), **outputs)
+
+
 def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
     print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
 	
@@ -297,3 +308,80 @@ def createAudioFiles(name, outputs, metadata, timeIdx, folder, printMethod=None)
                 signalToWrite[-rampLength:] *= (1-ramp)
 
                 sf.write(str(filePath),signalToWrite, metadata["samplerate"])
+
+
+
+
+def spectrum_plot(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+    #outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+    #outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()}
+
+    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+    fig.tight_layout(pad=4)
+
+    for proc_name, diag in diags.items():
+        output = diag.get_processed_output(time_idx, preprocess)
+        num_channels = output.shape[0]
+        ax.plot(
+                output,
+                alpha=0.8,
+                label=proc_name,
+            )
+
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.grid(True)
+    legendWithoutDuplicates(ax, "upper right")
+        #ax.legend(loc="upper right")
+
+        #ax.set_xlabel(diag.plot_data["xlabel"])
+        #ax.set_ylabel(diag.plot_data["ylabel"])
+        #ax.set_title(diag.plot_data["title"] + " - " + name)
+    outputPlot(printMethod, folder, name + "_" + str(time_idx))
+
+
+
+
+def spectrumRatioPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
+    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+    fig.tight_layout(pad=4)
+
+    for algoName, (num, denom) in outputs.items():
+        if num.ndim == 1:
+            num = num[None, :]
+        if denom.ndim == 1:
+            denom = denom[None,:]
+        num = num[:, :timeIdx]
+        denom = denom[:, :timeIdx]
+
+        numFilterArray = np.logical_not(np.isnan(num))
+        denomFilterArray = np.logical_not(np.isnan(num))
+        assert np.isclose(numFilterArray, numFilterArray[0, :]).all()
+        assert np.isclose(denomFilterArray, numFilterArray[0, :]).all()
+        filterArray = numFilterArray[0, :]
+
+       #skip_initial = 2048
+        num_to_average = 40000
+        num = num[:,filterArray]
+        denom = denom[:,filterArray]
+        f, numSpec = spsig.welch(num[:,-num_to_average:] ,metadata["samplerate"], nperseg=256, scaling="spectrum", axis=-1)
+        _, denomSpec = spsig.welch(denom[:,-num_to_average:] ,metadata["samplerate"], nperseg=256, scaling="spectrum", axis=-1)
+        ratio = np.mean(numSpec,axis=0) / np.mean(denomSpec, axis=0)
+        #for i, label in enumerate(labels):
+        ax.plot(
+                f,
+                10*np.log10(ratio),
+                alpha=0.8,
+                label=algoName,
+            )
+
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.grid(True)
+    legendWithoutDuplicates(ax, "upper right")
+    #ax.legend(loc="upper right")
+    ax.set_xlabel(metadata["xlabel"])
+    ax.set_ylabel(metadata["ylabel"])
+    ax.set_title(metadata["title"] + " - " + name)
+    outputPlot(printMethod, folder, name+ "_" + str(timeIdx))
+

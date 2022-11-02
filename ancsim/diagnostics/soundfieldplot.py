@@ -196,7 +196,7 @@ def setupSession(singleRunFolder, sessionFolder, arrays):
     for src in arrays.sources():
         newArrays.add_array(src)
     
-    region_image = geo.Rectangle((2, 2), (0, 0, 0), (0.02, 0.02), spatial_dim=3)
+    region_image = reg.Rectangle((2, 2), (0, 0, 0), (0.02, 0.02), spatial_dim=3)
     newArrays.add_array(ar.RegionArray("image", region_image))
     
     sim_info = configutil.SimulatorInfo(config)
@@ -389,7 +389,7 @@ def sort_for_imshow(pos, sig, pos_decimals=5):
 
     sig = np.moveaxis(np.atleast_3d(sig),1,2)
     dims = sig.shape[:2]
-    sig_sorted = np.zeros((dims[0], dims[1], num_rows, num_cols))
+    sig_sorted = np.zeros((dims[0], dims[1], num_rows, num_cols), dtype=sig.dtype)
     for i in range(dims[0]):
         for j in range(dims[1]):
             single_sig = sig[i,j,:]
