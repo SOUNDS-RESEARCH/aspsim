@@ -7,8 +7,8 @@ import ancsim.array as ar
 
 
 
-def save_session(sessionFolder, sim_info, arrays, sim_metadata=None, extraprefix=""):
-    session_path = futil.get_unique_folder_name("session_" + extraprefix, sessionFolder)
+def save_session(session_folder, sim_info, arrays, sim_metadata=None, extraprefix=""):
+    session_path = futil.get_unique_folder_name("session_" + extraprefix, session_folder)
 
     session_path.mkdir()
     arrays.save_to_file(session_path)
@@ -23,6 +23,10 @@ def load_session(sessions_path, new_folder_path, chosen_sim_info, chosen_arrays)
     session_to_load = search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays)
     print("Loaded Session: ", str(session_to_load))
     loaded_arrays = ar.load_arrays(session_to_load)
+
+    for fs_array in chosen_arrays.free_sources():
+        loaded_arrays[fs_array.name].source = fs_array.source
+
     return loaded_arrays
     
 def load_from_path(session_path_to_load, new_folder_path=None):

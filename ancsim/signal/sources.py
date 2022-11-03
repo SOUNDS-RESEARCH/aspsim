@@ -21,11 +21,11 @@ class Source(ABC):
         return np.zeros((self.num_channels, num_samples))
 
 class SourceArray:
-    def __init__(self, sourceType, numSources, amplitude, *args):
+    def __init__(self, source_type, num_sources, amplitude, *args):
         if isinstance(amplitude, (int, float)):
-            amplitude = [amplitude for _ in range(numSources)]
+            amplitude = [amplitude for _ in range(num_sources)]
 
-        self.sources = [sourceType(amplitude[i], *args) for i in range(numSources)]
+        self.sources = [source_type(amplitude[i], *args) for i in range(num_sources)]
 
     def get_samples(self, num_samples):
         output = np.concatenate(
@@ -80,25 +80,6 @@ class Sequence(Source):
             return sig
         else:
             raise ValueError("Invalid end mode")
-
-        # try:
-        #     sig = self.audio[
-        #         :, self.current_sample : self.current_sample + num_samples
-        #     ]
-        # except IndexError:
-        #     sig = np.zeros((self.num_channels, num_samples))
-        #     num_end = self.tot_samples - self.current_sample
-        #     sig[:,:num_end] = self.audio[:,self.current_sample:self.current_sample+num_end]
-        #     if self.end_mode == "repeat":
-        #         num_start = num_samples - num_end
-        #         sig[:,num_end:] = self.audio[:,:num_start]
-        #         self.current_sample = num_start
-        #     elif self.end_mode == "zeros":
-        #         pass
-        #     else:
-        #         raise ValueError("Invalid end mode")
-                
-        #self.current_sample += num_samples
         return sig * self.amp_factor
 
 

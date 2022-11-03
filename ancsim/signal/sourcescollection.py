@@ -406,8 +406,8 @@ class LinearChirpSource(src.Source):
         samplesLeft = num_samples
         n = 0
         for blocks in range(1 + num_samples // self.samplesToSweep):
-            blockSize = min(samplesLeft, self.samplesToSweep - self.freqCounter)
-            for _ in range(blockSize):
+            block_size = min(samplesLeft, self.samplesToSweep - self.freqCounter)
+            for _ in range(block_size):
                 noise[0, n] = np.cos(2 * np.pi * self.phase)
                 self.nextPhase()
 
@@ -421,6 +421,6 @@ class LinearChirpSource(src.Source):
                     # else:
                     #    self.freq = self.freqRange[1]
                     self.freqCounter = 0
-            samplesLeft -= blockSize
+            samplesLeft -= block_size
         noise *= self.amp
         return noise

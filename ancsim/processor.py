@@ -46,25 +46,6 @@ class FreeSourceHandler():
             proc.processor.sig[src.name][:,proc.processor.idx:proc.processor.idx+block_size] = \
                 self.sig[src.name][:,lcl_idx-block_size:lcl_idx]
 
-        #for src in self.arrays.free_sources():
-        #    self.processor.sig[src.name][:,:self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
-# class Propagator():
-#     def __init__(self, sim_info, arrays, source_names):
-#         self.sim_info = sim_info
-#         self.arrays = arrays
-#         self.source_names = source_names
-
-#     def prepare(self, sigs):
-#         for src_name in self.source_names():
-#             for mic in self.arrays.mics():
-#                 propagated_signal = self.path_filters[src.name][mic.name].process(
-#                         sigs[src_name][:,:self.sim_info.sim_buffer])
-#                 self.processor.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
-#                 if self.sim_info.save_source_contributions:
-#                     self.processor.sig[src_name+"~"+mic.name][:,:self.sim_info.sim_buffer] = propagated_signal
-#         self.processor.idx = self.sim_info.sim_buffer
-#         self.processor.prepare()
-
 
 
 class ProcessorWrapper():
@@ -72,13 +53,13 @@ class ProcessorWrapper():
         self.processor = processor
         self.arrays = arrays
         self.sim_info = processor.sim_info
-        self.block_size = processor.blockSize
+        self.block_size = processor.block_size
 
         self.path_filters = {}
         for src, mic, path in arrays.iter_paths():
             if src.name not in self.path_filters:
                 self.path_filters[src.name] = {}
-            self.path_filters[src.name][mic.name] = fc.createFilter(ir=path, sumOverInput=True, dynamic=(src.dynamic or mic.dynamic))
+            self.path_filters[src.name][mic.name] = fc.createFilter(ir=path, sum_over_input=True, dynamic=(src.dynamic or mic.dynamic))
 
         for mic in self.arrays.mics():
             self.processor.createNewBuffer(mic.name, mic.num)
@@ -127,7 +108,7 @@ class ProcessorWrapper():
         i = self.processor.idx
 
         #for src in self.arrays.free_sources():
-        #    self.processor.sig[src.name][:,i:i+self.blockSize] = src.get_samples(self.blockSize)
+        #    self.processor.sig[src.name][:,i:i+self.block_size] = src.get_samples(self.block_size)
 
         for src, mic in self.arrays.mic_src_combos():
             if src.dynamic or mic.dynamic:
@@ -150,20 +131,20 @@ class ProcessorWrapper():
         
     def last_block_on_buffer(self):
         return self.processor.idx+self.block_size >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
-        #return self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
+        #return self.processor.idx+2*self.block_size >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
         
         
 
 class AudioProcessor(ABC):
-    def __init__(self, sim_info, arrays, blockSize, diagnostics={}):
+    def __init__(self, sim_info, arrays, block_size, diagnostics={}):
         self.sim_info = sim_info
-        self.blockSize = blockSize
+        self.block_size = block_size
 
         self.name = "Abstract Processor"
         self.arrays = arrays
-        self.diag = diacore.DiagnosticHandler(self.sim_info, self.blockSize)
+        self.diag = diacore.DiagnosticHandler(self.sim_info, self.block_size)
         self.rng = np.random.default_rng(1)
-        self.metadata = {"block size" : self.blockSize}
+        self.metadata = {"block size" : self.block_size}
         self.idx = 0
 
         self.sig = {}
@@ -201,7 +182,7 @@ class AudioProcessor(ABC):
     def process(self, numSamples):
         """ microphone signals up to self.idx (excluding) are available. i.e. [:,choose_start_idx:self.idx] can be used
             To play a signal through controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
-            for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.blockSize]. 
+            for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.block_size]. 
             Adding samples further ahead than that will likely cause a outOfBounds error. 
         """
         pass
@@ -209,39 +190,18 @@ class AudioProcessor(ABC):
 
 
 class DebugProcessor(AudioProcessor):
-    def __init__(self, sim_info, arrays, blockSize, **kwargs):
-        super().__init__(sim_info, arrays, blockSize, **kwargs)
+    def __init__(self, sim_info, arrays, block_size, **kwargs):
+        super().__init__(sim_info, arrays, block_size, **kwargs)
         self.name = "Debug Processor"
         self.processed_samples = 0
-        self.filt = fc.createFilter(numIn=3, numOut=4, irLen=5)
+        self.filt = fc.createFilter(num_in=3, num_out=4, ir_len=5)
 
     def process(self, numSamples):
-        assert numSamples == self.blockSize
+        assert numSamples == self.block_size
         self.processed_samples += numSamples
         self.filt.ir += numSamples
-        self.sig["loudspeaker"][:,self.idx:self.idx+self.blockSize] = \
-            self.sig["mic"][:,self.idx-self.blockSize:self.idx]
-
-
-
-class VolumeControl(AudioProcessor):
-    def __init__(self, config, arrays, blockSize, volumeFactor, **kwargs):
-        super().__init__(config, arrays, blockSize, **kwargs)
-        self.name = "Volume Control"
-        self.volumeFactor = volumeFactor
-
-        self.diag.add_diagnostic("inputPower", dia.SignalPower("input", self.sim_info.tot_samples, self.outputSmoothing))
-        self.diag.add_diagnostic("outputPower", dia.SignalPower("output", self.sim_info.tot_samples, self.outputSmoothing))
-
-        self.metadata["volume factor"] = self.volumeFactor
-
-    def process(self, numSamples):
-        self.sig["output"][:,self.idx:self.idx+numSamples] = self.volumeFactor * \
-            self.sig["input"][:,self.idx-numSamples:self.idx]
-
-
-
-
+        self.sig["loudspeaker"][:,self.idx:self.idx+self.block_size] = \
+            self.sig["mic"][:,self.idx-self.block_size:self.idx]
 
 
 
@@ -282,7 +242,7 @@ class PhaseCounter:
     first_sample will be True on the first sample of each phase,
     allowing running one-time functions in each phase
 
-    Extended implementation to blocksize != 1 can be done later
+    Extended implementation to block_size != 1 can be done later
     """
     def __init__(self, phase_lengths, verbose=False):
         assert isinstance(phase_lengths, dict)
@@ -383,58 +343,58 @@ class EventCounter:
 
 
 
-def calc_block_sizes_with_buffer(numSamples, idx, bufferSize, chunkSize):
-    leftInBuffer = chunkSize + bufferSize - idx
+def calc_block_sizes_with_buffer(num_samples, idx, buffer_size, chunk_size):
+    leftInBuffer = chunk_size + buffer_size - idx
     sampleCounter = 0
-    blockSizes = []
-    while sampleCounter < numSamples:
-        bLen = np.min((numSamples - sampleCounter, leftInBuffer))
-        blockSizes.append(bLen)
+    block_sizes = []
+    while sampleCounter < num_samples:
+        bLen = np.min((num_samples - sampleCounter, leftInBuffer))
+        block_sizes.append(bLen)
         sampleCounter += bLen
         leftInBuffer -= bLen
         if leftInBuffer == 0:
-            leftInBuffer = chunkSize
-    return blockSizes
+            leftInBuffer = chunk_size
+    return block_sizes
 
 
-def find_first_index_for_block(earliestStartIndex, indexToEndAt, blockSize):
+def find_first_index_for_block(earliest_start_index, index_to_end_at, block_size):
     """If processing in fixed size blocks, this function will give the index
         to start at if the processing should end at a specific index.
         Useful for preparation processing, where the exact startpoint isn't important
         but it is important to end at the correct place. """
-    numSamples = indexToEndAt - earliestStartIndex
-    numBlocks = numSamples // blockSize
-    indexToStartAt = indexToEndAt - blockSize*numBlocks
-    return indexToStartAt
+    num_samples = index_to_end_at - earliest_start_index
+    num_blocks = num_samples // block_size
+    index_to_start_at = index_to_end_at - block_size*num_blocks
+    return index_to_start_at
 
-def block_process_until_index(earliestStartIndex, indexToEndAt, blockSize):
+def block_process_until_index(earliest_start_index, index_to_end_at, block_size):
     """Use as 
-        for startIdx, endIdx in blockProcessUntilIndex(earliestStart, indexToEnd, blockSize):
+        for startIdx, endIdx in blockProcessUntilIndex(earliestStart, indexToEnd, block_size):
             process(signal[...,startIdx:endIdx])
     
         If processing in fixed size blocks, this function will give the index
         to process for, if the processing should end at a specific index.
         Useful for preparation processing, where the exact startpoint isn't important
         but it is important to end at the correct place. """
-    numSamples = indexToEndAt - earliestStartIndex
-    numBlocks = numSamples // blockSize
-    indexToStartAt = indexToEndAt - blockSize*numBlocks
+    num_samples = index_to_end_at - earliest_start_index
+    num_blocks = num_samples // block_size
+    index_to_start_at = index_to_end_at - block_size*num_blocks
 
-    for i in range(numBlocks):
-        yield indexToStartAt+i*blockSize, indexToStartAt+(i+1)*blockSize
+    for i in range(num_blocks):
+        yield index_to_start_at+i*block_size, index_to_start_at+(i+1)*block_size
 
-def generate_white_noise_at_snr(rng, signal, dim, snr, identicalChannelPower=False):
-    """generates Additive White Gaussian Noise
-    signal to calculate signal level. time dimension is last dimension
-    dim is dimension of output AWGN
-    snr, signal to noise ratio, in dB"""
-    generatedNoise = rng.standard_normal(dim)
-    if identicalChannelPower:
-        powerOfSignal = util.avgPower(signal)
-    else:
-        powerOfSignal = util.avgPower(signal, axis=-1)[:, None]
-    generatedNoise *= np.sqrt(powerOfSignal) * (util.db2mag(-snr))
-    return generatedNoise
+# def generate_white_noise_at_snr(rng, signal, dim, snr, identical_channel_power=False):
+#     """generates Additive White Gaussian Noise
+#     signal to calculate signal level. time dimension is last dimension
+#     dim is dimension of output AWGN
+#     snr, signal to noise ratio, in dB"""
+#     generated_noise = rng.standard_normal(dim)
+#     if identical_channel_power:
+#         power_of_signal = util.avgPower(signal)
+#     else:
+#         power_of_signal = util.avgPower(signal, axis=-1)[:, None]
+#     generated_noise *= np.sqrt(power_of_signal) * (util.db2mag(-snr))
+#     return generated_noise
 
 
 
@@ -449,8 +409,8 @@ def generate_white_noise_at_snr(rng, signal, dim, snr, identicalChannelPower=Fal
 
 
 class BlockLeastMeanSquares(AudioProcessor):
-    def __init__(self, config, arrays, blockSize, stepSize, beta, filtLen):
-        super().__init__(config, arrays, blockSize)
+    def __init__(self, config, arrays, block_size, stepSize, beta, filtLen):
+        super().__init__(config, arrays, block_size)
         self.name = "Least Mean Squares"
 
         self.numIn = self.arrays["input"].num
@@ -493,8 +453,8 @@ class LeastMeanSquares(AudioProcessor):
         performance than the block based version for long blocks. 
     """
         
-    def __init__(self, sim_info, arrays, blockSize, stepSize, beta, filtLen):
-        super().__init__(sim_info, arrays, blockSize)
+    def __init__(self, sim_info, arrays, block_size, stepSize, beta, filtLen):
+        super().__init__(sim_info, arrays, block_size)
         self.name = "Least Mean Squares"
 
         self.input = "input"

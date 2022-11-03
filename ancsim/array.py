@@ -71,6 +71,8 @@ class ArrayCollection():
 
         #Check that the arrays are the same
         for ar_name, ar in prototype.arrays.items():
+            #if ar != initialized[ar_name]:
+            #    return False
             if type(ar) is not type(initialized[ar_name]):
                 return False
             if ar.num != initialized[ar_name].num:
@@ -327,6 +329,13 @@ class Array(ABC):
             "number of groups" : self.num_groups,
             "dynamic" : self.dynamic,
         }
+
+    # def __eq__(self, other):
+    #     if isinstance(other, Array):
+
+    #         if self.pos != other.pos:
+    #             return False
+    #     return NotImplemented
 
     def set_groups(self, group_idxs):
         """group_idxs is a list of lists or a list of 1D nd.arrays

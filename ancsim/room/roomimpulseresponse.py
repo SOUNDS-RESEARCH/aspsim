@@ -156,9 +156,9 @@ def ir_room_image_source_3d(
         for srcIdx in range(numFrom):
             room.add_source((pos_from[srcIdx, :] + posOffset).T)
 
-        blockSize = np.min((maxNumIRAtOnce, numTo - numComputed))
+        block_size = np.min((maxNumIRAtOnce, numTo - numComputed))
         mics = pra.MicrophoneArray(
-            (pos_to[numComputed : numComputed + blockSize, :] + posOffset[None, :]).T,
+            (pos_to[numComputed : numComputed + block_size, :] + posOffset[None, :]).T,
             room.fs,
         )
         room.add_microphone_array(mics)
@@ -167,7 +167,7 @@ def ir_room_image_source_3d(
             print(
                 "Computing RIR {} - {} of {}".format(
                     numComputed * numFrom + 1,
-                    (numComputed + blockSize) * numFrom,
+                    (numComputed + block_size) * numFrom,
                     numTo * numFrom,
                 )
             )
@@ -179,7 +179,7 @@ def ir_room_image_source_3d(
                 ir[fromIdx, numComputed + toIdx, :irLenToUse] = np.array(singleRIR)[
                     min_dly:irLenToUse+min_dly
                 ]
-        numComputed += blockSize
+        numComputed += block_size
 
         # print("RT 60: ", room.measure_rt60())
         if calculate_metadata:

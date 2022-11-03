@@ -22,8 +22,8 @@ def debug (sim_info):
     arrays.add_array(
         ar.MicArray("mic", np.zeros((1,3)))
     )
-    propPaths = {"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}}
-    return arrays, propPaths
+    prop_paths = {"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}}
+    return arrays, prop_paths
 
 
 def audio_processing(sim_info, 
@@ -44,8 +44,8 @@ def audio_processing(sim_info,
         ar.MicArray("input", np.zeros((num_input,3)))
     )
 
-    propPaths = {"source":{"input":"isolated"}, "output" : {"input":"none"}}
-    return arrays, propPaths
+    prop_paths = {"source":{"input":"isolated"}, "output" : {"input":"none"}}
+    return arrays, prop_paths
 
 def signal_estimation(sim_info, 
                      num_input=1,
@@ -64,9 +64,9 @@ def signal_estimation(sim_info,
     arrays.add_array(
         ar.MicArray("desired", np.zeros((num_output, 3)))
     )
-    propPaths = {"source":{"input":"isolated", "desired" : "random"}}
+    prop_paths = {"source":{"input":"isolated", "desired" : "random"}}
 
-    return arrays, propPaths
+    return arrays, prop_paths
 
 def anc_multi_point(sim_info, 
                     num_error=4, 

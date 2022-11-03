@@ -7,22 +7,22 @@ import numba as nb
 
 
 
-def createFilter(ir=None, numIn=None, numOut=None, irLen=None, broadcastDim=None, sumOverInput=True, dynamic=False):
-    if numIn is not None and numOut is not None and irLen is not None:
+def createFilter(ir=None, num_in=None, num_out=None, ir_len=None, broadcast_dim=None, sum_over_input=True, dynamic=False):
+    if num_in is not None and num_out is not None and ir_len is not None:
         assert ir is None
-        ir = np.zeros((numIn, numOut, irLen))
+        ir = np.zeros((num_in, num_out, ir_len))
 
     if ir is not None:
         #assert numIn is None and numOut is None and irLen is None
-        if broadcastDim is not None:
+        if broadcast_dim is not None:
             if dynamic:
                 raise NotImplementedError
-            if sumOverInput:
+            if sum_over_input:
                 raise NotImplementedError
-            assert ir.ndim == 3 and isinstance(broadcastDim, int) # A fallback to non-numba MD-filter can be added instead of assert
-            return FilterMD(broadcastDim, ir)
+            assert ir.ndim == 3 and isinstance(broadcast_dim, int) # A fallback to non-numba MD-filter can be added instead of assert
+            return FilterMD(broadcast_dim, ir)
         
-        if sumOverInput:
+        if sum_over_input:
             if dynamic:
                 return FilterSumDynamic(ir)
             return FilterSum(ir)
@@ -268,7 +268,7 @@ class FilterMD_Freqdomain:
             assert tf.shape[0] % 2 == 0
             self.tf = tf
         elif ir is not None:
-            self.tf = fdf.fftWithTranspose(
+            self.tf = fdf.fft_transpose(
                 np.concatenate((ir, np.zeros_like(ir)), axis=-1)
             )
         elif filtDim is not None:
@@ -292,7 +292,7 @@ class FilterMD_Freqdomain:
 
     def process(self, samplesToProcess):
         assert samplesToProcess.shape == (*self.dataDims, self.irLen)
-        outputSamples = fdf.convolveEuclidianFT(
+        outputSamples = fdf.convolve_euclidian_ft(
             self.tf, np.concatenate((self.buffer, samplesToProcess), axis=-1)
         )
 
@@ -303,9 +303,9 @@ class FilterMD_Freqdomain:
         """Can be used if the fft of the input signal is already available.
         Assumes padding is already applied correctly."""
         assert freqsToProcess.shape == (self.numFreq, *self.dataDims)
-        outputSamples = fdf.convolveEuclidianFF(self.tf, freqsToProcess)
+        outputSamples = fdf.convolve_euclidian_ff(self.tf, freqsToProcess)
 
-        self.buffer[...] = fdf.ifftWithTranspose(freqsToProcess, removeEmptyDim=False)[
+        self.buffer[...] = fdf.ifft_transpose(freqsToProcess, remove_empty_dim=False)[
             ..., self.irLen :
         ]
         return outputSamples
@@ -392,12 +392,12 @@ class FilterSum_Freqdomain:
 
     def process(self, samplesToProcess):
         assert samplesToProcess.shape == self.buffer.shape
-        freqsToProcess = fdf.fftWithTranspose(
-            np.concatenate((self.buffer, samplesToProcess), axis=-1), addEmptyDim=True
+        freqsToProcess = fdf.fft_transpose(
+            np.concatenate((self.buffer, samplesToProcess), axis=-1), add_empty_dim=True
         )
         tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifftWithTranspose(
-            self.tf.reshape(tfNewShape) @ freqsToProcess, removeEmptyDim=True
+        outputSamples = fdf.ifft_transpose(
+            self.tf.reshape(tfNewShape) @ freqsToProcess, remove_empty_dim=True
         )
 
         self.buffer[...] = samplesToProcess
@@ -408,21 +408,21 @@ class FilterSum_Freqdomain:
         Assumes padding is already applied correctly."""
         assert freqsToProcess.shape == (self.numFreq, self.numIn, 1)
         tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifftWithTranspose(
-            self.tf.reshape(tfNewShape) @ freqsToProcess, removeEmptyDim=True
+        outputSamples = fdf.ifft_transpose(
+            self.tf.reshape(tfNewShape) @ freqsToProcess, remove_empty_dim=True
         )
 
-        self.buffer[...] = fdf.ifftWithTranspose(freqsToProcess, removeEmptyDim=True)[
+        self.buffer[...] = fdf.ifft_transpose(freqsToProcess, remove_empty_dim=True)[
             ..., self.irLen :
         ]
         return np.real(outputSamples[..., self.irLen :])
 
     def processWithoutSum(self, samplesToProcess):
         assert samplesToProcess.shape == self.buffer.shape
-        freqsToProcess = fdf.fftWithTranspose(
-            np.concatenate((self.buffer, samplesToProcess), axis=-1), addEmptyDim=True)
+        freqsToProcess = fdf.fft_transpose(
+            np.concatenate((self.buffer, samplesToProcess), axis=-1), add_empty_dim=True)
         tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifftWithTranspose(
+        outputSamples = fdf.ifft_transpose(
             np.swapaxes(self.tf.reshape(tfNewShape),-1,-2) * freqsToProcess)
 
         self.buffer[...] = samplesToProcess
