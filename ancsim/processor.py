@@ -72,7 +72,7 @@ class ProcessorWrapper():
         self.processor = processor
         self.arrays = arrays
         self.sim_info = processor.sim_info
-        self.blockSize = processor.blockSize
+        self.block_size = processor.blockSize
 
         self.path_filters = {}
         for src, mic, path in arrays.iter_paths():
@@ -133,11 +133,11 @@ class ProcessorWrapper():
             if src.dynamic or mic.dynamic:
                 self.path_filters[src.name][mic.name].ir = self.arrays.paths[src.name][mic.name]
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.processor.sig[src.name][:,i:i+self.blockSize])
-            self.processor.sig[mic.name][:,i:i+self.blockSize] += propagated_signal
+                    self.processor.sig[src.name][:,i:i+self.block_size])
+            self.processor.sig[mic.name][:,i:i+self.block_size] += propagated_signal
             if self.sim_info.save_source_contributions:
-                self.processor.sig[src.name+"~"+mic.name][:,i:i+self.blockSize] = propagated_signal
-        self.processor.idx += self.blockSize
+                self.processor.sig[src.name+"~"+mic.name][:,i:i+self.block_size] = propagated_signal
+        self.processor.idx += self.block_size
 
         last_block = self.last_block_on_buffer()
         self.processor.diag.saveData(self.processor, self.processor.idx, globalIdx, last_block)
@@ -145,11 +145,11 @@ class ProcessorWrapper():
             self.resetBuffers(globalIdx)
 
     def process(self, globalIdx):
-        self.processor.process(self.blockSize)
+        self.processor.process(self.block_size)
         #if self.processor.diag.shouldSaveData(globalIdx):
         
     def last_block_on_buffer(self):
-        return self.processor.idx+self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
+        return self.processor.idx+self.block_size >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
         #return self.processor.idx+2*self.blockSize >= self.processor.sim_info.sim_chunk_size+self.processor.sim_info.sim_buffer
         
         

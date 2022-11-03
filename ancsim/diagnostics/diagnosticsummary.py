@@ -2,7 +2,7 @@ import numpy as np
 import json
 import scipy.signal as spsig
 
-import ancsim.diagnostics.diagnosticplots as dplt
+import ancsim.diagnostics.plot as dplt
 import ancsim.diagnostics.core as diacore
 
 def add_to_summary(diagName, summaryValues, timeIdx, folderPath):

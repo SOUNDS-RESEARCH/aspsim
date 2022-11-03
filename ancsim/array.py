@@ -1,11 +1,11 @@
 import numpy as np
-#import dill
+import dill
 import json
 from abc import ABC
 import copy
 import matplotlib.pyplot as plt
 
-import ancsim.diagnostics.diagnosticplots as dplot
+import ancsim.diagnostics.plot as dplot
 import ancsim.room.roomimpulseresponse as rir
 import ancsim.room.region as reg
 import ancsim.room.trajectory as tr
@@ -270,6 +270,20 @@ class ArrayCollection():
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         dplot.output_plot(print_method, fig_folder, "array_pos")
+
+    def save_to_file(self, path):
+        if path is not None:
+            with open(path.joinpath("arrays.pickle"), "wb") as f:
+                dill.dump(self, f)
+
+def load_arrays(session_path):
+        with open(session_path.joinpath("arrays.pickle"), "rb") as f:
+            arrays = dill.load(f)
+        return arrays
+
+
+
+
 
 
 class Array(ABC):

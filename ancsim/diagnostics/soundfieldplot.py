@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import ancsim.diagnostics.diagnosticplots as dplt
+import ancsim.diagnostics.plot as dplt
 
 def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}):
     """single pos array of shape (numPoints, spatialDim)

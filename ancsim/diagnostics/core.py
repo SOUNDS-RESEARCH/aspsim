@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import ancsim.diagnostics.diagnosticplots as dplot
+import ancsim.diagnostics.plot as dplot
 
 
 """

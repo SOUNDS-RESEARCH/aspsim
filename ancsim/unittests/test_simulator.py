@@ -11,17 +11,16 @@ import ancsim.array as ar
 import ancsim.processor as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
-import ancsim.diagnostics.diagnosticutils as diautil
 import ancsim.signal.sources as sources
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
-    setup.config["tot_samples"] = 100
-    setup.config["sim_chunk_size"] = 10
-    setup.config["sim_buffer"] = 10
-    setup.config["chunk_per_export"] = 1
-    setup.config["save_source_contributions"] = False
-    setup.usePreset("debug")
+    setup.sim_info.tot_samples = 100
+    setup.sim_info.sim_chunk_size = 10
+    setup.sim_info.sim_buffer = 10
+    setup.sim_info.chunk_per_export = 1
+    setup.sim_info.save_source_contributions = False
+    setup.use_preset("debug")
 
 @pytest.fixture(scope="session")
 def sim_setup(tmp_path_factory):
@@ -31,9 +30,9 @@ def sim_setup(tmp_path_factory):
 # @hyp.settings(deadline=None)
 # @hyp.given(bs = st.integers(min_value=1, max_value=5))
 # def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
-#     sim = sim_setup.createSimulator()
-#     sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-#     sim.runSimulation()
+#     sim = sim_setup.create_simulator()
+#     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+#     sim.run_simulation()
 #     print(sim.n_tot >= sim.sim_info.tot_samples)
 #     assert sim.n_tot >= sim.sim_info.tot_samples
 
@@ -41,9 +40,9 @@ def sim_setup(tmp_path_factory):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.runSimulation()
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
     assert sim.processors[0].processor.processed_samples >= sim.sim_info.tot_samples
     #assert sim.n_tot >= sim.sim_info.tot_samples
 
@@ -51,15 +50,15 @@ def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_consecutive_simulators_give_same_values(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.runSimulation()
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
 
     sig1 = sim.processors[0].processor.sig["mic"]
 
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.runSimulation()
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
 
     sig2 = sim.processors[0].processor.sig["mic"]
 
@@ -68,7 +67,6 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 
 def test_correct_processing_delay():
     assert False
-
 
 def test_multiple_free_sources():
     assert False
@@ -80,18 +78,18 @@ def test_same_with_multiple_processors():
 def test_trajectory_mic(sim_setup):
     bs = 1
     reset_sim_setup(sim_setup)
-    sim_setup.config["reverb"] = "ism"
-    sim_setup.config["rt60"] = 0.15
+    sim_setup.sim_info.reverb = "ism"
+    sim_setup.sim_info.rt60 = 0.15
     #room_size = [4, 3, 3]
-    sim_setup.config["max_room_ir_length"] = 256
+    sim_setup.sim_info.max_room_ir_length = 256
     sim_setup.arrays = ar.ArrayCollection()
     mic_traj = ar.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
-    sim_setup.addMics("mic", mic_traj)
-    sim_setup.addControllableSource("loudspeaker", np.array([[-1, -1, -1]]))
+    sim_setup.add_mics("mic", mic_traj)
+    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
 
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.runSimulation()
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
 
     assert False
 
@@ -99,41 +97,41 @@ def test_trajectory_mic(sim_setup):
 def test_unmoving_trajectory_same_as_static(sim_setup):
     bs = 1
     reset_sim_setup(sim_setup)
-    sim_setup.config["reverb"] = "ism"
-    sim_setup.config["rt60"] = 0.15
+    sim_setup.sim_info.reverb = "ism"
+    sim_setup.sim_info.rt60 = 0.15
     room_size = [4, 3, 3]
-    sim_setup.config["max_room_ir_length"] = 256
+    sim_setup.sim_info.max_room_ir_length = 256
     sim_setup.arrays = ar.ArrayCollection()
     def zero_pos_func(time):
         return np.zeros((1,3))
 
     mic_traj = ar.Trajectory(zero_pos_func)
-    sim_setup.addMics("mic", mic_traj)
-    sim_setup.addControllableSource("loudspeaker", np.array([[-1, -1, -1]]))
-    sim_setup.addFreeSource("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
+    sim_setup.add_mics("mic", mic_traj)
+    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
+    sim_setup.add_free_source("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
 
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
     diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
-    sim.runSimulation()
+    sim.run_simulation()
 
 
     reset_sim_setup(sim_setup)
-    sim_setup.config["reverb"] = "ism"
-    sim_setup.config["rt60"] = 0.15
+    sim_setup.sim_info.reverb = "ism"
+    sim_setup.sim_info.rt60 = 0.15
     room_size = [4, 3, 3]
-    sim_setup.config["max_room_ir_length"] = 256
+    sim_setup.sim_info.max_room_ir_length = 256
     sim_setup.arrays = ar.ArrayCollection()
-    sim_setup.addMics("mic", np.array([[0,0,0]]))
-    sim_setup.addControllableSource("loudspeaker", np.array([[-1, -1, -1]]))
-    sim_setup.addFreeSource("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
+    sim_setup.add_mics("mic", np.array([[0,0,0]]))
+    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
+    sim_setup.add_free_source("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
 
-    sim2 = sim_setup.createSimulator()
-    sim2.addProcessor(bse.DebugProcessor(sim2.sim_info, sim2.arrays, bs, 
+    sim2 = sim_setup.create_simulator()
+    sim2.add_processor(bse.DebugProcessor(sim2.sim_info, sim2.arrays, bs, 
     diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
-    sim2.runSimulation()
+    sim2.run_simulation()
 
-    for f, f2 in zip(sim.folderPath.iterdir(), sim2.folderPath.iterdir()):
+    for f, f2 in zip(sim.folder_path.iterdir(), sim2.folder_path.iterdir()):
         assert f.name == f2.name
         if f.suffix == ".npy" or f.suffix == ".npz":
             saved_data = np.load(f)

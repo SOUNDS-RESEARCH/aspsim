@@ -1,109 +1,78 @@
-from pathlib import Path
 import shutil
-import numpy as np
 import json
-import yaml
-import dill
 
-import ancsim.utilities as util
 import ancsim.fileutilities as futil
 import ancsim.configutil as configutil
 import ancsim.array as ar
 
 
 
-def save_session(sessionFolder, config, arrays, simMetadata=None, extraprefix=""):
-    sessionPath = futil.get_unique_folder_name("session_" + extraprefix, sessionFolder)
+def save_session(sessionFolder, sim_info, arrays, sim_metadata=None, extraprefix=""):
+    session_path = futil.get_unique_folder_name("session_" + extraprefix, sessionFolder)
 
-    sessionPath.mkdir()
-    save_arrays(sessionPath, arrays)
-    save_config(sessionPath, config)
-    if simMetadata is not None:
-        add_to_sim_metadata(sessionPath, simMetadata)
+    session_path.mkdir()
+    arrays.save_to_file(session_path)
+    sim_info.save_to_file(session_path)
+    if sim_metadata is not None:
+        add_to_sim_metadata(session_path, sim_metadata)
 
-def load_session(sessionsPath, newFolderPath, chosenConfig, chosenArrays):
+def load_session(sessions_path, new_folder_path, chosen_sim_info, chosen_arrays):
     """sessionsPath refers to the folder where all sessions reside 
         This function will load a session matching the chosenConfig 
         and chosenArrays if it exists"""
-    sessionToLoad = search_for_matching_session(sessionsPath, chosenConfig, chosenArrays)
-    print("Loaded Session: ", str(sessionToLoad))
-    loadedArrays = load_arrays(sessionToLoad)
+    session_to_load = search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays)
+    print("Loaded Session: ", str(session_to_load))
+    loaded_arrays = ar.load_arrays(session_to_load)
+    return loaded_arrays
     
-    return loadedArrays
-    
-def load_from_path(sessionPathToLoad, newFolderPath=None):
-    loadedArrays = load_arrays(sessionPathToLoad)
-    loadedConfig = load_config(sessionPathToLoad)
+def load_from_path(session_path_to_load, new_folder_path=None):
+    loaded_arrays = ar.load_arrays(session_path_to_load)
+    loaded_sim_info = configutil.load_from_file(session_path_to_load)
 
-    if newFolderPath is not None:
-        copy_sim_metadata(sessionPathToLoad, newFolderPath)
-        save_config(newFolderPath, loadedConfig)
-    return loadedConfig, loadedArrays
+    if new_folder_path is not None:
+        copy_sim_metadata(session_path_to_load, new_folder_path)
+        loaded_sim_info.save_to_file(new_folder_path)
+    return loaded_sim_info, loaded_arrays
 
-def copy_sim_metadata(fromFolder, toFolder):
+def copy_sim_metadata(from_folder, to_folder):
     shutil.copy(
-        fromFolder.joinpath("metadata_sim.json"), toFolder.joinpath("metadata_sim.json")
+        from_folder.joinpath("metadata_sim.json"), to_folder.joinpath("metadata_sim.json")
     )
 
 
 class MatchingSessionNotFoundError(ValueError): pass
 
-def search_for_matching_session(sessionsPath, chosenConfig, chosenArrays):
-    for dirPath in sessionsPath.iterdir():
-        if dirPath.is_dir():
-            #currentSess = sessionsPath.joinpath(dirPath)
-            loadedConfig = load_config(dirPath)
-            loadedArrays = load_arrays(dirPath)
-            #print("configs", configutil.configMatch(chosenConfig, loadedConfig))
-            #print("arrays", chosenArrays == loadedArrays)
-            if configutil.config_match(chosenConfig, loadedConfig, chosenArrays.path_type) and \
-                ar.ArrayCollection.prototype_equals(chosenArrays, loadedArrays):
-                return dirPath
+def search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays):
+    for dir_path in sessions_path.iterdir():
+        if dir_path.is_dir():
+            loaded_sim_info = configutil.load_from_file(dir_path)
+            loaded_arrays = ar.load_arrays(dir_path)
+
+            if configutil.equal_audio(chosen_sim_info, loaded_sim_info, chosen_arrays.path_type) and \
+                ar.ArrayCollection.prototype_equals(chosen_arrays, loaded_arrays):
+                return dir_path
     raise MatchingSessionNotFoundError("No matching saved sessions")
 
 
-def save_config(pathToSave, config):
-    if pathToSave is not None:
-        with open(pathToSave.joinpath("config.yaml"), "w") as f:
-            yaml.dump(config, f, sort_keys=False)
 
-def load_config(sessionPath):
-    with open(sessionPath.joinpath("config.yaml")) as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-def load_arrays(sessionPath):
-    with open(sessionPath.joinpath("arrays.pickle"), "rb") as f:
-        arrays = dill.load(f)
-    return arrays
-
-
-def save_arrays(pathToSave, arrays):
-    if pathToSave is not None:
-        with open(pathToSave.joinpath("arrays.pickle"), "wb") as f:
-            dill.dump(arrays, f)
-
-
-
-def add_to_sim_metadata(folderPath, dictToAdd):
+def add_to_sim_metadata(folder_path, dict_to_add):
     try:
-        with open(folderPath.joinpath("metadata_sim.json"), "r") as f:
-            oldData = json.load(f)
-            totData = {**oldData, **dictToAdd}
+        with open(folder_path.joinpath("metadata_sim.json"), "r") as f:
+            old_data = json.load(f)
+            tot_data = {**old_data, **dict_to_add}
     except FileNotFoundError:
-        totData = dictToAdd
-    with open(folderPath.joinpath("metadata_sim.json"), "w") as f:
-        json.dump(totData, f, indent=4)
+        tot_data = dict_to_add
+    with open(folder_path.joinpath("metadata_sim.json"), "w") as f:
+        json.dump(tot_data, f, indent=4)
 
 
-def write_processor_metadata(processors, folderPath):
-    if folderPath is None:
+def write_processor_metadata(processors, folder_path):
+    if folder_path is None:
         return
         
-    fileName = "metadata_processor.json"
-    totMetadata = {}
+    file_name = "metadata_processor.json"
+    tot_metadata = {}
     for proc in processors:
-        totMetadata[proc.name] = proc.metadata
-    with open(folderPath.joinpath(fileName), "w") as f:
-        json.dump(totMetadata, f, indent=4)
+        tot_metadata[proc.name] = proc.metadata
+    with open(folder_path.joinpath(file_name), "w") as f:
+        json.dump(tot_metadata, f, indent=4)
