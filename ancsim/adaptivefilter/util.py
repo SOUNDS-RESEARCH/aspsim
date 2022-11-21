@@ -42,17 +42,20 @@ class PhaseCounter:
         #phase_lengths = {name : length for name, length in self.phase_lengths.items()}
         
         #phase_idxs = [i for i in self.phase_lengths.values() if i != 0]
-        self.phase_lengths = {name : i if i >= 0 else np.inf for name, i in self.phase_lengths.items()}
+        #self.phase_lengths = {name : i if i >= 0 else np.inf for name, i in self.phase_lengths.items()}
+        assert all([l >= 0 for l in self.phase_lengths.values()])
+        if all ([l < np.inf for l in self.phase_lengths.values()]):
+            self.phase_lengths[None] = np.inf
         #assert all([i != 0 for i in p_len])
         self.start_idxs = np.cumsum(list(self.phase_lengths.values())).tolist()
         self.start_idxs = [i if np.isinf(i) else int(i) for i in self.start_idxs]
         self.start_idxs.insert(0,0)
 
         self.phase_names = list(self.phase_lengths.keys())
-        if self.start_idxs[-1] < np.inf:
-            self.phase_names.append(None)
-        else:
-            self.start_idxs.pop()
+        #if self.start_idxs[-1] < np.inf:
+        #    self.phase_names.append(None)
+        #else:
+        #    self.start_idxs.pop()
 
         self.start_idxs = {phase_name:start_idx for phase_name, start_idx in zip(self.phase_names, self.start_idxs)}
 
