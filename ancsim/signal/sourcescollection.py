@@ -77,30 +77,6 @@ class MultiSineSource(src.Source):
         return noise
 
 
-class WhiteNoiseSource(src.Source):
-    def __init__(self, num_channels, power, rng=None):
-        super().__init__(num_channels, rng)
-        self.set_power(power)
-
-        if isinstance(self.power, (np.ndarray)):
-            self.metadata["power"] = self.power.tolist()
-        else:
-            self.metadata["power"] = self.power
-
-    def get_samples(self, num_samples):
-        return self.rng.normal(
-            loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
-        ).T
-    
-    def set_power(self, newPower):
-        self.power = newPower
-        self.stdDev = np.sqrt(newPower)
-
-        if isinstance(self.power, np.ndarray):
-            assert self.power.ndim == 1
-            assert self.power.shape[0] == self.num_channels or \
-                    self.power.shape[0] == 1
-
 
 class BandlimitedNoiseSource(src.Source):
     def __init__(self, num_channels, power, freqLim, samplerate, rng=None):

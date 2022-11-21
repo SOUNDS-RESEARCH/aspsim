@@ -37,15 +37,17 @@ class SourceArray:
 
 class Sequence(Source):
     def __init__(self, audio, amp_factor = 1, end_mode = "repeat"):
-        """
-            Will play the supplied sequence, either just once or repeat it indefinitely
+        """ Will play the supplied sequence
 
-
+        Parameters
+        ----------
         audio is np.ndarray of audio samples to be played. 
                     Shape is (num_channels, num_samples)
-        end_mode can be 'repeat' or 'zeros', which selects whether the 
-                    sound should repeat indefinitely or just be 0 
-                    after the supplied samples are over
+        end_mode : can be any of {'repeat', 'zeros', 'raise'}
+            with 'repeat' the sequence starts over again indefinitely
+            with 'zeros' the sequence plays once and then only 0s 
+            with 'raise' the source will raise an exception if get_samples() 
+            is called after the sequence is finished
         """
         assert isinstance(audio, np.ndarray)
         if audio.ndim == 1:
@@ -81,6 +83,32 @@ class Sequence(Source):
         else:
             raise ValueError("Invalid end mode")
         return sig * self.amp_factor
+
+
+class WhiteNoiseSource(src.Source):
+    def __init__(self, num_channels, power, rng=None):
+        super().__init__(num_channels, rng)
+        self.set_power(power)
+
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
+
+    def get_samples(self, num_samples):
+        return self.rng.normal(
+            loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
+        ).T
+    
+    def set_power(self, newPower):
+        self.power = newPower
+        self.stdDev = np.sqrt(newPower)
+
+        if isinstance(self.power, np.ndarray):
+            assert self.power.ndim == 1
+            assert self.power.shape[0] == self.num_channels or \
+                    self.power.shape[0] == 1
+
 
 
 class Counter(Source):
