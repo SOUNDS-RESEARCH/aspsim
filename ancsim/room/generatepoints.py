@@ -2,6 +2,19 @@ import numpy as np
 import ancsim.utilities as util
 
 
+
+def cart2pol(x, y):
+    r = np.hypot(x, y)
+    angle = np.arctan2(y, x)
+    return (r, angle)
+
+def pol2cart(r, angle):
+    x = r * np.cos(angle)
+    y = r * np.sin(angle)
+    return (x, y)
+
+
+
 def concentrical_circles(
     num_points, num_circles, radius, z_distance=None, angle_offset="distribute"
 ):
@@ -51,7 +64,7 @@ def equiangular_circle(num_points, radius, start_angle=0, z=None, rng=None):
     angles = start_angle + np.arange(num_points) * angleStep
     angles = np.mod(angles, 2 * np.pi)
     radia = rng.uniform(radius[0], radius[1], size=num_points)
-    [x, y] = util.pol2cart(radia, angles)
+    [x, y] = pol2cart(radia, angles)
 
     if z is not None:
         coords = np.zeros((num_points, 3))
@@ -89,7 +102,7 @@ def sunflower_pattern(N, radius, offset_angle=0):
     k = np.arange(1, N + 1)
     r = radius * np.sqrt(k - (1 / 2)) / np.sqrt(N - 1 / 2)
     theta = k * 2 * np.pi / phisq
-    [x, y] = util.pol2cart(r, theta)
+    [x, y] = pol2cart(r, theta)
     return np.stack((x, y)).T
 
 
