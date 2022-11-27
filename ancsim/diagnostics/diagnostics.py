@@ -49,19 +49,23 @@ class RecordFilterDifference(RecordFilter):
 
 class RecordSignal(diacore.SignalDiagnostic):
     def __init__(self, 
-        sig_name, 
+        sig_name,
         *args,
+        num_channels = 1, 
         **kwargs):
         super().__init__(*args, **kwargs)
         self.sig_name = sig_name
-        self.signal = np.full((self.sim_info.tot_samples), np.nan)
+        self.num_channels = num_channels
+        self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
         
     def save(self, processor, chunkInterval, globInterval):
-        if processor.sig[self.sig_name].shape[0] > 1:
-            raise NotImplementedError
+        assert processor.sig[self.sig_name].ndim == 2
+        assert processor.sig[self.sig_name].shape[0] == self.num_channels
+        #if processor.sig[self.sig_name].shape[0] > 1:
+        #    raise NotImplementedError
 
-        self.signal[globInterval[0]:globInterval[1]] = \
-            processor.sig[self.sig_name][0,chunkInterval[0]:chunkInterval[1]]
+        self.signal[:, globInterval[0]:globInterval[1]] = \
+            processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
 
     def get_output(self):
         return self.signal
@@ -149,8 +153,8 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         self.denom_channels = denom_channels
         
     def save(self, processor, chunkInterval, globInterval):
-        smoother_num = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
-        smoother_denom = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+        smoother_num = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+        smoother_denom = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
 
         num = smoother_num.process(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
         denom = smoother_denom.process(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))

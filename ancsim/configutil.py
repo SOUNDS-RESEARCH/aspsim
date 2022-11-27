@@ -43,7 +43,7 @@ class SimulatorInfo:
 
 def load_from_file(path):
     if path.is_dir():
-        path.joinpath("config.yaml")
+        path = path.joinpath("config.yaml")
 
     with open(path) as f:
         config = yaml.safe_load(f)

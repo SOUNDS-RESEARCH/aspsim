@@ -113,7 +113,7 @@ class DiagnosticExporter:
         preproc = one_diag_object.preprocess
         export_time_idx = one_diag_object.next_export()
         for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
-            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, printMethod=self.sim_info.plot_output, **exp_kwarg)
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, print_method=self.sim_info.plot_output, **exp_kwarg)
 
         for diag in diag_dict.values():
             diag.progress_export()
@@ -380,6 +380,7 @@ class SignalDiagnostic(Diagnostic):
         "plot" : dplot.function_of_time_plot,
         "npz" : dplot.savenpz,
         "text" : dplot.txt,
+        "wav" : dplot.create_audio_files,
     }
     def __init__ (
         self,

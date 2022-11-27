@@ -36,10 +36,10 @@ def delete_earlier_tikz_plot(folder, name):
             except PermissionError:
                 pass
 
-def output_plot(printMethod, folder, name="", keep_only_latest_tikz=True):
-    if printMethod == "show":
+def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
+    if print_method == "show":
         plt.show()
-    elif printMethod == "tikz":
+    elif print_method == "tikz":
         if folder is not None:
             nestedFolder = folder.joinpath(name)
             try:
@@ -65,7 +65,7 @@ def output_plot(printMethod, folder, name="", keep_only_latest_tikz=True):
             )
             if keep_only_latest_tikz:
                 delete_earlier_tikz_plot(folder, name)
-    elif printMethod == "pdf":
+    elif print_method == "pdf":
         if folder is not None:
             plt.savefig(
                 str(folder.joinpath(name + ".pdf")),
@@ -79,7 +79,7 @@ def output_plot(printMethod, folder, name="", keep_only_latest_tikz=True):
                 bbox_inches="tight",
                 pad_inches=0.2,
             )
-    elif printMethod == "svg":
+    elif print_method == "svg":
         if folder is not None:
             plt.savefig(
                 str(folder.joinpath(name + ".svg")),
@@ -89,7 +89,7 @@ def output_plot(printMethod, folder, name="", keep_only_latest_tikz=True):
                 bbox_inches="tight",
                 pad_inches=0.2,
             )
-    elif printMethod == "none":
+    elif print_method == "none":
         pass
     else:
         raise ValueError
@@ -204,7 +204,7 @@ def savenpz(name, diags, time_idx, folder, preprocess, print_method="pdf"):
                 f.unlink()
 
 
-def txt(name, diags, time_idx, folder, preprocess, printMethod="pdf"):
+def txt(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()} 
     # only takes output even if time indices are provided
@@ -221,18 +221,18 @@ def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
 
 
 def plot_ir(name, diags, time_idx, folder, preprocess, print_method="pdf"):
-    numSets = 0
-    for algoName, diag in diags.items():
-        for irSet in diag.get_output():
-            numIRs = irSet.shape[0]
-            numSets += 1
-    numAlgo = len(diags)
+    num_sets = 0
+    for algo_name, diag in diags.items():
+        for ir_set in diag.get_output():
+            num_irs = ir_set.shape[0]
+            num_sets += 1
+    num_algo = len(diags)
 
     #fig, axes = plt.subplots(numSets, numIRs, figsize=(numSets*4, numIRs*4))
-    fig, axes = plt.subplots(numAlgo, numIRs, figsize=(numIRs*6, numAlgo*6))
-    if numAlgo == 1:
+    fig, axes = plt.subplots(num_algo, num_irs, figsize=(num_irs*6, num_algo*6))
+    if num_algo == 1:
         axes = np.expand_dims(axes, 0)
-    if numIRs == 1:
+    if num_irs == 1:
         axes = np.expand_dims(axes, -1)
     #axes = np.atleast_2d(axes)
     #if not isinstance(axes, tuple):
@@ -240,12 +240,12 @@ def plot_ir(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     #elif not isinstance(axes[0], tuple):
     #    axes = [axes]
 
-    for row, (algoName, diag) in enumerate(diags.items()):
+    for row, (algo_name, diag) in enumerate(diags.items()):
         output = diag.get_processed_output(time_idx, preprocess)
-        for setIdx, irSet in enumerate(output):
-            for col in range(irSet.shape[0]):
+        for set_idx, ir_set in enumerate(output):
+            for col in range(ir_set.shape[0]):
                 #axes[row, col].plot(irSet[col,:], label=f"{algoName} {metadata['label'][setIdx]}", alpha=0.6)
-                axes[row, col].plot(irSet[col,:], label=f"{algoName}", alpha=0.6)
+                axes[row, col].plot(ir_set[col,:], label=f"{algo_name}", alpha=0.6)
                 #axes[row, col].set_xlabel(diag.plot_data["xlabel"])
                 #axes[row, col].set_ylabel(diag.plot_data["ylabel"])
 
@@ -275,32 +275,42 @@ def matshow(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     output_plot(print_method, folder, f"{name}_{time_idx}")
 
 
-def create_audio_files(name, outputs, metadata, timeIdx, folder, print_method=None):
-    maxValue = np.NINF
-    lastTimeIdx = np.Inf
-    for output in outputs.values():
-        for signal in output.values():
-            maxValue = np.max((maxValue, np.max(np.abs(signal[~np.isnan(signal)]))))
-            lastTimeIdx = int(np.min((lastTimeIdx, np.max(np.where(~np.isnan(signal))))))
+def create_audio_files(name, diags, time_idx, folder, preprocess, print_method=None):
+    outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+    outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()} 
+    # only takes the signal even if time indices are provided
 
-    startIdx = np.max((lastTimeIdx-metadata["maxlength"], 0))
+    samplerate = diags[list(diags.keys())[0]].sim_info.samplerate
 
-    for algoName, output in outputs.items():
-        for audioName, signal in output.items():
-            for channelIdx in range(signal.shape[0]):
-                if signal.shape[0] > 1:
-                    fileName = "_".join((name, algoName, audioName, str(channelIdx), str(timeIdx)))
-                else:
-                    fileName = "_".join((name, algoName, audioName, str(timeIdx)))
-                filePath = folder.joinpath(fileName + ".wav")
+    #max_val = np.NINF
+    #last_time_idx = np.inf
+    #for (proc_name, signal) in outputs.items():
+    #        max_val = np.max((max_val, np.max(np.abs(signal[~np.isnan(signal)]))))
+    #        last_time_idx = int(np.min((last_time_idx, np.max(np.where(~np.isnan(signal))))))
 
-                signalToWrite = signal[channelIdx,startIdx:lastTimeIdx]/maxValue
-                rampLength = int(0.2*metadata["samplerate"])
-                ramp = np.linspace(0,1,rampLength)
-                signalToWrite[:rampLength] *= ramp
-                signalToWrite[-rampLength:] *= (1-ramp)
+    #start_idx = np.max((last_time_idx-metadata["maxlength"], 0))
 
-                sf.write(str(filePath),signalToWrite, metadata["samplerate"])
+    for proc_name, signal in outputs.items():
+        file_name = "_".join((name, proc_name, str(time_idx)))
+        file_path = folder.joinpath(f"{file_name}.wav")
+
+
+        # for channel_idx in range(signal.shape[0]):
+        #     if signal.shape[0] > 1:
+        #         fileName = "_".join((name, proc_name, audio_name, str(channel_idx), str(time_idx)))
+        #     else:
+        #         fileName = "_".join((name, proc_name, audio_name, str(time_idx)))
+        #     file_path = folder.joinpath(fileName + ".wav")
+
+        signal_to_write = signal / np.max(np.abs(signal))
+        
+
+        ramp_length = int(0.2*samplerate)
+        ramp = np.linspace(0,1,ramp_length)
+        signal_to_write[:,:ramp_length] *= ramp
+        signal_to_write[:,-ramp_length:] *= (1-ramp)
+
+        sf.write(str(file_path), signal_to_write.T, samplerate)
 
 
 
