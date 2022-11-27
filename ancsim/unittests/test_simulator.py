@@ -12,6 +12,7 @@ import ancsim.processor as bse
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.sources as sources
+import ancsim.room.trajectory as tr
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
@@ -83,7 +84,7 @@ def test_trajectory_mic(sim_setup):
     #room_size = [4, 3, 3]
     sim_setup.sim_info.max_room_ir_length = 256
     sim_setup.arrays = ar.ArrayCollection()
-    mic_traj = ar.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
+    mic_traj = tr.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
     sim_setup.add_mics("mic", mic_traj)
     sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
 
@@ -105,7 +106,7 @@ def test_unmoving_trajectory_same_as_static(sim_setup):
     def zero_pos_func(time):
         return np.zeros((1,3))
 
-    mic_traj = ar.Trajectory(zero_pos_func)
+    mic_traj = tr.Trajectory(zero_pos_func)
     sim_setup.add_mics("mic", mic_traj)
     sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
     sim_setup.add_free_source("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))

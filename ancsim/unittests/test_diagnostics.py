@@ -16,22 +16,22 @@ import ancsim.fileutilities as fu
 # @pytest.fixture(scope="session")
 # def sim_setup(tmp_path_factory):
 #     setup = SimulatorSetup(tmp_path_factory.mktemp("figs"), None)
-#     setup.config["tot_samples"] = 100
-#     setup.config["sim_chunk_size"] = 10
-#     setup.config["sim_buffer"] = 10
-#     setup.config["chunk_per_export"] = 1
-#     setup.config["save_source_contributions"] = False
+#     setup.sim_info.tot_samples = 100
+#     setup.sim_info.sim_chunk_size = 10
+#     setup.sim_info.sim_buffer = 10
+#     setup.sim_info.chunk_per_export = 1
+#     setup.sim_info.save_source_contributions = False
 #     setup.usePreset("debug")
 #     return setup
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
-    setup.config["tot_samples"] = 100
-    setup.config["sim_chunk_size"] = 10
-    setup.config["sim_buffer"] = 10
-    setup.config["chunk_per_export"] = 1
-    setup.config["save_source_contributions"] = False
-    setup.usePreset("debug")
+    setup.sim_info.tot_samples = 100
+    setup.sim_info.sim_chunk_size = 10
+    setup.sim_info.sim_buffer = 10
+    setup.sim_info.chunk_per_export = 1
+    setup.sim_info.save_source_contributions = False
+    setup.use_preset("debug")
 
 @pytest.fixture(scope="session")
 def sim_setup(tmp_path_factory):
@@ -43,20 +43,20 @@ def sim_setup(tmp_path_factory):
 def test_signal_diagnostics_simplest(sim_setup):
     reset_sim_setup(sim_setup)
     bs = 2
-    sim_setup.config["tot_samples"] = 13
-    sim_setup.config["sim_chunk_size"] = 5
-    sim_setup.config["sim_buffer"] = 5
+    sim_setup.sim_info.tot_samples = 13
+    sim_setup.sim_info.sim_chunk_size = 5
+    sim_setup.sim_info.sim_buffer = 5
 
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     #save_at = diacore.IntervalCounter(np.arange(1,sim.sim_info.tot_samples+1))
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                 diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
 
-    sim.runSimulation()
+    sim.run_simulation()
     
     one_file_saved = False
-    for f in sim.folderPath.iterdir():
+    for f in sim.folder_path.iterdir():
         if f.stem.startswith("mic"):
             one_file_saved = True
             idx = fu.find_index_in_name(f.stem)
@@ -74,16 +74,16 @@ def test_signal_diagnostics_simplest(sim_setup):
             num_proc = st.integers(min_value=1, max_value=3))
 def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size, num_proc):
     reset_sim_setup(sim_setup)
-    sim_setup.config["sim_buffer"] = buf_size
-    sim = sim_setup.createSimulator()
+    sim_setup.sim_info.sim_buffer = buf_size
+    sim = sim_setup.create_simulator()
     for _ in range(num_proc):
-        sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+        sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                     diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
 
-    sim.runSimulation()
+    sim.run_simulation()
     
     at_least_one_file_saved = False
-    for f in sim.folderPath.iterdir():
+    for f in sim.folder_path.iterdir():
         if f.stem.startswith("mic"):
             at_least_one_file_saved = True
             saved_data = np.load(f)
@@ -99,14 +99,14 @@ def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size, num_p
             buf_size = st.integers(min_value=10, max_value=30))
 def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size):
     reset_sim_setup(sim_setup)
-    sim_setup.config["sim_buffer"] = buf_size
-    sim = sim_setup.createSimulator()
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim_setup.sim_info.sim_buffer = buf_size
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False)}))
 
-    sim.runSimulation()
+    sim.run_simulation()
     
-    for f in sim.folderPath.iterdir():
+    for f in sim.folder_path.iterdir():
         if f.stem.startswith("mic"):
             idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
@@ -119,19 +119,19 @@ def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_export_file_naming_interval_diagnostics(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
     diag_name = "mic"
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={"mic":dia.RecordSignal(diag_name, sim.sim_info, bs, 
                    export_at = [iv[1] for iv in save_intervals],
                     save_at=diacore.IntervalCounter(save_intervals), 
                     export_func="npz")}))
-    sim.runSimulation()
+    sim.run_simulation()
 
     for iv in save_intervals:
-        assert sim.folderPath.joinpath(f"{diag_name}_{iv[1]}.npz").exists()
+        assert sim.folder_path.joinpath(f"{diag_name}_{iv[1]}.npz").exists()
 
 
 
@@ -139,11 +139,11 @@ def test_export_file_naming_interval_diagnostics(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
     diag_name = "mic"
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={"mic":dia.RecordSignal(
                        diag_name, sim.sim_info, bs, 
                    export_at = [iv[1] for iv in save_intervals],
@@ -151,11 +151,11 @@ def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
                     export_func="npz")
                     }))
 
-    sim.runSimulation()
+    sim.run_simulation()
 
     expected = np.zeros(0)
     for iv in save_intervals:
-        saved_data = np.load(sim.folderPath.joinpath(f"{diag_name}_{iv[1]}.npz"))
+        saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{iv[1]}.npz"))
         for proc_name, data in saved_data.items():
             #expected[iv[0]:iv[1]] = np.arange(iv[0]+sim.sim_info.sim_buffer, 
             #                                    iv[1]+sim.sim_info.sim_buffer)
@@ -178,21 +178,21 @@ def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
 def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
     reset_sim_setup(sim_setup)
     #bs = 1
-    #sim_setup.config["tot_samples"] = 13
-    #sim_setup.config["sim_chunk_size"] = 5
-    sim_setup.config["sim_buffer"] = buf_size
+    #sim_setup.sim_info.tot_samples = 13
+    #sim_setup.sim_info.sim_chunk_size = 5
+    sim_setup.sim_info.sim_buffer = buf_size
 
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     #save_at = diacore.IntervalCounter(np.arange(1,sim.sim_info.tot_samples+1))
     for _ in range(num_proc):
-        sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+        sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                     diagnostics={"state":dia.RecordState("processed_samples", 1, sim.sim_info, bs, export_func="npz")}))
 
-    sim.runSimulation()
+    sim.run_simulation()
     
     one_file_saved = False
-    for f in sim.folderPath.iterdir():
+    for f in sim.folder_path.iterdir():
         if f.stem.startswith("state"):
             one_file_saved = True
             idx = fu.find_index_in_name(f.stem)
@@ -221,14 +221,14 @@ def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     #save_at = np.arange(bs, sim.sim_info.tot_samples, bs)#(bs,)
     #save_at = [bs*i for i in range(1, sim.sim_info.tot_samples//bs)]
     save_at = (bs, 2*bs, 5*bs)
     #save_intervals = ((1,2), (3,4), (5,6))
     diag_name = "filt"
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={diag_name:dia.RecordFilter(
                        "filt.ir", sim.sim_info, bs, save_at = save_at, export_func="npz")}))
                 #        "mic":dia.RecordSignal(
@@ -238,10 +238,10 @@ def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
                 #     export_func="npz")
                 #     }))
 
-    sim.runSimulation()
+    sim.run_simulation()
 
     for idx in save_at:
-        saved_data = np.load(sim.folderPath.joinpath(f"{diag_name}_{idx}.npz"))
+        saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{idx}.npz"))
         for proc_name, data in saved_data.items():
             assert np.allclose(data, np.zeros_like(data)+idx)
 
@@ -249,18 +249,18 @@ def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     save_at = bs
     diag_name = "filt"
-    sim.addProcessor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
                    diagnostics={diag_name:dia.RecordFilter(
                        "filt.ir", sim.sim_info, bs, save_at = save_at, export_func="npz")}))
 
-    sim.runSimulation()
+    sim.run_simulation()
 
     for idx in range(save_at, sim.sim_info.tot_samples+1, save_at):
-        saved_data = np.load(sim.folderPath.joinpath(f"{diag_name}_{idx}.npz"))
+        saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{idx}.npz"))
         for proc_name, data in saved_data.items():
             assert np.allclose(data, np.zeros_like(data)+idx)
 
@@ -277,7 +277,7 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_two_processors_with_different_diagnostics(sim_setup, bs):
     reset_sim_setup(sim_setup)
-    sim = sim_setup.createSimulator()
+    sim = sim_setup.create_simulator()
 
     proc1 = bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
             diagnostics = {"common" : dia.RecordSignal("mic", sim.sim_info, bs, export_func = "npz", keep_only_last_export=False),
@@ -290,11 +290,11 @@ def test_two_processors_with_different_diagnostics(sim_setup, bs):
                 }
             )
 
-    sim.addProcessor(proc1)
-    sim.addProcessor(proc2)
-    sim.runSimulation()
+    sim.add_processor(proc1)
+    sim.add_processor(proc2)
+    sim.run_simulation()
 
-    for f in sim.folderPath.iterdir():
+    for f in sim.folder_path.iterdir():
         if f.stem.startswith("mic"):
             idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)

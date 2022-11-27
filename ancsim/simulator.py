@@ -48,15 +48,15 @@ class SimulatorSetup:
 
     def add_free_source(self, name, pos, source):
         arr = ar.FreeSourceArray(name, pos, source)
-        self.addArray(arr)
+        self.add_array(arr)
 
     def add_controllable_source(self, name, pos):
         arr = ar.ControllableSourceArray(name, pos)
-        self.addArray(arr)
+        self.add_array(arr)
     
     def add_mics(self, name, pos):
         arr = ar.MicArray(name,pos)
-        self.addArray(arr)
+        self.add_array(arr)
 
     def set_path(self, src_name, mic_name, path):
         self.arrays.set_prop_path(path, src_name, mic_name)

@@ -7,7 +7,9 @@ import scipy.signal.windows as win
 import scipy.signal as spsig
 
 import ancsim.signal.sources as sources
-import ancsim.signal.correlation as cr
+import ancsim.signal.sourcescollection as sourcescol
+
+import aspcol.correlation as cr
 
 # @pytest.mark.parametrize("src", [sources.SineSource(1,100,8000)])
 # def test_source_blocks(src, ):
@@ -79,17 +81,17 @@ def test_multisine_blocks():
             num_channels = st.integers(min_value=1, max_value=5),
             block_size = st.integers(min_value=1, max_value = 64),
             seq_len = st.integers(min_value = 1, max_value=1500))
-def test_audiosource_blocks(num_samples, num_channels, block_size, seq_len):
+def test_sequence_source_blocks(num_samples, num_channels, block_size, seq_len):
     num_samples -= num_samples % block_size
     num_blocks = num_samples // block_size
 
     rng = np.random.default_rng(1)
     seq = rng.normal(0, 1, (num_channels,seq_len))
 
-    src1 = sources.AudioSource(seq, end_mode="repeat")
+    src1 = sources.Sequence(seq, end_mode="repeat")
     sig1 = src1.get_samples(num_samples)
 
-    src2 = sources.AudioSource(seq, end_mode="repeat")
+    src2 = sources.Sequence(seq, end_mode="repeat")
     sig2 = np.zeros((num_channels, num_samples))
 
     for i in range(num_blocks):
@@ -101,11 +103,11 @@ def test_audiosource_blocks(num_samples, num_channels, block_size, seq_len):
 @hyp.given(num_channels = st.integers(min_value=1, max_value=5),
             num_repeats = st.integers(min_value=2, max_value = 8),
             seq_len = st.integers(min_value = 1, max_value=1500))
-def test_audiosource_repeat(num_channels, num_repeats, seq_len):
+def test_sequence_source_repeat(num_channels, num_repeats, seq_len):
     rng = np.random.default_rng(1)
     seq = rng.normal(0, 1, (num_channels,seq_len))
 
-    src = sources.AudioSource(seq, end_mode="repeat")
+    src = sources.Sequence(seq, end_mode="repeat")
     sig = src.get_samples(seq_len*num_repeats)
 
     for r in range(num_repeats):

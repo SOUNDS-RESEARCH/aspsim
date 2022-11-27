@@ -7,7 +7,7 @@ import numba as nb
 
 
 
-def createFilter(ir=None, num_in=None, num_out=None, ir_len=None, broadcast_dim=None, sum_over_input=True, dynamic=False):
+def create_filter(ir=None, num_in=None, num_out=None, ir_len=None, broadcast_dim=None, sum_over_input=True, dynamic=False):
     if num_in is not None and num_out is not None and ir_len is not None:
         assert ir is None
         ir = np.zeros((num_in, num_out, ir_len))
@@ -32,9 +32,9 @@ def createFilter(ir=None, num_in=None, num_out=None, ir_len=None, broadcast_dim=
 
 spec_filtersum = [
     ("ir", nb.float64[:,:,:]),
-    ("numIn", nb.int32),
-    ("numOut", nb.int32),
-    ("irLen", nb.int32),
+    ("num_in", nb.int32),
+    ("num_out", nb.int32),
+    ("ir_len", nb.int32),
     ("buffer", nb.float64[:,:]),
 ]
 @nb.experimental.jitclass(spec_filtersum)
@@ -46,30 +46,30 @@ class FilterSum:
         (3,None) in, (2,None) out"""
     def __init__(self, ir):
         self.ir = ir
-        self.numIn = ir.shape[0]
-        self.numOut = ir.shape[1]
-        self.irLen = ir.shape[2]
-        self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.num_in = ir.shape[0]
+        self.num_out = ir.shape[1]
+        self.ir_len = ir.shape[2]
+        self.buffer = np.zeros((self.num_in, self.ir_len - 1))
 
-    def process(self, dataToFilter):
-        numSamples = dataToFilter.shape[-1]
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+    def process(self, data_to_filter):
+        num_samples = data_to_filter.shape[-1]
+        buffered_input = np.concatenate((self.buffer, data_to_filter), axis=-1)
 
-        filtered = np.zeros((self.numOut, numSamples))
-        for outIdx in range(self.numOut):
-            for i in range(numSamples):
-                filtered[outIdx,i] += np.sum(self.ir[:,outIdx,:] * np.fliplr(bufferedInput[:,i:self.irLen+i]))
+        filtered = np.zeros((self.num_out, num_samples))
+        for out_idx in range(self.num_out):
+            for i in range(num_samples):
+                filtered[out_idx,i] += np.sum(self.ir[:,out_idx,:] * np.fliplr(buffered_input[:,i:self.ir_len+i]))
 
-        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        self.buffer[:, :] = buffered_input[:, buffered_input.shape[-1] - self.ir_len + 1 :]
         return filtered
 
 
 spec_filtermd = [
     ("ir", nb.float64[:,:,:]),
-    ("irDim1", nb.int32),
-    ("irDim2", nb.int32),
-    ("irLen", nb.int32),
-    ("dataDims", nb.int32),
+    ("ir_dim1", nb.int32),
+    ("ir_dim2", nb.int32),
+    ("ir_len", nb.int32),
+    ("data_dims", nb.int32),
     ("buffer", nb.float64[:,:]),
 ]
 @nb.experimental.jitclass(spec_filtermd)
@@ -79,30 +79,30 @@ class FilterMD:
         input signal is shape (dataDims, numSamples)
         impulse response is shape (dim1, dim2, irLen)
         output signal is  (dataDims, dim1, dim2, numSamples)"""
-    def __init__(self, dataDims, ir):
+    def __init__(self, data_dims, ir):
         self.ir = ir
-        self.irDim1 = ir.shape[0]
-        self.irDim2 = ir.shape[1]
-        self.irLen = ir.shape[-1]
-        self.dataDims = dataDims
+        self.ir_dim1 = ir.shape[0]
+        self.ir_dim2 = ir.shape[1]
+        self.ir_len = ir.shape[-1]
+        self.data_dims = data_dims
 
         #self.outputDims = self.irDims + self.dataDims
         #self.numDataDims = len(self.dataDims)
         #self.numIrDims = len(self.irDims)
-        self.buffer = np.zeros((self.dataDims, self.irLen - 1))
+        self.buffer = np.zeros((self.data_dims, self.ir_len - 1))
 
-    def process(self, dataToFilter):
+    def process(self, data_to_filter):
         #inDims = dataToFilter.shape[0:-1]
-        numSamples = dataToFilter.shape[-1]
+        num_samples = data_to_filter.shape[-1]
 
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
-        filtered = np.zeros((self.irDim1, self.irDim2, self.dataDims, numSamples))
+        buffered_input = np.concatenate((self.buffer, data_to_filter), axis=-1)
+        filtered = np.zeros((self.ir_dim1, self.ir_dim2, self.data_dims, num_samples))
 
-        for i in range(numSamples):
+        for i in range(num_samples):
             filtered[:, :, :,i] = np.sum(np.expand_dims(self.ir,2) * \
-                    np.expand_dims(np.expand_dims(np.fliplr(bufferedInput[:,i:self.irLen+i]),0),0),axis=-1)
+                    np.expand_dims(np.expand_dims(np.fliplr(buffered_input[:,i:self.ir_len+i]),0),0),axis=-1)
 
-        self.buffer[:, :] = bufferedInput[:, -self.irLen + 1:]
+        self.buffer[:, :] = buffered_input[:, -self.ir_len + 1:]
         return filtered
 
 
@@ -111,20 +111,20 @@ class FilterSumDynamic:
         for a more correct filtering when the IR changes while processing. """
     def __init__(self, ir):
         self.ir = ir
-        self.numIn = ir.shape[0]
-        self.numOut = ir.shape[1]
-        self.irLen = ir.shape[2]
-        self.buffer = np.zeros((self.numIn, self.irLen - 1))
-        self.out_buffer = np.zeros((self.numOut, self.irLen - 1))
+        self.num_in = ir.shape[0]
+        self.num_out = ir.shape[1]
+        self.ir_len = ir.shape[2]
+        self.buffer = np.zeros((self.num_in, self.ir_len - 1))
+        self.out_buffer = np.zeros((self.num_out, self.ir_len - 1))
 
     def process(self, data_to_filter):
         num_samples = data_to_filter.shape[-1]
-        filtered = np.zeros((self.numOut, num_samples+self.irLen-1))
-        filtered[:,:self.irLen-1] = self.out_buffer
+        filtered = np.zeros((self.num_out, num_samples+self.ir_len-1))
+        filtered[:,:self.ir_len-1] = self.out_buffer
         #bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
         #for out_idx in range(self.numOut):
         for i in range(num_samples):
-            filtered[:,i:i+self.irLen] += np.sum(self.ir * data_to_filter[:,None,i:i+1], axis=0)
+            filtered[:,i:i+self.ir_len] += np.sum(self.ir * data_to_filter[:,None,i:i+1], axis=0)
 
         self.out_buffer = filtered[:, num_samples:]
         return filtered[:,:num_samples]
@@ -138,41 +138,41 @@ class FilterIndividualInputs:
     Input to process method is (inputChannels, numSamples)
     output of process method is (inputChannels, outputChannels, numSamples)"""
 
-    def __init__(self, ir=None, irLen=None, numIn=None, numOut=None):
+    def __init__(self, ir=None, ir_len=None, num_in=None, num_out=None):
         if ir is not None:
             self.ir = ir
-            self.numIn = ir.shape[0]
-            self.numOut = ir.shape[1]
-            self.irLen = ir.shape[2]
-        elif (irLen is not None) and (numIn is not None) and (numOut is not None):
-            self.ir = np.zeros((numIn, numOut, irLen))
-            self.irLen = irLen
-            self.numIn = numIn
-            self.numOut = numOut
+            self.num_in = ir.shape[0]
+            self.num_out = ir.shape[1]
+            self.ir_len = ir.shape[2]
+        elif (ir_len is not None) and (num_in is not None) and (num_out is not None):
+            self.ir = np.zeros((num_in, num_out, ir_len))
+            self.ir_len = ir_len
+            self.num_in = num_in
+            self.num_out = num_out
         else:
             raise Exception("Not enough constructor arguments")
-        self.buffer = np.zeros((self.numIn, self.irLen - 1))
+        self.buffer = np.zeros((self.num_in, self.ir_len - 1))
 
-    def process(self, dataToFilter):
-        numSamples = dataToFilter.shape[-1]
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
+    def process(self, data_to_filter):
+        num_samples = data_to_filter.shape[-1]
+        buffered_input = np.concatenate((self.buffer, data_to_filter), axis=-1)
 
-        filtered = np.zeros((self.numIn, self.numOut, numSamples))
-        for inIdx, outIdx in it.product(range(self.numIn), range(self.numOut)):
-            filtered[inIdx, outIdx, :] = spsig.convolve(
-                self.ir[inIdx, outIdx, :], bufferedInput[inIdx, :], "valid"
+        filtered = np.zeros((self.num_in, self.num_out, num_samples))
+        for in_idx, out_idx in it.product(range(self.num_in), range(self.num_out)):
+            filtered[in_idx, out_idx, :] = spsig.convolve(
+                self.ir[in_idx, out_idx, :], buffered_input[in_idx, :], "valid"
             )
 
-        self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
+        self.buffer[:, :] = buffered_input[:, buffered_input.shape[-1] - self.ir_len + 1 :]
         return filtered
 
-    def setIR(self, irNew):
-        if irNew.shape != self.ir.shape:
-            self.numIn = irNew.shape[0]
-            self.numOut = irNew.shape[1]
-            self.irLen = irNew.shape[2]
-            self.buffer = np.zeros((self.numIn, self.irLen - 1))
-        self.ir = irNew
+    def set_ir(self, ir_new):
+        if ir_new.shape != self.ir.shape:
+            self.num_in = ir_new.shape[0]
+            self.num_out = ir_new.shape[1]
+            self.ir_len = ir_new.shape[2]
+            self.buffer = np.zeros((self.num_in, self.ir_len - 1))
+        self.ir = ir_new
 
 
 class FilterMD_IntBuffer:
@@ -181,54 +181,54 @@ class FilterMD_IntBuffer:
     (a0,a1,...,an,None) filter with dataDim (b0,...,bn) will give (a0,...,an,b0,...,bn,None) output
     (a,b,None) filter with (x,None) input will give (a,b,x,None) output"""
 
-    def __init__(self, dataDims, ir=None, irLen=None, irDims=None):
+    def __init__(self, data_dims, ir=None, ir_len=None, ir_dims=None):
         if ir is not None:
             self.ir = ir
-            self.irLen = ir.shape[-1]
-            self.irDims = ir.shape[0:-1]
-        elif (irLen is not None) and (irDims is not None):
-            self.ir = np.zeros(irDims + (irLen,))
-            self.irLen = irLen
-            self.irDims = irDims
+            self.ir_len = ir.shape[-1]
+            self.ir_dims = ir.shape[0:-1]
+        elif (ir_len is not None) and (ir_dims is not None):
+            self.ir = np.zeros(ir_dims + (ir_len,))
+            self.ir_len = ir_len
+            self.ir_dims = ir_dims
         else:
             raise Exception("Not enough constructor arguments")
 
-        if isinstance(dataDims, int):
-            self.dataDims = (dataDims,)
+        if isinstance(data_dims, int):
+            self.data_dims = (data_dims,)
         else:
-            self.dataDims = dataDims
+            self.data_dims = data_dims
 
-        self.outputDims = self.irDims + self.dataDims
-        self.numDataDims = len(self.dataDims)
-        self.numIrDims = len(self.irDims)
-        self.buffer = np.zeros(self.dataDims + (self.irLen - 1,))
+        self.output_dims = self.ir_dims + self.data_dims
+        self.num_data_dims = len(self.data_dims)
+        self.num_ir_dims = len(self.ir_dims)
+        self.buffer = np.zeros(self.data_dims + (self.ir_len - 1,))
 
-    def process(self, dataToFilter):
-        inDims = dataToFilter.shape[0:-1]
-        numSamples = dataToFilter.shape[-1]
+    def process(self, data_to_filter):
+        inDims = data_to_filter.shape[0:-1]
+        num_samples = data_to_filter.shape[-1]
 
-        bufferedInput = np.concatenate((self.buffer, dataToFilter), axis=-1)
-        filtered = np.zeros(self.irDims + self.dataDims + (numSamples,))
+        buffered_input = np.concatenate((self.buffer, data_to_filter), axis=-1)
+        filtered = np.zeros(self.ir_dims + self.data_dims + (num_samples,))
 
-        for idxs in it.product(*[range(d) for d in self.outputDims]):
+        for idxs in it.product(*[range(d) for d in self.output_dims]):
             # filtered[idxs+(slice(None),)] = np.convolve(self.ir[idxs[0:self.numIrDims]+(slice(None),)],
             #                                             bufferedInput[idxs[-self.numDataDims:]+(slice(None),)], "valid")
             filtered[idxs + (slice(None),)] = spsig.convolve(
-                self.ir[idxs[0 : self.numIrDims] + (slice(None),)],
-                bufferedInput[idxs[-self.numDataDims :] + (slice(None),)],
+                self.ir[idxs[0 : self.num_ir_dims] + (slice(None),)],
+                buffered_input[idxs[-self.num_data_dims :] + (slice(None),)],
                 "valid",
             )
 
-        self.buffer[..., :] = bufferedInput[..., -self.irLen + 1 :]
+        self.buffer[..., :] = buffered_input[..., -self.ir_len + 1 :]
         return filtered
 
-    def setIR(self, irNew):
-        if irNew.shape != self.ir.shape:
-            self.irDims = irNew.shape[0:-1]
-            self.irLen = irNew.shape[-1]
-            self.numIrDims = len(self.irDims)
-            self.buffer = np.zeros(self.dataDims + (self.irLen - 1,))
-        self.ir = irNew
+    def set_ir(self, ir_new):
+        if ir_new.shape != self.ir.shape:
+            self.ir_dims = ir_new.shape[0:-1]
+            self.ir_len = ir_new.shape[-1]
+            self.num_ir_dims = len(self.ir_dims)
+            self.buffer = np.zeros(self.data_dims + (self.ir_len - 1,))
+        self.ir = ir_new
 
 
 
@@ -261,7 +261,7 @@ class FilterMD_Freqdomain:
     If you give to many arguments, it will propritize tf -> ir -> numFreq -> irLen"""
 
     def __init__(
-        self, dataDims, tf=None, ir=None, filtDim=None, irLen=None, numFreq=None
+        self, data_dims, tf=None, ir=None, filt_dim=None, ir_len=None, num_freq=None
     ):
         # assert(tf or ir or (numIn and numOut and irLen) is not None)
         if tf is not None:
@@ -271,54 +271,44 @@ class FilterMD_Freqdomain:
             self.tf = fdf.fft_transpose(
                 np.concatenate((ir, np.zeros_like(ir)), axis=-1)
             )
-        elif filtDim is not None:
-            if numFreq is not None:
-                self.tf = np.zeros((numFreq, *filtDim), dtype=np.complex128)
-            elif irLen is not None:
-                self.tf = np.zeros((2 * irLen, *filtDim), dtype=np.complex128)
+        elif filt_dim is not None:
+            if num_freq is not None:
+                self.tf = np.zeros((num_freq, *filt_dim), dtype=complex)
+            elif ir_len is not None:
+                self.tf = np.zeros((2 * ir_len, *filt_dim), dtype=complex)
         else:
             raise ValueError("Arguments missing for valid initialization")
 
-        if isinstance(dataDims, int):
-            self.dataDims = (dataDims,)
+        if isinstance(data_dims, int):
+            self.data_dims = (data_dims,)
         else:
-            self.dataDims = dataDims
+            self.data_dims = data_dims
 
-        self.irLen = self.tf.shape[0] // 2
-        self.numFreq = self.tf.shape[0]
-        self.filtDim = self.tf.shape[1:]
+        self.ir_len = self.tf.shape[0] // 2
+        self.num_freq = self.tf.shape[0]
+        self.filt_dim = self.tf.shape[1:]
 
-        self.buffer = np.zeros((*self.dataDims, self.irLen))
+        self.buffer = np.zeros((*self.data_dims, self.ir_len))
 
-    def process(self, samplesToProcess):
-        assert samplesToProcess.shape == (*self.dataDims, self.irLen)
-        outputSamples = fdf.convolve_euclidian_ft(
-            self.tf, np.concatenate((self.buffer, samplesToProcess), axis=-1)
+    def process(self, samples_to_process):
+        assert samples_to_process.shape == (*self.data_dims, self.ir_len)
+        output_samples = fdf.convolve_euclidian_ft(
+            self.tf, np.concatenate((self.buffer, samples_to_process), axis=-1)
         )
 
-        self.buffer[...] = samplesToProcess
-        return outputSamples
+        self.buffer[...] = samples_to_process
+        return output_samples
 
-    def processFreq(self, freqsToProcess):
+    def process_freq(self, freqs_to_process):
         """Can be used if the fft of the input signal is already available.
         Assumes padding is already applied correctly."""
-        assert freqsToProcess.shape == (self.numFreq, *self.dataDims)
-        outputSamples = fdf.convolve_euclidian_ff(self.tf, freqsToProcess)
+        assert freqs_to_process.shape == (self.num_freq, *self.data_dims)
+        output_samples = fdf.convolve_euclidian_ff(self.tf, freqs_to_process)
 
-        self.buffer[...] = fdf.ifft_transpose(freqsToProcess, remove_empty_dim=False)[
-            ..., self.irLen :
+        self.buffer[...] = fdf.ifft_transpose(freqs_to_process, remove_empty_dim=False)[
+            ..., self.ir_len :
         ]
-        return outputSamples
-
-    def setFilter(self, tfNew):
-        raise NotImplementedError
-        if tfNew.shape != self.tf.shape:
-            self.irLen = self.tf.shape[0] // 2
-            self.numFreq = self.tf.shape[0]
-            self.filtDim = self.tf.shape[1:]
-            self.buffer = np.zeros((self.dataDims, self.irLen))
-        self.ir = irNew
-
+        return output_samples
 
 class FilterSum_Freqdomain:
     """- ir is the time domain impulse response, with shape (numIn, numOut, irLen)
@@ -334,30 +324,30 @@ class FilterSum_Freqdomain:
         self,
         tf=None,
         ir=None,
-        numIn=None,
-        numOut=None,
-        irLen=None,
-        numFreq=None,
-        dataDims=None,
+        num_in=None,
+        num_out=None,
+        ir_len=None,
+        num_freq=None,
+        data_dims=None,
     ):
         if tf is not None:
-            assert all(arg is None for arg in [ir, numIn, numOut, irLen, numFreq])
+            assert all(arg is None for arg in [ir, num_in, num_out, ir_len, num_freq])
             assert tf.ndim == 3
             assert tf.shape[0] % 2 == 0
             self.tf = tf
         elif ir is not None:
-            assert all(arg is None for arg in [tf, numIn, numOut])
-            if irLen is not None:
-                assert numFreq is None
-                totLen = irLen*2
-            elif numFreq is not None:
-                assert irLen is None
-                totLen = numFreq
+            assert all(arg is None for arg in [tf, num_in, num_out])
+            if ir_len is not None:
+                assert num_freq is None
+                tot_len = ir_len*2
+            elif num_freq is not None:
+                assert ir_len is None
+                tot_len = num_freq
             else:
-                totLen = 2*ir.shape[-1]
+                tot_len = 2*ir.shape[-1]
 
             self.tf = np.transpose(
-                np.fft.fft(np.concatenate((ir, np.zeros(ir.shape[:-1]+(totLen-ir.shape[-1],))), axis=-1), axis=-1),
+                np.fft.fft(np.concatenate((ir, np.zeros(ir.shape[:-1]+(tot_len-ir.shape[-1],))), axis=-1), axis=-1),
                 (2, 1, 0),
             )
 
@@ -365,89 +355,79 @@ class FilterSum_Freqdomain:
             #     np.fft.fft(np.concatenate((ir, np.zeros_like(ir)), axis=-1), axis=-1),
             #     (2, 1, 0),
             # )
-        elif numIn is not None and numOut is not None:
+        elif num_in is not None and num_out is not None:
             assert all(arg is None for arg in [tf, ir])
-            if numFreq is not None:
-                self.tf = np.zeros((numFreq, numOut, numIn), dtype=np.complex128)
-            elif irLen is not None:
-                self.tf = np.zeros((2 * irLen, numOut, numIn), dtype=np.complex128)
+            if num_freq is not None:
+                self.tf = np.zeros((num_freq, num_out, num_in), dtype=complex)
+            elif ir_len is not None:
+                self.tf = np.zeros((2 * ir_len, num_out, num_in), dtype=complex)
         else:
             raise ValueError("Arguments missing for valid initialization")
 
-        self.irLen = self.tf.shape[0] // 2
-        self.numFreq = self.tf.shape[0]
-        self.numOut = self.tf.shape[1]
-        self.numIn = self.tf.shape[2]
+        self.ir_len = self.tf.shape[0] // 2
+        self.num_freq = self.tf.shape[0]
+        self.num_out = self.tf.shape[1]
+        self.num_in = self.tf.shape[2]
 
-        if dataDims is not None:
-            if isinstance(dataDims, int):
-                self.dataDims = (dataDims,)
+        if data_dims is not None:
+            if isinstance(data_dims, int):
+                self.data_dims = (data_dims,)
             else:
-                self.dataDims = dataDims
-            self.lenDataDims = len(self.dataDims)
-            self.buffer = np.zeros((*self.dataDims, self.numIn, self.irLen))
+                self.data_dims = data_dims
+            self.len_data_dims = len(self.data_dims)
+            self.buffer = np.zeros((*self.data_dims, self.num_in, self.ir_len))
         else:
-            self.buffer = np.zeros((self.numIn, self.irLen))
-            self.lenDataDims = 0
+            self.buffer = np.zeros((self.num_in, self.ir_len))
+            self.len_data_dims = 0
 
-    def process(self, samplesToProcess):
-        assert samplesToProcess.shape == self.buffer.shape
-        freqsToProcess = fdf.fft_transpose(
-            np.concatenate((self.buffer, samplesToProcess), axis=-1), add_empty_dim=True
+    def process(self, samples_to_process):
+        assert samples_to_process.shape == self.buffer.shape
+        freqs_to_process = fdf.fft_transpose(
+            np.concatenate((self.buffer, samples_to_process), axis=-1), add_empty_dim=True
         )
-        tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifft_transpose(
-            self.tf.reshape(tfNewShape) @ freqsToProcess, remove_empty_dim=True
+        tf_new_shape = self.tf.shape[0:1] + (1,) * self.len_data_dims + self.tf.shape[1:]
+        output_samples = fdf.ifft_transpose(
+            self.tf.reshape(tf_new_shape) @ freqs_to_process, remove_empty_dim=True
         )
 
-        self.buffer[...] = samplesToProcess
-        return np.real(outputSamples[..., self.irLen :])
+        self.buffer[...] = samples_to_process
+        return np.real(output_samples[..., self.ir_len :])
 
-    def processFreq(self, freqsToProcess):
+    def process_freq(self, freqs_to_process):
         """Can be used if the fft of the input signal is already available.
         Assumes padding is already applied correctly."""
-        assert freqsToProcess.shape == (self.numFreq, self.numIn, 1)
-        tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifft_transpose(
-            self.tf.reshape(tfNewShape) @ freqsToProcess, remove_empty_dim=True
+        assert freqs_to_process.shape == (self.num_freq, self.num_in, 1)
+        tf_new_shape = self.tf.shape[0:1] + (1,) * self.len_data_dims + self.tf.shape[1:]
+        output_samples = fdf.ifft_transpose(
+            self.tf.reshape(tf_new_shape) @ freqs_to_process, remove_empty_dim=True
         )
 
-        self.buffer[...] = fdf.ifft_transpose(freqsToProcess, remove_empty_dim=True)[
-            ..., self.irLen :
+        self.buffer[...] = fdf.ifft_transpose(freqs_to_process, remove_empty_dim=True)[
+            ..., self.ir_len :
         ]
-        return np.real(outputSamples[..., self.irLen :])
+        return np.real(output_samples[..., self.ir_len :])
 
-    def processWithoutSum(self, samplesToProcess):
-        assert samplesToProcess.shape == self.buffer.shape
-        freqsToProcess = fdf.fft_transpose(
-            np.concatenate((self.buffer, samplesToProcess), axis=-1), add_empty_dim=True)
-        tfNewShape = self.tf.shape[0:1] + (1,) * self.lenDataDims + self.tf.shape[1:]
-        outputSamples = fdf.ifft_transpose(
-            np.swapaxes(self.tf.reshape(tfNewShape),-1,-2) * freqsToProcess)
+    def process_without_sum(self, samples_to_process):
+        assert samples_to_process.shape == self.buffer.shape
+        freqs_to_process = fdf.fft_transpose(
+            np.concatenate((self.buffer, samples_to_process), axis=-1), add_empty_dim=True)
+        tf_new_shape = self.tf.shape[0:1] + (1,) * self.len_data_dims + self.tf.shape[1:]
+        output_samples = fdf.ifft_transpose(
+            np.swapaxes(self.tf.reshape(tf_new_shape),-1,-2) * freqs_to_process)
 
-        self.buffer[...] = samplesToProcess
-        return np.real(outputSamples[..., self.irLen :])
+        self.buffer[...] = samples_to_process
+        return np.real(output_samples[..., self.ir_len :])
 
-    def processEuclidian(self, samplesToProcess):
+    def process_euclidian(self, samples_to_process):
         """Will filter every channel of the input with every channel of the filter
             outputs shape (filt0)"""
         #assert dataDims is not None
         raise NotImplementedError
 
-    def setFilter(self, tfNew):
-        raise NotImplementedError
-        if tfNew.shape != self.tf.shape:
-            self.irLen = tfNew.shape[0] // 2
-            self.numFreq = tfNew.shape[0]
-            self.numOut = tfNew.shape[1]
-            self.numIn = tfNew.shape[2]
-            self.buffer = np.zeros_like(self.buffer)
-        self.ir = irNew
-
-    def setIR(self, irNew):
-        assert irNew.shape == (self.numIn, self.numOut, self.irLen)
+    def set_ir(self, ir_new):
+        assert ir_new.shape == (self.num_in, self.num_out, self.ir_len)
         self.tf = np.transpose(
-                np.fft.fft(np.concatenate((irNew, np.zeros_like(irNew)), axis=-1), axis=-1),
+                np.fft.fft(np.concatenate((ir_new, np.zeros_like(ir_new)), axis=-1), axis=-1),
                 (2, 1, 0),
             )
 
@@ -484,7 +464,7 @@ class Filter_IntBuffer:
         self.buffer[:, :] = bufferedInput[:, bufferedInput.shape[-1] - self.irLen + 1 :]
         return filtered
 
-    def setIR(self, irNew):
+    def set_ir(self, irNew):
         if irNew.shape != self.ir.shape:
             self.irLen = irNew.shape[-1]
         self.ir = irNew

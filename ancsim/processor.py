@@ -59,15 +59,15 @@ class ProcessorWrapper():
         for src, mic, path in arrays.iter_paths():
             if src.name not in self.path_filters:
                 self.path_filters[src.name] = {}
-            self.path_filters[src.name][mic.name] = fc.createFilter(ir=path, sum_over_input=True, dynamic=(src.dynamic or mic.dynamic))
+            self.path_filters[src.name][mic.name] = fc.create_filter(ir=path, sum_over_input=True, dynamic=(src.dynamic or mic.dynamic))
 
         for mic in self.arrays.mics():
-            self.processor.createNewBuffer(mic.name, mic.num)
+            self.processor.create_buffer(mic.name, mic.num)
         for src in self.arrays.sources():
-            self.processor.createNewBuffer(src.name, src.num)
+            self.processor.create_buffer(src.name, src.num)
         if self.sim_info.save_source_contributions:
             for src, mic in self.arrays.mic_src_combos():
-                self.processor.createNewBuffer(src.name+"~"+mic.name, mic.num)
+                self.processor.create_buffer(src.name+"~"+mic.name, mic.num)
         #self.ctrlSources = list(arrays.of_type(ar.ArrayType.CTRLSOURCE))
 
     def prepare(self):
@@ -85,7 +85,7 @@ class ProcessorWrapper():
     def reset(self):
         self.processor.reset()
     
-    def resetBuffers(self, globalIdx):
+    def reset_buffers(self, global_idx):
         for sigName, sig in self.processor.sig.items():
             self.processor.sig[sigName] = np.concatenate(
                 (
@@ -95,9 +95,9 @@ class ProcessorWrapper():
                 axis=-1,
             )
         self.processor.idx -= self.sim_info.sim_chunk_size
-        self.processor.resetBuffer()
+        self.processor.reset_buffer()
 
-    def propagate(self, globalIdx):
+    def propagate(self, global_idx):
         """ propagated audio from all sources.
             The mic_signals are calculated for the indices
             self.processor.idx to self.processor.idx+numSamples
@@ -121,9 +121,9 @@ class ProcessorWrapper():
         self.processor.idx += self.block_size
 
         last_block = self.last_block_on_buffer()
-        self.processor.diag.saveData(self.processor, self.processor.idx, globalIdx, last_block)
+        self.processor.diag.saveData(self.processor, self.processor.idx, global_idx, last_block)
         if last_block:
-            self.resetBuffers(globalIdx)
+            self.reset_buffers(global_idx)
 
     def process(self, globalIdx):
         self.processor.process(self.block_size)
@@ -155,10 +155,10 @@ class AudioProcessor(ABC):
     def prepare(self):
         self.diag.prepare()
 
-    def resetBuffer(self):
+    def reset_buffer(self):
         pass
 
-    def getSimulatorInfo(self):
+    def get_simulator_info(self):
         pass
 
     def reset(self):
@@ -169,7 +169,7 @@ class AudioProcessor(ABC):
         self.diag.reset()
         self.idx = self.sim_info.sim_buffer
 
-    def createNewBuffer(self, name, dim):
+    def create_buffer(self, name, dim):
         """dim is a tuple or int
         buffer is accessed as self.sig[name]
         and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
@@ -194,7 +194,7 @@ class DebugProcessor(AudioProcessor):
         super().__init__(sim_info, arrays, block_size, **kwargs)
         self.name = "Debug Processor"
         self.processed_samples = 0
-        self.filt = fc.createFilter(num_in=3, num_out=4, ir_len=5)
+        self.filt = fc.create_filter(num_in=3, num_out=4, ir_len=5)
 
     def process(self, numSamples):
         assert numSamples == self.block_size
@@ -419,8 +419,8 @@ class BlockLeastMeanSquares(AudioProcessor):
         self.beta = beta
         self.filtLen = filtLen
 
-        self.createNewBuffer("error", self.numOut)
-        self.createNewBuffer("estimate", self.numOut)
+        self.create_buffer("error", self.numOut)
+        self.create_buffer("estimate", self.numOut)
 
         self.controlFilter = fc.FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 
@@ -468,8 +468,8 @@ class LeastMeanSquares(AudioProcessor):
         self.beta = beta
         self.filtLen = filtLen
 
-        self.createNewBuffer(self.error, self.numOut)
-        self.createNewBuffer(self.estimate, self.numOut)
+        self.create_buffer(self.error, self.numOut)
+        self.create_buffer(self.estimate, self.numOut)
 
         self.controlFilter = fc.FilterSum(irLen=self.filtLen, numIn=self.numIn, numOut=self.numOut)
 

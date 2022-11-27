@@ -19,7 +19,7 @@ import time
 
 def test_hardcoded_filtersum():
     ir = np.vstack((np.sin(np.arange(5)), np.cos(np.arange(5))))
-    filt1 = fc.FilterSum(ir[:, None, :])
+    filt1 = fc.create_filter(ir=ir[:, None, :])
 
     inSig = np.array([[10, 9, 8, 7, 6, 5], [4, 5, 4, 5, 4, 5]])
     out = filt1.process(inSig)
