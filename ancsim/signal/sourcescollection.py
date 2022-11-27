@@ -10,33 +10,6 @@ import ancsim.signal.sources as src
 import aspcol.correlation as cr
 
 #SOURCES
-class SineSource(src.Source):
-    def __init__(self, num_channels, power, freq, samplerate, rng=None):
-        super().__init__(num_channels, rng)
-        self.power = power
-        self.amplitude = np.sqrt(2 * self.power)
-        # p = a^2 / 2
-        # 2p = a^2
-        # sqrt(2p) = a
-        self.freq = freq
-        self.samplerate = samplerate
-        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.num_channels,1))
-
-        self.phasePerSample = 2 * np.pi * self.freq / self.samplerate
-
-        if isinstance(self.power, (np.ndarray)):
-            self.metadata["power"] = self.power.tolist()
-        else:
-            self.metadata["power"] = self.power
-        self.metadata["frequency"] = self.freq
-
-    def get_samples(self, num_samples):
-        noise = (
-            self.amplitude
-            * np.cos(self.phasePerSample * np.arange(num_samples)[None,:] + self.phase)
-        )
-        self.phase = (self.phase + num_samples * self.phasePerSample) % (2 * np.pi)
-        return noise
 
 class MultiSineSource(src.Source):
     def __init__(self, num_channels, power, freq, samplerate, rng=None):

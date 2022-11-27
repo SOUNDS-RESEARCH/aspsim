@@ -85,7 +85,7 @@ class Sequence(Source):
         return sig * self.amp_factor
 
 
-class WhiteNoiseSource(src.Source):
+class WhiteNoiseSource(Source):
     def __init__(self, num_channels, power, rng=None):
         super().__init__(num_channels, rng)
         self.set_power(power)
@@ -109,6 +109,34 @@ class WhiteNoiseSource(src.Source):
             assert self.power.shape[0] == self.num_channels or \
                     self.power.shape[0] == 1
 
+
+class SineSource(Source):
+    def __init__(self, num_channels, power, freq, samplerate, rng=None):
+        super().__init__(num_channels, rng)
+        self.power = power
+        self.amplitude = np.sqrt(2 * self.power)
+        # p = a^2 / 2
+        # 2p = a^2
+        # sqrt(2p) = a
+        self.freq = freq
+        self.samplerate = samplerate
+        self.phase = self.rng.uniform(low=0, high=2 * np.pi, size=(self.num_channels,1))
+
+        self.phase_per_sample = 2 * np.pi * self.freq / self.samplerate
+
+        if isinstance(self.power, (np.ndarray)):
+            self.metadata["power"] = self.power.tolist()
+        else:
+            self.metadata["power"] = self.power
+        self.metadata["frequency"] = self.freq
+
+    def get_samples(self, num_samples):
+        noise = (
+            self.amplitude
+            * np.cos(self.phase_per_sample * np.arange(num_samples)[None,:] + self.phase)
+        )
+        self.phase = (self.phase + num_samples * self.phase_per_sample) % (2 * np.pi)
+        return noise
 
 
 class Counter(Source):
