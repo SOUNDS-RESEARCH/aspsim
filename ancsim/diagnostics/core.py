@@ -311,7 +311,7 @@ class Diagnostic:
         self.save_at = save_at
 
         if export_at is None:
-            export_at = sim_info.sim_chunk_size * sim_info.chunk_per_export
+            export_at = sim_info.export_frequency
         if isinstance(export_at, (list, tuple, np.ndarray)):
             assert all([exp_at >= block_size for exp_at in export_at])
         else:
@@ -466,7 +466,7 @@ class InstantDiagnostic(Diagnostic):
         preprocess = None,
     ):
         if save_at is None:
-            save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
+            save_freq = sim_info.export_frequency
             save_at = IntervalCounter.from_frequency(save_freq, sim_info.tot_samples, include_zero=False)
             export_at = save_freq
             #export_at = IndexCounter(save_freq)

@@ -20,7 +20,7 @@ max_room_ir_length : 1900
 
 # PLOTS AND MISC
 plot_begin : 0
-chunk_per_export : 10
+export_frequency : 10000
 plot_output : pdf
 
 output_smoothing : 1

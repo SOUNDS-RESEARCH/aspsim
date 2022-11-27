@@ -19,7 +19,7 @@ def reset_sim_setup(setup):
     setup.sim_info.tot_samples = 100
     setup.sim_info.sim_chunk_size = 10
     setup.sim_info.sim_buffer = 10
-    setup.sim_info.chunk_per_export = 1
+    setup.sim_info.export_frequency = 1
     setup.sim_info.save_source_contributions = False
     setup.use_preset("debug")
 

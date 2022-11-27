@@ -13,23 +13,12 @@ import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.fileutilities as fu
 
-# @pytest.fixture(scope="session")
-# def sim_setup(tmp_path_factory):
-#     setup = SimulatorSetup(tmp_path_factory.mktemp("figs"), None)
-#     setup.sim_info.tot_samples = 100
-#     setup.sim_info.sim_chunk_size = 10
-#     setup.sim_info.sim_buffer = 10
-#     setup.sim_info.chunk_per_export = 1
-#     setup.sim_info.save_source_contributions = False
-#     setup.usePreset("debug")
-#     return setup
-
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
     setup.sim_info.tot_samples = 100
     setup.sim_info.sim_chunk_size = 10
     setup.sim_info.sim_buffer = 10
-    setup.sim_info.chunk_per_export = 1
+    setup.sim_info.export_frequency = 10
     setup.sim_info.save_source_contributions = False
     setup.use_preset("debug")
 

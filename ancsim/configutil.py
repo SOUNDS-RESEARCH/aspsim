@@ -23,7 +23,7 @@ class SimulatorInfo:
     max_room_ir_length : int
 
     plot_begin : int
-    chunk_per_export : int
+    export_frequency : int
     plot_output : str
     output_smoothing : int
     auto_save_load : bool
