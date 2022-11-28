@@ -4,6 +4,7 @@ import json
 from abc import ABC
 import copy
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 import ancsim.diagnostics.plot as dplot
 import ancsim.room.roomimpulseresponse as rir
@@ -165,7 +166,6 @@ class ArrayCollection():
 
     def setup_ir(self, sim_info):
         """ """
-        print("Computing Room IR...")
         metadata = {}
         self.sim_info = sim_info
         for src, mic in self.mic_src_combos():
@@ -262,10 +262,18 @@ class ArrayCollection():
 
 
 
-    def plot(self, fig_folder, print_method):
+    def plot(self, sim_info, fig_folder, print_method):
         fig, ax = plt.subplots()
         for ar in self.arrays.values():
             ar.plot(ax)
+
+        if "ism" in [self.path_type[src.name][mic.name] for src, mic in self.mic_src_combos()]:
+            corner = [c - sz/2 for c, sz in zip(sim_info.room_center[:2], sim_info.room_size[:2])]
+            #bottom_left_corner = sim_info.room_center[:2] - (sim_info.room_size[:2] / 2)
+            width = sim_info.room_size[0]
+            height = sim_info.room_size[1]
+            ax.add_patch(patches.Rectangle(corner, width, height, edgecolor="k", facecolor="none", linewidth=2, alpha=1))
+
         ax.legend()
         ax.axis("equal")
         ax.grid(True)

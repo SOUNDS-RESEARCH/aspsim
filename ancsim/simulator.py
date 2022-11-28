@@ -103,7 +103,7 @@ class SimulatorSetup:
 
         # LOGGING AND DIAGNOSTICS
         self.sim_info.save_to_file(folder_path)
-        finished_arrays.plot(folder_path, self.sim_info.plot_output)
+        finished_arrays.plot(self.sim_info, folder_path, self.sim_info.plot_output)
         finished_arrays.save_metadata(folder_path)
         return Simulator(self.sim_info, finished_arrays, folder_path)
 
