@@ -377,9 +377,9 @@ class AutocorrSource(Source):
 
         num_coeffs = []
         denom_coeffs = []
-        self.noise_power = np.zeros(self.num_channels)
+        self.power = np.zeros(self.num_channels)
         for ch_idx in range(self.num_channels):
-            ar_coeffs, self.noise_power[ch_idx] = ar_coeffs_from_autocorr(autocorr[ch_idx:ch_idx+1,:])
+            ar_coeffs, self.power[ch_idx] = ar_coeffs_from_autocorr(autocorr[ch_idx:ch_idx+1,:])
             nc, dc = ar_coeffs_to_transfer_function(ar_coeffs)
             num_coeffs.append(nc)
             denom_coeffs.append(dc)
@@ -389,13 +389,14 @@ class AutocorrSource(Source):
 
     def prepare(self):
         for ch_idx in range(self.num_channels):
-            self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power[ch_idx]), size=(self.num_channels, self.filt.order[ch_idx])))
+            self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.power[ch_idx]), size=(self.num_channels, self.filt.order[ch_idx])))
     
     def get_samples(self, num_samples):
-        return self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.noise_power)[:,None], size=(self.num_channels, num_samples)))
+        return self.filt.process(self.rng.normal(loc=0, scale=np.sqrt(self.power)[:,None], size=(self.num_channels, num_samples)))
 
 
-
+    def set_power(self, new_power):
+        self.power = new_power
 
 
 
