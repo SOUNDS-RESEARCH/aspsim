@@ -177,7 +177,7 @@ class DiagnosticHandler:
     #def add_diagnostic(self, name, diagnostic):
     #    self.diagnostics[name] = diagnostic
 
-    def saveData(self, processor, idx, global_idx, last_block_on_chunk):
+    def save_data(self, processor, idx, global_idx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
             start, end = diag.next_save()
 

@@ -86,8 +86,8 @@ class ProcessorWrapper():
         self.processor.reset()
     
     def reset_buffers(self, global_idx):
-        for sigName, sig in self.processor.sig.items():
-            self.processor.sig[sigName] = np.concatenate(
+        for sig_name, sig in self.processor.sig.items():
+            self.processor.sig[sig_name] = np.concatenate(
                 (
                     sig[..., -self.sim_info.sim_buffer :],
                     np.zeros(sig.shape[:-1] + (self.sim_info.sim_chunk_size,)),
@@ -114,14 +114,14 @@ class ProcessorWrapper():
             if src.dynamic or mic.dynamic:
                 self.path_filters[src.name][mic.name].ir = self.arrays.paths[src.name][mic.name]
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.processor.sig[src.name][:,i:i+self.block_size])
-            self.processor.sig[mic.name][:,i:i+self.block_size] += propagated_signal
+                    self.processor.sig[src.name][...,i:i+self.block_size])
+            self.processor.sig[mic.name][...,i:i+self.block_size] += propagated_signal
             if self.sim_info.save_source_contributions:
-                self.processor.sig[src.name+"~"+mic.name][:,i:i+self.block_size] = propagated_signal
+                self.processor.sig[src.name+"~"+mic.name][...,i:i+self.block_size] = propagated_signal
         self.processor.idx += self.block_size
 
         last_block = self.last_block_on_buffer()
-        self.processor.diag.saveData(self.processor, self.processor.idx, global_idx, last_block)
+        self.processor.diag.save_data(self.processor, self.processor.idx, global_idx, last_block)
         if last_block:
             self.reset_buffers(global_idx)
 
@@ -136,21 +136,25 @@ class ProcessorWrapper():
         
 
 class AudioProcessor(ABC):
-    def __init__(self, sim_info, arrays, block_size, diagnostics={}):
+    def __init__(self, sim_info, arrays, block_size, diagnostics={}, rng=None):
         self.sim_info = sim_info
         self.block_size = block_size
 
         self.name = "Abstract Processor"
         self.arrays = arrays
-        self.diag = diacore.DiagnosticHandler(self.sim_info, self.block_size)
-        self.rng = np.random.default_rng(1)
         self.metadata = {"block size" : self.block_size}
         self.idx = 0
 
         self.sig = {}
-        
-        for diagName, diag in diagnostics.items():
-            self.diag.add_diagnostic(diagName, diag)
+
+        self.diag = diacore.DiagnosticHandler(self.sim_info, self.block_size) 
+        for diag_name, diag in diagnostics.items():
+            self.diag.add_diagnostic(diag_name, diag)
+
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
 
     def prepare(self):
         self.diag.prepare()
@@ -179,7 +183,7 @@ class AudioProcessor(ABC):
         self.sig[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
 
     @abstractmethod
-    def process(self, numSamples):
+    def process(self, num_samples):
         """ microphone signals up to self.idx (excluding) are available. i.e. [:,choose_start_idx:self.idx] can be used
             To play a signal through controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
             for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.block_size]. 

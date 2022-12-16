@@ -2,8 +2,7 @@ import numpy as np
 import copy
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.core as diacore
-
-
+import ancsim.diagnostics.preprocessing as pp
 
 
 class RecordFilter(diacore.InstantDiagnostic):
@@ -257,7 +256,14 @@ class StateSummary(diacore.StateDiagnostic):
 
 
 
-
+def power_of_all_signals(processor):
+    """Must be called from processor.prepare(), not
+        processor.__init__()
+    """
+    for sig_name in processor.sig.keys():
+        processor.diag.add_diagnostic(f"power_{sig_name}", 
+                SignalPower(sig_name, processor.sim_info, processor.block_size, 
+                preprocess=[[pp.smooth(processor.sim_info.output_smoothing), pp.db_power]]))
 
 
 
