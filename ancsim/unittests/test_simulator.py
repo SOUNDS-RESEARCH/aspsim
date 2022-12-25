@@ -65,9 +65,17 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 
     assert np.allclose(sig1, sig2)
 
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=5))
+def test_correct_processing_delay(sim_setup, bs):
+    reset_sim_setup(sim_setup)
+    sim = sim_setup.create_simulator()
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
 
-def test_correct_processing_delay():
-    assert False
+    proc = sim.processors[0].processor
+    assert np.allclose(proc.mic[:,:-bs], proc.ls[:,bs:])
+
 
 def test_multiple_free_sources():
     assert False

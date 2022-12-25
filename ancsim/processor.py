@@ -200,12 +200,22 @@ class DebugProcessor(AudioProcessor):
         self.processed_samples = 0
         self.filt = fc.create_filter(num_in=3, num_out=4, ir_len=5)
 
-    def process(self, numSamples):
-        assert numSamples == self.block_size
-        self.processed_samples += numSamples
-        self.filt.ir += numSamples
+        self.mic = np.zeros((self.arrays["mic"].num, self.sim_info.tot_samples))
+        self.ls = np.zeros((self.arrays["loudspeaker"].num, self.sim_info.tot_samples))
+        self.manual_idx = 0
+
+    def process(self, num_samples):
+        assert num_samples == self.block_size
+        self.processed_samples += num_samples
+        self.filt.ir += num_samples
         self.sig["loudspeaker"][:,self.idx:self.idx+self.block_size] = \
             self.sig["mic"][:,self.idx-self.block_size:self.idx]
+
+        for manual_i, i in zip(range(self.manual_idx,self.manual_idx+num_samples),range(self.idx-num_samples, self.idx)):
+            if manual_i < self.sim_info.tot_samples:
+                self.mic[:,manual_i] = self.sig["mic"][:,i]
+                self.ls[:,manual_i] = self.sig["loudspeaker"][:,i]
+                self.manual_idx += 1
 
 
 

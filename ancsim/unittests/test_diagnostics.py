@@ -191,21 +191,6 @@ def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
     assert one_file_saved
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
@@ -255,13 +240,6 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
 
 
 
-
-
-
-
-
-
-
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_two_processors_with_different_diagnostics(sim_setup, bs):
@@ -290,3 +268,74 @@ def test_two_processors_with_different_diagnostics(sim_setup, bs):
             for proc_name, data in saved_data.items():
                 assert np.allclose(data[:idx+1], np.arange(sim.sim_info.sim_buffer, 
                             sim.sim_info.sim_buffer+idx+1))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def test_find_export_bug(sim_setup):
+    import ancsim.signal.sources as sources
+    import soundfieldcontrol.anc as anc
+
+    sr = 2000
+
+    sim_setup.add_mics("error", np.array([[0,0,0]]))
+    sim_setup.add_mics("ref", np.array([[0,0,0]]))
+    sim_setup.add_controllable_source("ls", np.array([[0,1,0]]))
+    sim_setup.add_free_source("source", np.array([[-2,0,0]]), sources.SineSource(1,1, 500, sr))
+
+    sim_setup.arrays.path_type["ls"]["ref"] = "none"
+    sim_setup.arrays.path_type["source"]["ref"] = "identity"
+
+    sim_setup.sim_info.tot_samples = 10*sr
+    sim_setup.sim_info.sim_chunk_size = 3000
+    sim_setup.sim_info.sim_buffer = 4000
+    sim_setup.sim_info.samplerate = sr
+    sim_setup.sim_info.reverb = "ism"
+    sim_setup.sim_info.room_size = [5, 4.8, 2]
+    sim_setup.sim_info.room_center = [0.2, 0.1, 0.1]
+    sim_setup.sim_info.rt60 =  0.35
+    sim_setup.sim_info.max_room_ir_length = sr
+
+    sim_setup.sim_info.export_frequency = 2*sr
+    sim_setup.sim_info.plot_begin = 1
+    sim_setup.sim_info.output_smoothing = 4000
+    sim_setup.sim_info.plot_output = "pdf"
+    sim_setup.sim_info.auto_save_load = False
+    sim_setup.sim_info.save_source_contributions = True
+
+
+    sim = sim_setup.create_simulator()
+
+    bs = 1
+    filt_len = sr
+
+    fxlms = anc.FxLMS(sim.sim_info, sim.arrays, bs, bs, filt_len, 1e-3, 1e-5, sim.arrays.paths["ls"]["error"])
+    sim.add_processor(fxlms)
+    sim.run_simulation()
+
+    a = [f for f in sim.folder_path.iterdir()]
+
+    pass
