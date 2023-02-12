@@ -92,24 +92,42 @@ class LinearTrajectory(Trajectory):
 
 
 class CircularTrajectory(Trajectory):
-    def __init__(self, radius, center, z, radial_period, angle_period, samplerate):
+    def __init__(self, 
+            radius : tuple[float, float], 
+            center : tuple[float, float, float], 
+            radial_period : float, 
+            angle_period : float, 
+            samplerate : int):
         """
-        Moves around a circle in one angle_period, while it moves from the outside
-            of the disc to the center and back again in one radial_period
+        Moves around a circle in one angle_period, while it moves from the outer radius
+        to the inner radius and back again in one radial_period
 
         The circle is defined by its center and radius
 
-        center is a list of length 3 or a ndarray with ndim==1 of length 3
-        radius is in meters
-        radial_period, angle_period is in seconds
-        samplerate is the sample rate of the simulation
+        Parameters
+        ----------
+        radius : length-2 tuple of floats
+            inner and outer radius. Interpreted by ancsim as meters
+        center : length-3 tuple of floats
+            center of the disc/circle
+        radial_period : float
+            time in seconds for the trajectory to go from outer radius to 
+            inner radius and back again
+        angle_period : float
+            time in seconds for trajectory to go one lap around the circle
+        samplerate : int
+            samplerate of the simulation, supplied for the units of the periods 
+            to make sense
+        
         """
         self.radius = radius
         self.center = center
-        self.z = z
         self.radial_period = radial_period
         self.angle_period = angle_period
         self.samplerate = samplerate
+
+        self.radius_diff = self.radius[1] - self.radius[0]
+        assert self.radius_diff >= 0
 
         def pos_func(t):
             angle_period_samples = t % (angle_period * samplerate)
@@ -121,12 +139,12 @@ class CircularTrajectory(Trajectory):
             angle = 2 * np.pi * angle_portion
 
             if radial_portion < 0.5:
-                rad = radius * (1 - 2 * radial_portion)
+                rad = radius[0] + self.radius_diff * (1 - 2 * radial_portion)
             else:
-                rad = radius * (radial_portion-0.5)*2
+                rad = radius[0] + self.radius_diff * (radial_portion-0.5)*2
 
             (x,y) = asputil.pol2cart(rad, angle)
-            return np.array([[x,y,z]]) + center
+            return np.array([[x,y,0]]) + center
 
         super().__init__(pos_func)
 
