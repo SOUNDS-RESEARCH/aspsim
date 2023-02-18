@@ -1,8 +1,10 @@
 import numpy as np
 import scipy.linalg as splin
+import scipy.signal as spsig
 import copy
 
 import ancsim.diagnostics.core as diacore
+import ancsim.diagnostics.plot as dplot
 
 
 class EigenvaluesOverTime(diacore.StateDiagnostic):
@@ -83,30 +85,77 @@ class Eigenvalues(diacore.InstantDiagnostic):
 
 
 
-class SoundfieldPower(diacore.Diagnostic):
-    def __init__(
-        self, 
-        source_names,
-        arrays, 
-        num_avg,
+class SummaryDiagnostic(diacore.Diagnostic):
+    export_functions = {
+        "npz" : dplot.savenpz,
+        "text" : dplot.txt,
+        "spectrum" : dplot.spectrum_plot,
+    }
+    def __init__ (
+        self,
+        sim_info,
+        block_size,
+        save_at,
+        export_func = "text",
+        keep_only_last_export = False,
+        export_kwargs = None,
+        preprocess = None,
+        ):
+        """
+        save_at should be a tuple (start_sample, end_sample)
+            it will use the samples between start_samle (inclusive) and end_sample (exclusive)
+        
+        """
+        if isinstance(save_at, diacore.IntervalCounter):
+            raise NotImplementedError
+        else:
+            export_at = [save_at[1]]
+            save_at = diacore.IntervalCounter(((save_at[0], save_at[1]),))
+
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+
+
+class SignalPowerSpectrum(SummaryDiagnostic):
+    def __init__(self, 
+        sig_name,
         sim_info, 
         block_size, 
-        export_at_idx
+        save_range,
+        num_channels,
+        nperseg, 
+        sig_channels=slice(None),
+        **kwargs
         ):
+        """
+        Will output the wrong value if it is exported in the middle of the save_range
+        """
+        self.save_range = save_range
+        self.num_samples = save_range[1] - save_range[0]
+        #save_at = diacore.IntervalCounter((save_range,))
+        super().__init__(sim_info, block_size, save_at=save_range, export_func = "spectrum", **kwargs)
+        self.sig_name = sig_name
 
-        save_at_idx = [exp_idx - num_avg]
-        super().__init__(sim_info, block_size, export_at_idx)
+        self.samplerate = self.sim_info.samplerate
+        self.num_channels = num_channels
+        self.nperseg = nperseg
+        self.sig_channels = sig_channels
+        self.signal = np.full((self.num_channels, self.num_samples), fill_value=np.nan)
+
+        self.sample_counter = 0
+
         
 
-        self.num_avg = num_avg
-
-        src_sig = {src_name : np.full((self.num_avg, arrays[src_name].num), np.nan) for src_name in source_names}
-
+        #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
+        
     def save(self, processor, chunkInterval, globInterval):
-        pass
+        num_samples = chunkInterval[1] - chunkInterval[0]
+        self.signal[:,self.sample_counter:self.sample_counter+num_samples] = processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]]
+
+        self.sample_counter += num_samples
+        #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 
     def get_output(self):
-        #... actually get output
+        f, spec = spsig.welch(self.signal, self.samplerate, nperseg=self.nperseg, scaling="spectrum", axis=-1)
+        spec = np.mean(spec, axis=0)
+        return spec
 
-        self.reset()
-        
