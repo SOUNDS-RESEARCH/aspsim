@@ -7,6 +7,7 @@ import json
 
 
 import ancsim.fileutilities as fu
+import ancsim.diagnostics.soundfieldplot as sfplot
 
 
 
@@ -36,24 +37,37 @@ def delete_earlier_tikz_plot(folder, name):
             except PermissionError:
                 pass
 
+def tikzplotlib_fix_ncols(obj):
+    """
+    workaround for matplotlib 3.6 renamed legend's _ncol to _ncols, which breaks tikzplotlib
+    """
+    if hasattr(obj, "_ncols"):
+        obj._ncol = obj._ncols
+    for child in obj.get_children():
+        tikzplotlib_fix_ncols(child)
+
+
 def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
     if print_method == "show":
         plt.show()
     elif print_method == "tikz":
         if folder is not None:
-            nestedFolder = folder.joinpath(name)
+            nested_folder = folder.joinpath(name)
             try:
-                nestedFolder.mkdir()
+                nested_folder.mkdir()
             except FileExistsError:
                 pass
+
+            fig = plt.gcf()
+            tikzplotlib_fix_ncols(fig)
             tikzplotlib.save(
-                str(nestedFolder.joinpath(name + ".tex")),
+                str(nested_folder.joinpath(f"{name}.tex")),
                 externalize_tables=True,
-                tex_relative_path_to_data="../figs/" + name + "/",
+                #tex_relative_path_to_data="../figs/" + name + "/",
                 float_format=".8g",
             )
             plt.savefig(
-                str(nestedFolder.joinpath(name + ".pdf")),
+                str(nested_folder.joinpath(name + ".pdf")),
                 dpi=300,
                 facecolor="w",
                 edgecolor="w",
@@ -180,7 +194,7 @@ def legend_without_duplicates(ax, loc):
     newLabels, newHandles = [], []
     for handle, label in zip(handles, labels):
       if label not in newLabels:
-        newLabels.append(label)
+        newLabels.append(label.replace("_", "\_"))
         newHandles.append(handle)
 
     ax.legend(newHandles, newLabels, loc=loc)
@@ -215,8 +229,34 @@ def txt(name, diags, time_idx, folder, preprocess, print_method="pdf"):
     #np.savez_compressed(folder.joinpath(f"{name}_{time_idx}"), **outputs)
 
 
-def soundfieldPlot(name, outputs, metadata, timeIdx, folder, printMethod="pdf"):
-    print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
+def soundfield(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    #outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+
+    num_proc = len(diags)
+    fig, axes = plt.subplots(1,num_proc, figsize=(num_proc*5, 5))
+    if num_proc == 1:
+        axes = [axes]
+
+    sf_all = {proc_name : diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
+
+    max_val = np.max([np.max(sf) for sf in sf_all.values()])
+    min_val = np.min([np.min(sf) for sf in sf_all.values()])
+
+    for (proc_name, diag), sf, ax in zip(diags.items(), sf_all.values(), axes):
+        
+        pos = diag.pos_mic
+
+        pos_sorted, sf_sorted = sfplot.sort_for_imshow(pos, sf[:,None])
+        sfplot.sf_plot(ax, pos_sorted, sf_sorted, proc_name, vminmax=(min_val, max_val))
+
+        if diag.plot_arrays is not None:
+            for plot_ar in diag.plot_arrays:
+                plot_ar.plot(ax)
+        legend_without_duplicates(ax, "upper right")
+
+    output_plot(print_method, folder, f"{name}_{time_idx}")
+
+    #print("a plot would be generated at timeIdx: ", timeIdx, "for diagnostic: ", name)
 	
 
 

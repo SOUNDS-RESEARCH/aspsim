@@ -3,7 +3,7 @@ import copy
 import ancsim.signal.filterclasses as fc
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.preprocessing as pp
-
+import ancsim.diagnostics.plot as dplot
 
 class RecordFilter(diacore.InstantDiagnostic):
     """
@@ -270,29 +270,51 @@ def power_of_all_signals(processor):
 
 
 class SoundfieldPower(diacore.Diagnostic):
+    export_functions = {
+        "image" : dplot.soundfield, 
+        "npz" : dplot.savenpz, 
+    }
     def __init__(
         self, 
-        source_names,
-        arrays, 
-        num_avg,
+        sig_name, 
+        pos_mic, 
+        use_samples, 
         sim_info, 
         block_size, 
-        export_at_idx
+        plot_arrays = None, 
+        export_func = "image", 
+        export_kwargs = None, 
+        preprocess = None, 
         ):
+        """
+        
+        use_samples : tuple[int, int]
+            Uses the samples from use_samples[0] (inclusive) to use_samples[1] (exclusive)
+            to compute the average soundfield power. 
+        
+        """
+        save_at = diacore.IntervalCounter((use_samples,))
+        export_at = (use_samples[1],)
 
         #save_at_idx = [exp_idx - num_avg]
-        super().__init__(sim_info, block_size, export_at_idx)
+        keep_only_last_export = False
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        self.sig_name = sig_name
+        self.pos_mic = pos_mic
+        self.num_mic = self.pos_mic.shape[0]
+        self.plot_arrays = plot_arrays
+
+        self.num_avg = use_samples[1] - use_samples[0]
+        assert self.num_avg >= 1
         
 
-        self.num_avg = num_avg
+        self.power = np.zeros(self.num_mic)
 
-        src_sig = {src_name : np.full((self.num_avg, arrays[src_name].num), np.nan) for src_name in source_names}
+        #src_sig = {src_name : np.zeros((arrays[src_name].num)) for src_name in source_names}
 
     def save(self, processor, chunkInterval, globInterval):
-        pass
+        self.power[:] += np.sum(np.abs(processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]])**2, axis=-1) / self.num_avg
 
     def get_output(self):
-        #... actually get output
-
-        self.reset()
+        return self.power
         

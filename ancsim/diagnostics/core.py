@@ -381,6 +381,7 @@ class SignalDiagnostic(Diagnostic):
         "npz" : dplot.savenpz,
         "text" : dplot.txt,
         "wav" : dplot.create_audio_files,
+        "spectrum" : dplot.spectrum_plot, 
     }
     def __init__ (
         self,
