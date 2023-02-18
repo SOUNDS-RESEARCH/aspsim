@@ -8,6 +8,7 @@ import ancsim.signal.filterclasses as fc
 import ancsim.signal.sources as src
 
 import aspcol.correlation as cr
+import aspcol.utilities as asputil
 
 #SOURCES
 
@@ -128,26 +129,30 @@ class PulseTrain(src.Source):
 
 
 
-def load_audio_file(file_name, desired_sr = None, verbose=False):
+def load_audio_file(file_name, desired_sr = None, num_channels=None, verbose=False):
     audio, audio_sr = sf.read(file_name)
-    raise NotImplementedError("Check which axis is audio and which is channel. \
-                                Make support for multiple channels (should be simple)")
-    if audio.ndim == 2:
-        audio = audio[:, 0]
+    assert audio.ndim == 2
+    audio = audio.T
+    #raise NotImplementedError("Check which axis is audio and which is channel. \
+    #                            Make support for multiple channels (should be simple)")
+    if num_channels is not None:
+        audio = audio[:num_channels, :]
 
     if desired_sr != audio_sr:
-        assert audio_sr % desired_sr == 0
         assert audio_sr > desired_sr
-        downsampling_factor = audio_sr // desired_sr
-        audio = spsig.resample_poly(
-            audio, up=1, down=downsampling_factor, axis=-1
-        )
+        if audio_sr % desired_sr == 0:
+            down_factor = audio_sr // desired_sr
+            up_factor = 1
+        else:
+            up_factor, down_factor = asputil.simplify_ratio(desired_sr, audio_sr)
+        audio_downsampled = [spsig.resample_poly(audio[ch,:], up=up_factor, down=down_factor, axis=-1) for ch in range(num_channels)]
+        audio = np.stack(audio_downsampled, axis=0)
         # srAudio = srAudio // downsamplingFactor
         if verbose:
             print(f"AudioFileSource downsampled audio file from \
-                    {audio_sr} to {audio_sr // downsampling_factor} Hz")
+                    {audio_sr} to {audio_sr // down_factor} Hz")
 
-        return audio
+    return audio
 
 
 
