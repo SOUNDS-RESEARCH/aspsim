@@ -144,7 +144,7 @@ def sort_for_imshow(pos, sig, pos_decimals=5):
     #dims = sig.shape[:2]
     signal_dim = sig.shape[-1]
     sig_sorted = np.zeros((num_rows, num_cols, signal_dim), dtype=sig.dtype)
-    sig_sorted = sig[sort_indices,:]
+    sig_sorted = np.flip(sig[sort_indices,:], axis=0)
     #for i in range(dims[0]):
      #   for j in range(dims[1]):
      #       single_sig = sig[i,j,:]
