@@ -159,3 +159,63 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         spec = np.mean(spec, axis=0)
         return spec
 
+
+
+class SignalSummary(SummaryDiagnostic):
+    def __init__(self, 
+        sig_name,
+        sim_info, 
+        block_size, 
+        save_range,
+        summary_func = None,
+        **kwargs
+        ):
+        self.save_range = save_range
+        self.num_samples = save_range[1] - save_range[0]
+        #save_at = diacore.IntervalCounter((save_range,))
+        super().__init__(sim_info, block_size, save_at=save_range, export_func = "text", **kwargs)
+        self.sig_name = sig_name
+        self.summary_func = summary_func
+
+        self.mean = 0
+
+        #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
+        
+    def save(self, processor, chunkInterval, globInterval):
+        if self.summary_func is None:
+            self.mean += np.sum(processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
+        else:
+            self.mean += self.summary_func(processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
+
+    def get_output(self):
+        return self.mean
+    
+# class SignalComparisonSummary(SummaryDiagnostic):
+#     def __init__(self, 
+#         sig_name,
+#         sig_name2,
+#         sim_info, 
+#         block_size, 
+#         save_range,
+#         comparison_func,
+#         **kwargs
+#         ):
+#         self.save_range = save_range
+#         self.num_samples = save_range[1] - save_range[0]
+#         #save_at = diacore.IntervalCounter((save_range,))
+#         super().__init__(sim_info, block_size, save_at=save_range, export_func = "text", **kwargs)
+#         self.sig_name = sig_name
+#         self.sig_name2 = sig_name2
+#         self.comparison_func = comparison_func
+
+#         self.mean = 0
+
+#         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
+        
+#     def save(self, processor, chunkInterval, globInterval):
+#         sig1 = processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]
+#         sig2 = processor.sig[self.sig_name2][:, chunkInterval[0]:chunkInterval[1]]
+#         self.mean += self.comparison_func() / self.num_samples
+
+#     def get_output(self):
+#         return self.mean

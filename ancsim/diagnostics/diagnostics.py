@@ -44,6 +44,38 @@ class RecordFilterDifference(RecordFilter):
 
 
 
+# Both this and the class below was left uncommented. 
+# If the one below is buggy / wrong, try this one instead
+# class RecordSignal(diacore.SignalDiagnostic):
+#     def __init__(self, 
+#         sig_name, 
+#         *args,
+#         signal_idx = None,
+#         num_channels = None,
+#         **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.sig_name = sig_name
+#         self.signal_idx = signal_idx
+#         self.num_channels = num_channels
+
+#         if self.num_channels is None:
+#             self.signal = np.full((self.sim_info.tot_samples), np.nan)
+#         else:
+#             self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
+        
+#     def save(self, processor, chunkInterval, globInterval):
+#         if self.num_channels is not None:#processor.sig[self.sig_name].shape[0] > 1 and self.signal_idx is None:
+#             self.signal[:, globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
+#         elif self.signal_idx is None:
+#             self.signal[globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][0,chunkInterval[0]:chunkInterval[1]]
+#         else:
+#             self.signal[globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][self.signal_idx,chunkInterval[0]:chunkInterval[1]]
+
+#     def get_output(self):
+#         return self.signal
 
 
 class RecordSignal(diacore.SignalDiagnostic):
@@ -51,20 +83,30 @@ class RecordSignal(diacore.SignalDiagnostic):
         sig_name,
         *args,
         num_channels = 1, 
+        channel_idx = None,
         **kwargs):
         super().__init__(*args, **kwargs)
         self.sig_name = sig_name
         self.num_channels = num_channels
+        self.channel_idx = channel_idx
+
+        if self.channel_idx is not None:
+            if isinstance(self.channel_idx, int):
+                self.channel_idx = (self.channel_idx,)
+            assert len(self.channel_idx) == self.num_channels
         self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
         
     def save(self, processor, chunkInterval, globInterval):
         assert processor.sig[self.sig_name].ndim == 2
-        assert processor.sig[self.sig_name].shape[0] == self.num_channels
+        #assert processor.sig[self.sig_name].shape[0] == self.num_channels
         #if processor.sig[self.sig_name].shape[0] > 1:
         #    raise NotImplementedError
-
-        self.signal[:, globInterval[0]:globInterval[1]] = \
-            processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
+        if self.channel_idx is not None:
+            self.signal[:, globInterval[0]:globInterval[1]] = \
+                processor.sig[self.sig_name][self.channel_idx,chunkInterval[0]:chunkInterval[1]]
+        else:
+            self.signal[:, globInterval[0]:globInterval[1]] = \
+                processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
 
     def get_output(self):
         return self.signal
