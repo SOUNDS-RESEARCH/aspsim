@@ -1,17 +1,13 @@
 import numpy as np
-import json
-from pathlib import Path
 import copy
 
-import ancsim.utilities as util
+import ancsim.fileutilities as futil
 import ancsim.configutil as configutil
 
-from ancsim.array import ArrayCollection, MicArray, ControllableSourceArray, FreeSourceArray
-from ancsim.adaptivefilter.base import ProcessorWrapper, FreeSourceHandler
-from ancsim.simulatorlogging import addToSimMetadata, writeFilterMetadata
+import ancsim.array as ar
+from ancsim.processor import ProcessorWrapper, FreeSourceHandler
 
 import ancsim.saveloadsession as sess
-import ancsim.experiment.plotscripts as psc
 import ancsim.presets as preset
 import ancsim.diagnostics.core as diacore
 
@@ -19,115 +15,110 @@ import ancsim.diagnostics.core as diacore
 class SimulatorSetup:
     def __init__(
         self,
-        baseFolderPath=None,
-        sessionFolder=None
+        base_fig_path=None,
+        session_folder=None,
+        config_path = None,
+        rng = None, 
         ):
-        self.arrays = ArrayCollection()
+        self.arrays = ar.ArrayCollection()
 
-        self.config = configutil.getDefaultConfig()
+        if config_path is None:
+            self.sim_info = configutil.load_default_config()
+        else:
+            self.sim_info = configutil.load_from_file(config_path)
 
-        self.baseFolderPath = baseFolderPath
-        self.sessionFolder = sessionFolder
+        self.base_fig_path = base_fig_path
+        self.session_folder = session_folder
 
-        self.rng = np.random.default_rng(1)
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
 
-    def addArrays(self, arrayCollection):
-        for ar in arrayCollection:
+    def add_arrays(self, array_collection):
+        for ar in array_collection:
             self.arrays.add_array(ar)
-        self.arrays.set_path_types(arrayCollection.path_type)
-        pass
+        self.arrays.set_path_types(array_collection.path_type)
+
             #if ar.is_source:
             #    self.arrays.paths[ar.name] = {}
 
-    def addArray(self, array):
+    def add_array(self, array):
         self.arrays.add_array(array)
 
-    def addFreeSource(self, name, pos, source):
-        arr = FreeSourceArray(name, pos, source)
-        self.addArray(arr)
+    def add_free_source(self, name, pos, source):
+        arr = ar.FreeSourceArray(name, pos, source)
+        self.add_array(arr)
 
-    def addControllableSource(self, name, pos):
-        arr = ControllableSourceArray(name, pos)
-        self.addArray(arr)
+    def add_controllable_source(self, name, pos):
+        arr = ar.ControllableSourceArray(name, pos)
+        self.add_array(arr)
     
-    def addMics(self, name, pos):
-        arr = MicArray(name,pos)
-        self.addArray(arr)
+    def add_mics(self, name, pos):
+        arr = ar.MicArray(name,pos)
+        self.add_array(arr)
 
-    def setPath(self, srcName, micName, path):
-        self.arrays.set_prop_path(path, srcName, micName)
+    def set_path(self, src_name, mic_name, path):
+        self.arrays.set_prop_path(path, src_name, mic_name)
 
-    def setSource(self, name, source):
-        self.arrays[name].setSource(source)
+    def set_source(self, name, source):
+        self.arrays[name].set_source(source)
 
-    def loadFromPath(self, sessionPath):
-        self.folderPath = self.createFigFolder(self.baseFolderPath)
-        loadedConfig, loadedArrays = sess.loadFromPath(sessionPath, self.folderPath)
-        self.setConfig(loadedConfig)
-        self.arrays = loadedArrays
+    def load_from_path(self, session_path):
+        self.folder_path = self._create_fig_folder(self.base_fig_path)
+        self.sim_info, self.arrays = sess.load_from_path(session_path, self.folder_path)
         #self.freeSrcProp.prepare(self.config, self.arrays)
+        #self.setConfig(loaded_config)
 
-    # def loadSession(self, sessionPath=None, config=None):
-    #     if config is not None:
-    #         return sess.loadSession(sessionPath, self.folderPath, config)
-    #     else:
-    #         return sess.loadSession(sessionPath, self.folderPath)
-
-    def usePreset(self, presetName, **kwargs):
-        presetFunctions = {
-            "cuboid" : preset.getPositionsCuboid3d,
-            "cylinder" : preset.getPositionsCylinder3d,
-            "audio_processing" : preset.audioProcessing,
-            "signal_estimation" : preset.signalEstimation,
-            "anc_mpc" : preset.ancMultiPoint,
+    def use_preset(self, preset_name, **kwargs):
+        preset_functions = {
+            "audio_processing" : preset.audio_processing,
+            "signal_estimation" : preset.signal_estimation,
+            "anc_mpc" : preset.anc_multi_point,
             "debug" : preset.debug,
         }
 
-        arrays, chosenPropPaths = presetFunctions[presetName](self.config, **kwargs)
-        self.addArrays(arrays)
-        self.arrays.set_path_types(chosenPropPaths)
+        arrays, chosen_prop_paths = preset_functions[preset_name](self.sim_info, **kwargs)
+        self.add_arrays(arrays)
+        self.arrays.set_path_types(chosen_prop_paths)
         
 
-    def createSimulator(self):
+    def create_simulator(self):
         assert not self.arrays.empty()
-        sim_info = configutil.SimulatorInfo(self.config)
         finished_arrays = copy.deepcopy(self.arrays)
-        finished_arrays.set_default_path_type(sim_info.reverb)
+        finished_arrays.set_default_path_type(self.sim_info.reverb)
         
-        folderPath = self.createFigFolder(self.baseFolderPath)
-        print(f"Figure folder: {folderPath}")
+        folder_path = self._create_fig_folder(self.base_fig_path)
+        print(f"Figure folder: {folder_path}")
 
-        if self.config["auto_save_load"] and self.sessionFolder is not None:
+        if self.sim_info.auto_save_load and self.session_folder is not None:
             try:
-                finished_arrays = sess.loadSession(self.sessionFolder, folderPath, self.config, finished_arrays)
+                finished_arrays = sess.load_session(self.session_folder, folder_path, self.sim_info, finished_arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                irMetadata = finished_arrays.setupIR(sim_info)
-                sess.saveSession(self.sessionFolder, self.config, finished_arrays, simMetadata=irMetadata)
-                #sess.addToSimMetadata(folderPath, irMetadata)     
+                irMetadata = finished_arrays.setup_ir(self.sim_info)
+                sess.save_session(self.session_folder, self.sim_info, finished_arrays, sim_metadata=irMetadata)   
         else:
-            finished_arrays.setupIR(sim_info)
-
-        
+            finished_arrays.setup_ir(self.sim_info)
 
         # LOGGING AND DIAGNOSTICS
-        sess.saveConfig(folderPath, self.config)
-        finished_arrays.plot(folderPath, self.config["plot_output"])
-        finished_arrays.save_metadata(folderPath)
-        return Simulator(sim_info, finished_arrays, folderPath)
+        self.sim_info.save_to_file(folder_path)
+        finished_arrays.plot(self.sim_info, folder_path, self.sim_info.plot_output)
+        finished_arrays.save_metadata(folder_path)
+        return Simulator(self.sim_info, finished_arrays, folder_path)
 
-    def createFigFolder(self, folderForPlots, generateSubFolder=True, safeNaming=False):
-        if self.config["plot_output"] == "none" or folderForPlots is None:
+    def _create_fig_folder(self, folder_for_plots, gen_subfolder=True, safe_naming=False):
+        if self.sim_info.plot_output == "none" or folder_for_plots is None:
             return None
 
-        if generateSubFolder:
-            folderName = util.getUniqueFolderName("figs_", folderForPlots, safeNaming)
-            folderName.mkdir()
+        if gen_subfolder:
+            folder_name = futil.get_unique_folder_name("figs_", folder_for_plots, safe_naming)
+            folder_name.mkdir()
         else:
-            folderName = folderForPlots
-            if not folderName.exists():
-                folderName.mkdir()
-        return folderName
+            folder_name = folder_for_plots
+            if not folder_name.exists():
+                folder_name.mkdir()
+        return folder_name
 
 
 
@@ -136,25 +127,30 @@ class Simulator:
         self,
         sim_info,
         arrays,
-        folderPath,
+        folder_path,
+        rng = None, 
     ):
         
         self.sim_info = sim_info
         self.arrays = arrays
-        self.folderPath = folderPath
+        self.folder_path = folder_path
         
         self.processors = []
-        self.rng = np.random.default_rng(1)
 
-    def addProcessor(self, processor):
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
+
+    def add_processor(self, processor):
         try:
             self.processors.extend(processor)
         except TypeError:
             self.processors.append(processor)
             
-    def _setupSimulation(self):
-        setUniqueFilterNames(self.processors)
-        writeFilterMetadata(self.processors, self.folderPath)
+    def _setup_simulation(self):
+        set_unique_processor_names(self.processors)
+        sess.write_processor_metadata(self.processors, self.folder_path)
 
         self.plot_exporter = diacore.DiagnosticExporter(
             self.sim_info, self.processors
@@ -169,28 +165,28 @@ class Simulator:
             proc.prepare()
             
 
-    def runSimulation(self):
-        self._setupSimulation()
+    def run_simulation(self):
+        self._setup_simulation()
 
         assert len(self.processors) > 0
-        blockSizes = [proc.blockSize for proc in self.processors]
-        maxBlockSize = np.max(blockSizes)
+        block_sizes = [proc.block_size for proc in self.processors]
+        max_block_size = np.max(block_sizes)
 
         print("SIM START")
         self.n_tot = 1
-        bufferIdx = 0
-        while self.n_tot < self.sim_info.tot_samples+maxBlockSize:
+        buffer_idx = 0
+        while self.n_tot < self.sim_info.tot_samples+max_block_size:
             for n in range(
                 self.sim_info.sim_buffer,
                 self.sim_info.sim_buffer
-                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + maxBlockSize - self.n_tot),
+                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + max_block_size - self.n_tot),
             ):
 
                 #Generate and propagate noise from controllable sources
                 for i, proc in enumerate(self.processors):
-                    if self.n_tot % proc.blockSize == 0:
+                    if self.n_tot % proc.block_size == 0:
                         proc.process(self.n_tot)
-                        self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, proc.blockSize)
+                        self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, proc.block_size)
                         proc.propagate(self.n_tot)
  
                 self.arrays.update(self.n_tot)
@@ -199,33 +195,34 @@ class Simulator:
                 #if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
                 if self.sim_info.plot_output != "none":
                     self.plot_exporter.dispatch(
-                        [p.processor for p in self.processors], self.n_tot, self.folderPath
+                        [p.processor for p in self.processors], self.n_tot, self.folder_path
                     )
 
                 # Write progress
                 if self.n_tot % 1000 == 0:
-                    print("Timestep: ", self.n_tot)#, end="\r")
+                    print(f"Timestep: {self.n_tot}")#, end="\r")
 
                 self.n_tot += 1
-            bufferIdx += 1
+            buffer_idx += 1
         if self.sim_info.plot_output != "none":
             self.plot_exporter.dispatch(
-                [p.processor for p in self.processors], self.n_tot, self.folderPath
+                [p.processor for p in self.processors], self.n_tot, self.folder_path
             )
 
         print(self.n_tot)
 
 
-def setUniqueFilterNames(filters):
+
+def set_unique_processor_names(processors):
     names = []
-    for filt in filters:
-        newName = filt.name
+    for proc in processors:
+        new_name = proc.name
         i = 1
-        while newName in names:
-            newName = filt.name + " " + str(i)
+        while new_name in names:
+            new_name = f"{proc.name} {i}"
             i += 1
-        names.append(newName)
-        filt.name = newName
+        names.append(new_name)
+        proc.name = new_name
 
 
 

@@ -1,14 +1,15 @@
 import numpy as np
-#import dill
+import dill
 import json
 from abc import ABC
 import copy
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
-from ancsim.experiment.plotscripts import outputPlot
-import ancsim.soundfield.roomimpulseresponse as rir
-import ancsim.soundfield.geometry as geo
-import ancsim.utilities as util
+import ancsim.diagnostics.plot as dplot
+import ancsim.room.roomimpulseresponse as rir
+import ancsim.room.region as reg
+import ancsim.room.trajectory as tr
 
 class ArrayCollection():
     def __init__(self):
@@ -71,6 +72,8 @@ class ArrayCollection():
 
         #Check that the arrays are the same
         for ar_name, ar in prototype.arrays.items():
+            #if ar != initialized[ar_name]:
+            #    return False
             if type(ar) is not type(initialized[ar_name]):
                 return False
             if ar.num != initialized[ar_name].num:
@@ -161,9 +164,8 @@ class ArrayCollection():
                 self.path_type[src_name][mic_name] = pt
 
 
-    def setupIR(self, sim_info):
+    def setup_ir(self, sim_info):
         """ """
-        print("Computing Room IR...")
         metadata = {}
         self.sim_info = sim_info
         for src, mic in self.mic_src_combos():
@@ -195,11 +197,11 @@ class ArrayCollection():
             path = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
         elif reverb == "ism":
             if sim_info.spatial_dims == 3:
-                path = rir.irRoomImageSource3d(
+                path = rir.ir_room_image_source_3d(
                         src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
                         sim_info.max_room_ir_length, sim_info.rt60, 
                         sim_info.samplerate, sim_info.c,
-                        calculateMetadata=return_path_info,
+                        calculate_metadata=return_path_info,
                         verbose = verbose)
                 if return_path_info:
                     path, path_info["ism_info"] = path
@@ -207,10 +209,10 @@ class ArrayCollection():
                 raise ValueError
         elif reverb == "freespace":
             if sim_info.spatial_dims == 3:
-                path = rir.irPointSource3d(
+                path = rir.ir_point_source_3d(
                 src.pos, mic.pos, sim_info.samplerate, sim_info.c)
             elif sim_info.spatial_dims == 2:
-                path = rir.irPointSource2d(
+                path = rir.ir_point_source_2d(
                     src.pos, mic.pos, sim_info.samplerate, sim_info.c
                 )
             else:
@@ -260,16 +262,38 @@ class ArrayCollection():
 
 
 
-    def plot(self, fig_folder, print_method):
+    def plot(self, sim_info, fig_folder, print_method):
         fig, ax = plt.subplots()
         for ar in self.arrays.values():
             ar.plot(ax)
+
+        if "ism" in [self.path_type[src.name][mic.name] for src, mic in self.mic_src_combos()]:
+            corner = [c - sz/2 for c, sz in zip(sim_info.room_center[:2], sim_info.room_size[:2])]
+            #bottom_left_corner = sim_info.room_center[:2] - (sim_info.room_size[:2] / 2)
+            width = sim_info.room_size[0]
+            height = sim_info.room_size[1]
+            ax.add_patch(patches.Rectangle(corner, width, height, edgecolor="k", facecolor="none", linewidth=2, alpha=1))
+
         ax.legend()
         ax.axis("equal")
         ax.grid(True)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
-        outputPlot(print_method, fig_folder, "array_pos")
+        dplot.output_plot(print_method, fig_folder, "array_pos")
+
+    def save_to_file(self, path):
+        if path is not None:
+            with open(path.joinpath("arrays.pickle"), "wb") as f:
+                dill.dump(self, f)
+
+def load_arrays(session_path):
+        with open(session_path.joinpath("arrays.pickle"), "rb") as f:
+            arrays = dill.load(f)
+        return arrays
+
+
+
+
 
 
 class Array(ABC):
@@ -294,7 +318,7 @@ class Array(ABC):
             self.pos = pos
             self.pos_segments = [pos]
             self.dynamic = False
-        elif isinstance(pos, Trajectory):
+        elif isinstance(pos, tr.Trajectory):
             self.trajectory = pos
             self.group_idxs = None
             self.num_groups = 1
@@ -313,6 +337,13 @@ class Array(ABC):
             "number of groups" : self.num_groups,
             "dynamic" : self.dynamic,
         }
+
+    # def __eq__(self, other):
+    #     if isinstance(other, Array):
+
+    #         if self.pos != other.pos:
+    #             return False
+    #     return NotImplemented
 
     def set_groups(self, group_idxs):
         """group_idxs is a list of lists or a list of 1D nd.arrays
@@ -344,7 +375,7 @@ class RegionArray(MicArray):
         if isinstance(region, (list, tuple)):
             if len(region) > 1:
                 self.region_segments = region
-                region = geo.CombinedRegion(region)
+                region = reg.CombinedRegion(region)
             else:
                 self.region_segments = region
                 region = region[0]
@@ -371,7 +402,7 @@ class FreeSourceArray(Array):
     plot_symbol = "s"
     def __init__(self, name, pos, source):
         super().__init__(name, pos)
-        self.setSource(source)
+        self.set_source(source)
 
         self.metadata["source info"] = self.source.metadata
     
@@ -382,149 +413,9 @@ class FreeSourceArray(Array):
     def get_samples(self, numSamples):
         return self.source.get_samples(numSamples)
 
-    def setSource(self, source):
+    def set_source(self, source):
         assert source.num_channels == self.num
         self.source = source
 
 
-
-
-class Trajectory:
-    def __init__(self, pos_func):
-        """pos_func is a function, which takes a time_index in samples and outputs a position"""
-        self.pos_func = pos_func
-        #self.pos = np.full((1,3), np.nan)
-
-    def current_pos(self, time_idx):
-        return self.pos_func(time_idx)
-
-    def plot(self, ax, symbol, name):
-        pass
-
-
-class LinearTrajectory(Trajectory):
-    def __init__(self, points, period, samplerate):
-        """
-        points is array of shape (numpoints, spatial_dim) or equivalent list of lists
-        period is in seconds
-        update freq is in samples
-        """
-        if isinstance(points, (list, tuple)):
-            points = np.array(points)
-
-        if not np.allclose(points[-1,:], points[0,:]):
-            points = np.concatenate((points, points[:1,:]), axis=0)
-        self.anchor_points = points
-
-        segment_distance = np.sqrt(np.sum((points[:-1,:] - points[1:,:])**2, axis=-1))
-        assert all(segment_distance > 0)
-        
-        tot_distance = np.sum(segment_distance)
-        distance_per_sample = tot_distance / (samplerate * period)
-        segment_samples = segment_distance / distance_per_sample
-
-        #cycle_start = 0
-        cumulative_samples = np.concatenate(([0], np.cumsum(segment_samples)))
-
-        def pos_func(t):
-            period_samples = t % (period * samplerate)
-
-            point_idx = np.argmax(period_samples < cumulative_samples)
-            time_this_segment = period_samples - cumulative_samples[point_idx-1]
-            ip_factor = time_this_segment / segment_samples[point_idx-1]
-            pos = points[point_idx-1,:]*(1-ip_factor) + points[point_idx,:]*ip_factor
-            return pos[None,:]
-
-        super().__init__(pos_func)
-
-    def plot(self, ax, symbol, label):
-        ax.plot(self.anchor_points[:,0], self.anchor_points[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
-
-    # @classmethod
-    # def linear_interpolation_const_speed(cls, points, period, samplerate):
-    #     """
-    #     points is array of shape (numpoints, spatial_dim) or equivalent list of lists
-    #     period is in seconds
-    #     update freq is in samples
-    #     """
-    #     if isinstance(points, (list, tuple)):
-    #         points = np.array(points)
-
-    #     if not np.allclose(points[-1,:], points[0,:]):
-    #         points = np.concatenate((points, points[:1,:]), axis=0)
-
-    #     segment_distance = np.sqrt(np.sum((points[:-1,:] - points[1:,:])**2, axis=-1))
-    #     assert all(segment_distance > 0)
-        
-    #     tot_distance = np.sum(segment_distance)
-    #     #updates_per_period = samplerate * period / update_freq
-    #     distance_per_sample = tot_distance / (samplerate * period)
-    #     segment_samples = segment_distance / distance_per_sample
-
-    #     cycle_start = 0
-    #     cumulative_samples = np.concatenate(([0], np.cumsum(segment_samples)))
-
-    #     def pos_func(t):
-    #         period_samples = t % (period * samplerate)
-
-    #         point_idx = np.argmax(period_samples < cumulative_samples)
-    #         time_this_segment = period_samples - cumulative_samples[point_idx-1]
-    #         ip_factor = time_this_segment / segment_samples[point_idx-1]
-    #         pos = points[point_idx-1,:]*(1-ip_factor) + points[point_idx,:]*ip_factor
-    #         return pos[None,:]
-
-    #     return cls(pos_func)
-
-class CircularTrajectory(Trajectory):
-    def __init__(self, radius, center, z, radial_period, angle_period, samplerate):
-        """
-        Moves around a circle in one angle_period, while it moves from the outside
-            of the disc to the center and back again in one radial_period
-
-        The circle is defined by its center and radius
-
-        center is a list of length 3 or a ndarray with ndim==1 of length 3
-        radius is in meters
-        radial_period, angle_period is in seconds
-        samplerate is the sample rate of the simulation
-        """
-        self.radius = radius
-        self.center = center
-        self.z = z
-        self.radial_period = radial_period
-        self.angle_period = angle_period
-        self.samplerate = samplerate
-
-        def pos_func(t):
-            angle_period_samples = t % (angle_period * samplerate)
-            radial_period_samples = t % (radial_period * samplerate)
-
-            angle_portion = angle_period_samples / (angle_period * samplerate)
-            radial_portion = radial_period_samples / (radial_period * samplerate)
-
-            angle = 2 * np.pi * angle_portion
-
-            if radial_portion < 0.5:
-                rad = radius * (1 - 2 * radial_portion)
-            else:
-                rad = radius * (radial_portion-0.5)*2
-
-            (x,y) = util.pol2cart(rad, angle)
-            return np.array([[x,y,z]]) + center
-
-        super().__init__(pos_func)
-
-    def plot(self, ax, symbol, label):
-        approx_num_points = 1000
-        max_samples = self.samplerate*max(self.radial_period, self.angle_period)
-        samples_per_point = max_samples // approx_num_points
-        t = np.arange(0, max_samples, samples_per_point)
-        num_points = t.shape[0]
-
-        pos = np.zeros((num_points, 3))
-        for i in range(num_points):
-            pos[i,:] = np.squeeze(self.pos_func(t[i]))
-        ax.plot(pos[:,0], pos[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
-
-        # ax.plot(self.anchor_points[:,0], self.anchor_points[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
 

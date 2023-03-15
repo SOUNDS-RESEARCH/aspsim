@@ -1,66 +1,13 @@
 import numpy as np
-import scipy.linalg as splin
-import scipy.signal as spsig
-import operator as op
 import copy
-
-import ancsim.array as ar
-import ancsim.utilities as util
-import ancsim.experiment.plotscripts as psc
 import ancsim.signal.filterclasses as fc
-import ancsim.signal.correlation as corr
-import ancsim.diagnostics.diagnosticplots as dplot
-import ancsim.diagnostics.diagnosticsummary as dsum
-
-
 import ancsim.diagnostics.core as diacore
-
-
-# def attritemgetter(name):
-#     assert name[0] != "["
-#     attributes = name.replace("]", "").replace("'", "")
-#     attributes = attributes.split(".")
-#     attributes = [attr.split("[") for attr in attributes]
-
-#     def getter (obj):
-#         for sub_list in attributes:
-#             obj = getattr(obj, sub_list[0])
-#             for item in sub_list[1:]:
-#                 obj = obj[item]
-#         return obj
-#     return getter
-
-def attritemgetter(name):
-    """
-    If you have a dictionary with strings, use the name "dict_obj['key']"
-    Without apostrophes, the key is assumed to be a list index, and is converted to integer.
-
-    TODO: Possibly allow for objects other than integers, such as indexing arrays
-    
-    """
-    assert name[0] != "["
-    attributes = name.replace("]", "")
-    attributes = attributes.split(".")
-    attributes = [attr.split("[") for attr in attributes]
-
-    def getter (obj):
-        for sub_list in attributes:
-            obj = getattr(obj, sub_list[0])
-            for item in sub_list[1:]:
-                if item[0] == "'":
-                    if not item[-1] == "'":
-                        raise ValueError("Unmatched apostrophes")
-                    item = item.replace("'", "")
-                else:
-                    item = int(item)
-                obj = obj[item]
-        return obj
-    return getter
-
+import ancsim.diagnostics.preprocessing as pp
+import ancsim.diagnostics.plot as dplot
 
 class RecordFilter(diacore.InstantDiagnostic):
     """
-        Remember to include .ir in the property name 
+        Remember to include .ir in the property name
         if the property is a filter object
     """
     def __init__ (
@@ -71,7 +18,7 @@ class RecordFilter(diacore.InstantDiagnostic):
         ):
         super().__init__(*args, **kwargs)
         self.prop_name = prop_name
-        self.get_prop = attritemgetter(prop_name)
+        self.get_prop = diacore.attritemgetter(prop_name)
         self.prop = None
 
     def save(self, processor, chunkInterval, globInterval):
@@ -90,29 +37,76 @@ class RecordFilterDifference(RecordFilter):
         *args,
         **kwargs):
         super().__init__(state_name, *args, **kwargs)
-        self.get_state_subtract = attritemgetter(state_name_subtract)
+        self.get_state_subtract = diacore.attritemgetter(state_name_subtract)
 
     def save(self, processor, chunkInterval, globInterval):
         self.prop = copy.deepcopy(self.get_prop(processor)) - copy.deepcopy(self.get_state_subtract(processor))
 
 
 
+# Both this and the class below was left uncommented. 
+# If the one below is buggy / wrong, try this one instead
+# class RecordSignal(diacore.SignalDiagnostic):
+#     def __init__(self, 
+#         sig_name, 
+#         *args,
+#         signal_idx = None,
+#         num_channels = None,
+#         **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.sig_name = sig_name
+#         self.signal_idx = signal_idx
+#         self.num_channels = num_channels
+
+#         if self.num_channels is None:
+#             self.signal = np.full((self.sim_info.tot_samples), np.nan)
+#         else:
+#             self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
+        
+#     def save(self, processor, chunkInterval, globInterval):
+#         if self.num_channels is not None:#processor.sig[self.sig_name].shape[0] > 1 and self.signal_idx is None:
+#             self.signal[:, globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
+#         elif self.signal_idx is None:
+#             self.signal[globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][0,chunkInterval[0]:chunkInterval[1]]
+#         else:
+#             self.signal[globInterval[0]:globInterval[1]] = \
+#                 processor.sig[self.sig_name][self.signal_idx,chunkInterval[0]:chunkInterval[1]]
+
+#     def get_output(self):
+#         return self.signal
+
 
 class RecordSignal(diacore.SignalDiagnostic):
     def __init__(self, 
-        sig_name, 
+        sig_name,
         *args,
+        num_channels = 1, 
+        channel_idx = None,
         **kwargs):
         super().__init__(*args, **kwargs)
         self.sig_name = sig_name
-        self.signal = np.full((self.sim_info.tot_samples), np.nan)
+        self.num_channels = num_channels
+        self.channel_idx = channel_idx
+
+        if self.channel_idx is not None:
+            if isinstance(self.channel_idx, int):
+                self.channel_idx = (self.channel_idx,)
+            assert len(self.channel_idx) == self.num_channels
+        self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
         
     def save(self, processor, chunkInterval, globInterval):
-        if processor.sig[self.sig_name].shape[0] > 1:
-            raise NotImplementedError
-
-        self.signal[globInterval[0]:globInterval[1]] = \
-            processor.sig[self.sig_name][0,chunkInterval[0]:chunkInterval[1]]
+        assert processor.sig[self.sig_name].ndim == 2
+        #assert processor.sig[self.sig_name].shape[0] == self.num_channels
+        #if processor.sig[self.sig_name].shape[0] > 1:
+        #    raise NotImplementedError
+        if self.channel_idx is not None:
+            self.signal[:, globInterval[0]:globInterval[1]] = \
+                processor.sig[self.sig_name][self.channel_idx,chunkInterval[0]:chunkInterval[1]]
+        else:
+            self.signal[:, globInterval[0]:globInterval[1]] = \
+                processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
 
     def get_output(self):
         return self.signal
@@ -140,7 +134,7 @@ class RecordState(diacore.StateDiagnostic):
         self.state_values = np.full((*state_dim, self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
-        self.get_prop = attritemgetter(state_name)
+        self.get_prop = diacore.attritemgetter(state_name)
         self.diag_idx = 0
 
         if label_suffix_channel is not None:
@@ -156,9 +150,6 @@ class RecordState(diacore.StateDiagnostic):
 
     def get_output(self):
         return self.state_values
-
-
-
 
 
 
@@ -203,8 +194,8 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         self.denom_channels = denom_channels
         
     def save(self, processor, chunkInterval, globInterval):
-        smoother_num = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
-        smoother_denom = fc.createFilter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+        smoother_num = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
+        smoother_denom = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
 
         num = smoother_num.process(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
         denom = smoother_denom.process(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
@@ -228,7 +219,7 @@ class StatePower(diacore.StateDiagnostic):
         self.power = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
 
-        self.get_prop = attritemgetter(prop_name)
+        self.get_prop = diacore.attritemgetter(prop_name)
         self.diag_idx = 0
         
 
@@ -244,171 +235,6 @@ class StatePower(diacore.StateDiagnostic):
         return self.power
 
 
-
-
-class StateMSE(diacore.StateDiagnostic):
-    def __init__(self, est_state_name,
-                        true_state_name,
-                        *args,
-                        **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        self.mse = np.full((self.save_at.num_values), np.nan)
-        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
-
-        self.get_est_state = attritemgetter(est_state_name)
-        self.get_true_state = attritemgetter(true_state_name)
-        self.diag_idx = 0
-        
-
-    def save(self, processor, chunkInterval, globInterval):
-        assert globInterval[1] - globInterval[0] == 1
-        est_val = self.get_est_state(processor)
-        true_val = self.get_true_state(processor)
-        self.mse[self.diag_idx] = np.sum(np.abs(est_val - true_val)**2) / np.sum(np.abs(true_val)**2)
-        self.time_indices[self.diag_idx] = globInterval[0]
-
-        self.diag_idx += 1
-
-    def get_output(self):
-        return self.mse
-
-
-
-class EigenvaluesOverTime(diacore.StateDiagnostic):
-    """
-    Matrix must be square, otherwise EVD doesn't work
-    For now assumes hermitian matrix as well
-
-    eigval_idx should be a tuple with the indices of the desired eigenvalues
-    ascending order, zero indexed, and top inclusive
-
-    The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
-    The seconds value is how many of the largest eigenvalues that should be recorded
-    """
-    def __init__(self, matrix_name, eigval_idx, *args, abs_value=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        assert isinstance(eigval_idx, (list, tuple, np.ndarray))
-        assert len(eigval_idx) == 2
-        self.get_matrix = attritemgetter(matrix_name)
-        self.eigval_idx = eigval_idx
-        self.abs_value = abs_value
-
-        self.eigvals = np.full((eigval_idx[1]-eigval_idx[0]+1, self.save_at.num_values), np.nan)
-        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
-        self.diag_idx = 0
-
-        if self.abs_value:
-            self.plot_data["title"] = "Size of Eigenvalues"
-        else:
-            self.plot_data["title"] = "Eigenvalues"
-
-    def save(self, processor, chunkInterval, globInterval):
-        assert globInterval[1] - globInterval[0] == 1
-        mat = self.get_matrix(processor)
-        assert np.allclose(mat, mat.T.conj())
-        evs = splin.eigh(mat, eigvals_only=True, subset_by_index=self.eigval_idx)
-        if self.abs_value:
-            evs = np.abs(evs)
-        self.eigvals[:, self.diag_idx] = evs
-        self.time_indices[self.diag_idx] = globInterval[0]
-
-        self.diag_idx += 1
-        
-    def get_output(self):
-        return self.eigvals
-
-
-class Eigenvalues(diacore.InstantDiagnostic):
-    def __init__ (
-        self, 
-        matrix_name,
-        *args,
-        abs_value = False,
-        **kwargs,
-        ):
-        super().__init__(*args, **kwargs)
-        #self.matrix_name = matrix_name
-        self.get_mat = attritemgetter(matrix_name)
-        self.evs = None
-        self.abs_value = abs_value
-
-        if self.abs_value:
-            self.plot_data["title"] = "Size of Eigenvalues"
-        else:
-            self.plot_data["title"] = "Eigenvalues"
-
-    def save(self, processor, chunkInterval, globInterval):
-        mat = self.get_mat(processor)
-        assert np.allclose(mat, mat.T.conj())
-        self.evs = splin.eigh(mat, eigvals_only=True)[None,None,:]
-
-        if self.abs_value:
-            self.evs = np.abs(self.evs)
-
-    def get_output(self):
-        return self.evs
-
-
-
-class CorrMatrixDistance(diacore.StateDiagnostic):
-    """
-        Records the Correlation Matrix Distance between two matrices
-        See corr.corr_matrix_distance for more info
-    """
-    def __init__(self, name_mat1, name_mat2, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.get_mat1 = attritemgetter(name_mat1)
-        self.get_mat2 = attritemgetter(name_mat2)
-
-        self.cmd = np.full((self.save_at.num_values), np.nan)
-        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
-        self.diag_idx = 0
-
-        self.plot_data["title"] = "Correlation matrix distance"
-
-    def save(self, processor, chunkInterval, globInterval):
-        assert globInterval[1] - globInterval[0] == 1
-        mat1 = self.get_mat1(processor)
-        mat2 = self.get_mat2(processor)
-
-        self.cmd[self.diag_idx] = corr.corr_matrix_distance(mat1, mat2)
-        self.time_indices[self.diag_idx] = globInterval[0]
-        self.diag_idx += 1
-        
-    def get_output(self):
-        return self.cmd
-
-class CosSimilarity(diacore.StateDiagnostic):
-    """
-        Records the cosine similarity between two vectors
-        see corr.cos_similarity for more info
-    """
-    def __init__(self, name_vec1, name_vec2, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.get_vec1 = attritemgetter(name_vec1)
-        self.get_vec2 = attritemgetter(name_vec2)
-
-        self.sim = np.full((self.save_at.num_values), np.nan)
-        self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
-        self.diag_idx = 0
-
-        self.plot_data["title"] = "Cosine Similiarity"
-
-    def save(self, processor, chunkInterval, globInterval):
-        assert globInterval[1] - globInterval[0] == 1
-        vec1 = self.get_vec1(processor)
-        vec2 = self.get_vec2(processor)
-
-        self.sim[self.diag_idx] = corr.cos_similary(vec1, vec2)
-        self.time_indices[self.diag_idx] = globInterval[0]
-        self.diag_idx += 1
-        
-    def get_output(self):
-        return self.sim
-
-
-
 class StateComparison(diacore.StateDiagnostic):
     """
         compare_func should take the two states as argument, and 
@@ -417,8 +243,8 @@ class StateComparison(diacore.StateDiagnostic):
     def __init__(self, compare_func, name_state1, name_state2, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.compare_func = compare_func
-        self.get_state1 = attritemgetter(name_state1)
-        self.get_state2 = attritemgetter(name_state2)
+        self.get_state1 = diacore.attritemgetter(name_state1)
+        self.get_state2 = diacore.attritemgetter(name_state2)
 
         self.compare_value = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
@@ -448,7 +274,7 @@ class StateSummary(diacore.StateDiagnostic):
     def __init__(self, summary_func, state_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.summary_func = summary_func
-        self.get_state = attritemgetter(state_name)
+        self.get_state = diacore.attritemgetter(state_name)
 
         self.summary_value = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
@@ -472,192 +298,65 @@ class StateSummary(diacore.StateDiagnostic):
 
 
 
-
-def mse(state1, state2):
-    """Normalized with size of state 2"""
-    return np.sum(np.abs(state1 - state2)**2) / np.sum(np.abs(state2)**2)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class SummaryDiagnostic(diacore.Diagnostic):
-    export_functions = {
-        "npz" : dplot.savenpz,
-        "text" : dplot.txt,
-        "spectrum" : dplot.spectrum_plot,
-    }
-    def __init__ (
-        self,
-        sim_info,
-        block_size,
-        save_at,
-        export_func = "text",
-        keep_only_last_export = False,
-        export_kwargs = None,
-        preprocess = None,
-        ):
-        """
-        save_at should be a tuple (start_sample, end_sample)
-            it will use the samples between start_samle (inclusive) and end_sample (exclusive)
-        
-        """
-        if isinstance(save_at, diacore.IntervalCounter):
-            raise NotImplementedError
-        else:
-            export_at = [save_at[1]]
-            save_at = diacore.IntervalCounter(((save_at[0], save_at[1]),))
-
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
-
-
-
-
-
-
-class SignalPowerRatioSummary(SummaryDiagnostic):
-    def __init__(self, 
-        numerator_name,
-        denom_name,
-        sim_info, 
-        block_size, 
-        save_range,
-        numerator_channels=slice(None),
-        denom_channels = slice(None),
-        **kwargs
-        ):
-        self.save_range = save_range
-        self.num_samples = save_range[1] - save_range[0]
-        super().__init__(sim_info, block_size, save_range, **kwargs)
-        self.numerator_name = numerator_name
-        self.denom_name = denom_name
-        self.num_power = 0
-        self.denom_power = 0
-
-        self.numerator_channels = numerator_channels
-        self.denom_channels = denom_channels
-
-        self.plot_data["title"] = f"Ratio of power: {self.numerator_name} / {self.denom_name}. Samples: {self.save_range}"
-        
-    def save(self, processor, chunkInterval, globInterval):
-        self.num_power += np.sum(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2, axis=0)) / self.num_samples
-        self.denom_power += np.sum(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0)) / self.num_samples
-
-        #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
-
-    def get_output(self):
-        return self.num_power / self.denom_power
-
-
-class SignalPowerSummary(SummaryDiagnostic):
-    def __init__(self, 
-        sig_name,
-        sim_info, 
-        block_size, 
-        save_range,
-        sig_channels=slice(None),
-        **kwargs
-        ):
-        """
-        Will output the wrong value if it is exported in the middle of the save_range
-        """
-        self.save_range = save_range
-        self.num_samples = save_range[1] - save_range[0]
-        super().__init__(sim_info, block_size, save_range, **kwargs)
-        self.sig_name = sig_name
-        self.power = 0
-
-        self.sig_channels = sig_channels
-
-        #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
-        
-    def save(self, processor, chunkInterval, globInterval):
-        self.power += np.sum(np.mean(np.abs(processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]])**2, axis=0)) / self.num_samples
-
-        #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
-
-    def get_output(self):
-        return self.power
-
-
-
-class SignalPowerSpectrum(SummaryDiagnostic):
-    def __init__(self, 
-        sig_name,
-        sim_info, 
-        block_size, 
-        save_range,
-        num_channels,
-        sig_channels=slice(None),
-        **kwargs
-        ):
-        """
-        Will output the wrong value if it is exported in the middle of the save_range
-        """
-        self.save_range = save_range
-        self.num_samples = save_range[1] - save_range[0]
-        super().__init__(sim_info, block_size, save_range, export_func = "spectrum", **kwargs)
-        self.sig_name = sig_name
-        self.power = 0
-
-        self.samplerate = self.sim_info.samplerate
-        self.num_channels = num_channels
-        self.sig_channels = sig_channels
-        self.power = np.full((self.num_channels, self.num_samples), fill_value=np.nan)
-
-        self.sample_counter = 0
-
-        #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
-        
-    def save(self, processor, chunkInterval, globInterval):
-        num_samples = chunkInterval[1] - chunkInterval[0]
-        self.power[:,self.sample_counter:self.sample_counter+num_samples] = np.abs(processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]])**2
-
-        self.sample_counter += num_samples
-        #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
-
-    def get_output(self):
-        f, spec = spsig.welch(self.power, self.samplerate, nperseg=512, scaling="spectrum", axis=-1)
-        spec = np.mean(spec, axis=0)
-        return spec
+def power_of_all_signals(processor):
+    """Must be called from processor.prepare(), not
+        processor.__init__()
+    """
+    for sig_name in processor.sig.keys():
+        processor.diag.add_diagnostic(f"power_{sig_name}", 
+                SignalPower(sig_name, processor.sim_info, processor.block_size, 
+                preprocess=[[pp.smooth(processor.sim_info.output_smoothing), pp.db_power]]))
 
 
 
 
 
 class SoundfieldPower(diacore.Diagnostic):
+    export_functions = {
+        "image" : dplot.soundfield, 
+        "npz" : dplot.savenpz, 
+    }
     def __init__(
         self, 
-        source_names,
-        arrays, 
-        num_avg,
+        sig_name, 
+        pos_mic, 
+        use_samples, 
         sim_info, 
         block_size, 
-        export_at_idx
+        plot_arrays = None, 
+        export_func = "image", 
+        export_kwargs = None, 
+        preprocess = None, 
         ):
+        """
+        
+        use_samples : tuple[int, int]
+            Uses the samples from use_samples[0] (inclusive) to use_samples[1] (exclusive)
+            to compute the average soundfield power. 
+        
+        """
+        save_at = diacore.IntervalCounter((use_samples,))
+        export_at = (use_samples[1],)
 
-        save_at_idx = [exp_idx - num_avg]
-        super().__init__(sim_info, block_size, export_at_idx)
+        #save_at_idx = [exp_idx - num_avg]
+        keep_only_last_export = False
+        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        self.sig_name = sig_name
+        self.pos_mic = pos_mic
+        self.num_mic = self.pos_mic.shape[0]
+        self.plot_arrays = plot_arrays
+
+        self.num_avg = use_samples[1] - use_samples[0]
+        assert self.num_avg >= 1
         
 
-        self.num_avg = num_avg
+        self.power = np.zeros(self.num_mic)
 
-        src_sig = {src_name : np.full((self.num_avg, arrays[src_name].num), np.nan) for src_name in source_names}
+        #src_sig = {src_name : np.zeros((arrays[src_name].num)) for src_name in source_names}
 
     def save(self, processor, chunkInterval, globInterval):
-        pass
+        self.power[:] += np.sum(np.abs(processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]])**2, axis=-1) / self.num_avg
 
     def get_output(self):
-        #... actually get output
-
-        self.reset()
+        return self.power
         

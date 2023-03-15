@@ -7,7 +7,9 @@ import scipy.signal.windows as win
 import scipy.signal as spsig
 
 import ancsim.signal.sources as sources
-import ancsim.signal.correlation as cr
+import ancsim.signal.sourcescollection as sourcescol
+
+import aspcol.correlation as cr
 
 # @pytest.mark.parametrize("src", [sources.SineSource(1,100,8000)])
 # def test_source_blocks(src, ):
@@ -16,7 +18,7 @@ import ancsim.signal.correlation as cr
 def test_sine_blocks():
     numSamples = 1000
     numBlocks = 50
-    blockSize = int(numSamples / numBlocks)
+    block_size = int(numSamples / numBlocks)
     freq = 100
     sr = 8000
 
@@ -27,8 +29,8 @@ def test_sine_blocks():
     np.random.seed(0)
     source = sources.SineSource(1, 1, freq, sr)
     out = np.zeros(numSamples)
-    for i in range(0, numSamples, blockSize):
-        out[i : i + blockSize] = source.get_samples(blockSize)
+    for i in range(0, numSamples, block_size):
+        out[i : i + block_size] = source.get_samples(block_size)
 
     assert np.mean(out - ref) < 1e-6
 
@@ -36,7 +38,7 @@ def test_sine_blocks():
 def test_noisesrc_blocks():
     N = 10000
     numBlocks = 100
-    blockSize = int(N / numBlocks)
+    block_size = int(N / numBlocks)
     freqs = (100, 400)
     sr = 8000
 
@@ -49,7 +51,7 @@ def test_noisesrc_blocks():
     source2 = sources.BandlimitedNoiseSource(1, 1, freqs, sr)
     sig2 = np.zeros((1, N))
     for i in range(N // 100):
-        sig2[:, i * blockSize : (i + 1) * blockSize] = source2.get_samples(blockSize)
+        sig2[:, i * block_size : (i + 1) * block_size] = source2.get_samples(block_size)
 
     assert np.sum(np.abs(sig1 - sig2)) < 1e-6
 
@@ -57,7 +59,7 @@ def test_noisesrc_blocks():
 def test_multisine_blocks():
     numSamples = 10000
     numBlocks = 100
-    blockSize = int(numSamples / numBlocks)
+    block_size = int(numSamples / numBlocks)
     freqs = np.linspace(100, 1000, 10)
     sr = 8000
 
@@ -69,7 +71,7 @@ def test_multisine_blocks():
     source2 = sources.MultiSineSource(1, 1, freqs, sr, rng=rng)
     sig2 = np.zeros((1, numSamples))
     for i in range(numBlocks):
-        sig2[:, i * blockSize : (i + 1) * blockSize] = source2.get_samples(blockSize)
+        sig2[:, i * block_size : (i + 1) * block_size] = source2.get_samples(block_size)
 
     assert np.sum(np.abs(sig1 - sig2)) < 1e-6
 
@@ -79,17 +81,17 @@ def test_multisine_blocks():
             num_channels = st.integers(min_value=1, max_value=5),
             block_size = st.integers(min_value=1, max_value = 64),
             seq_len = st.integers(min_value = 1, max_value=1500))
-def test_audiosource_blocks(num_samples, num_channels, block_size, seq_len):
+def test_sequence_source_blocks(num_samples, num_channels, block_size, seq_len):
     num_samples -= num_samples % block_size
     num_blocks = num_samples // block_size
 
     rng = np.random.default_rng(1)
     seq = rng.normal(0, 1, (num_channels,seq_len))
 
-    src1 = sources.AudioSource(seq, end_mode="repeat")
+    src1 = sources.Sequence(seq, end_mode="repeat")
     sig1 = src1.get_samples(num_samples)
 
-    src2 = sources.AudioSource(seq, end_mode="repeat")
+    src2 = sources.Sequence(seq, end_mode="repeat")
     sig2 = np.zeros((num_channels, num_samples))
 
     for i in range(num_blocks):
@@ -101,11 +103,11 @@ def test_audiosource_blocks(num_samples, num_channels, block_size, seq_len):
 @hyp.given(num_channels = st.integers(min_value=1, max_value=5),
             num_repeats = st.integers(min_value=2, max_value = 8),
             seq_len = st.integers(min_value = 1, max_value=1500))
-def test_audiosource_repeat(num_channels, num_repeats, seq_len):
+def test_sequence_source_repeat(num_channels, num_repeats, seq_len):
     rng = np.random.default_rng(1)
     seq = rng.normal(0, 1, (num_channels,seq_len))
 
-    src = sources.AudioSource(seq, end_mode="repeat")
+    src = sources.Sequence(seq, end_mode="repeat")
     sig = src.get_samples(seq_len*num_repeats)
 
     for r in range(num_repeats):
@@ -252,7 +254,7 @@ def chirpSetup():
 def test_chirp_blocks():
     numSamples = 10000
     numBlocks = 100
-    blockSize = int(numSamples / numBlocks)
+    block_size = int(numSamples / numBlocks)
     freqs = (100, 400)
     numToSweep = 1000
     sr = 8000
@@ -265,7 +267,7 @@ def test_chirp_blocks():
     source2 = sources.LinearChirpSource(1, 1, freqs, numToSweep, sr)
     noise2 = np.zeros(numSamples)
     for i in range(numBlocks):
-        noise2[i * blockSize : (i + 1) * blockSize] = source2.get_samples(blockSize)
+        noise2[i * block_size : (i + 1) * block_size] = source2.get_samples(block_size)
 
     assert np.sum(np.abs(noise - noise2)) < 1e-6
 
@@ -283,32 +285,32 @@ def test_chirp_max_frequency_property(chirpSetup):
 
 def test_chirp_min_frequency_fft(chirpSetup):
     src, sr, minFreq, maxFreq, samplesToSweep = chirpSetup
-    blockSize = 128
+    block_size = 128
     fftsize = 2 ** 14
-    src.get_samples(int(samplesToSweep * 20 - blockSize / 2))
-    signal = src.get_samples(blockSize)
-    freq = get_freq_of_sine(signal, sr, blockSize, fftsize)
+    src.get_samples(int(samplesToSweep * 20 - block_size / 2))
+    signal = src.get_samples(block_size)
+    freq = get_freq_of_sine(signal, sr, block_size, fftsize)
 
     freqBinDif = sr / fftsize
-    blockFreqChange = (blockSize / (samplesToSweep * 2)) * (maxFreq - minFreq)
+    blockFreqChange = (block_size / (samplesToSweep * 2)) * (maxFreq - minFreq)
     assert freq - minFreq < blockFreqChange
 
 
 def test_chirp_max_frequency_fft(chirpSetup):
     src, sr, minFreq, maxFreq, samplesToSweep = chirpSetup
-    blockSize = 128
+    block_size = 128
     fftsize = 2 ** 14
-    src.get_samples(int(samplesToSweep * 19 - blockSize / 2))
-    signal = src.get_samples(blockSize)
-    freq = get_freq_of_sine(signal, sr, blockSize, fftsize)
+    src.get_samples(int(samplesToSweep * 19 - block_size / 2))
+    signal = src.get_samples(block_size)
+    freq = get_freq_of_sine(signal, sr, block_size, fftsize)
 
     freqBinDif = sr / fftsize
-    blockFreqChange = (blockSize / (samplesToSweep * 2)) * (maxFreq - minFreq)
+    blockFreqChange = (block_size / (samplesToSweep * 2)) * (maxFreq - minFreq)
     assert freq - maxFreq < blockFreqChange
 
 
-def get_freq_of_sine(signal, sr, blockSize, fftsize):
-    signal *= win.hamming(blockSize)
+def get_freq_of_sine(signal, sr, block_size, fftsize):
+    signal *= win.hamming(block_size)
     freqs = np.fft.rfft(signal, n=fftsize)
     maxBin = np.argmax(freqs)
     freq = sr * maxBin / (2 * fftsize)

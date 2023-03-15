@@ -1,14 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
-import itertools as it
-import operator as op
 
-import ancsim.array as ar
-import ancsim.utilities as util
-import ancsim.experiment.plotscripts as psc
-import ancsim.signal.filterclasses as fc
-import ancsim.diagnostics.diagnosticplots as dplot
-import ancsim.diagnostics.diagnosticsummary as dsum
+import ancsim.diagnostics.plot as dplot
 
 
 """
@@ -53,7 +46,6 @@ and as explained above, by the time data is saved to diagnostics, the globalIdx 
 
 
 """
-
 
 
 
@@ -121,7 +113,7 @@ class DiagnosticExporter:
         preproc = one_diag_object.preprocess
         export_time_idx = one_diag_object.next_export()
         for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
-            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, printMethod=self.sim_info.plot_output, **exp_kwarg)
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, print_method=self.sim_info.plot_output, **exp_kwarg)
 
         for diag in diag_dict.values():
             diag.progress_export()
@@ -185,7 +177,7 @@ class DiagnosticHandler:
     #def add_diagnostic(self, name, diagnostic):
     #    self.diagnostics[name] = diagnostic
 
-    def saveData(self, processor, idx, global_idx, last_block_on_chunk):
+    def save_data(self, processor, idx, global_idx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
             start, end = diag.next_save()
 
@@ -310,7 +302,7 @@ class Diagnostic:
         """
         save_at_idx is an iterable which gives all indices for which to save data. 
                     Must be an integer multiple of the block size. (maybe change to 
-                    must be equal or larger than the block size) 
+                    must be equal or larger than the block size)
         """
         self.sim_info = sim_info
         self.block_size = block_size
@@ -319,7 +311,7 @@ class Diagnostic:
         self.save_at = save_at
 
         if export_at is None:
-            export_at = sim_info.sim_chunk_size * sim_info.chunk_per_export
+            export_at = sim_info.export_frequency
         if isinstance(export_at, (list, tuple, np.ndarray)):
             assert all([exp_at >= block_size for exp_at in export_at])
         else:
@@ -385,9 +377,11 @@ class Diagnostic:
 
 class SignalDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.functionOfTimePlot,
+        "plot" : dplot.function_of_time_plot,
         "npz" : dplot.savenpz,
         "text" : dplot.txt,
+        "wav" : dplot.create_audio_files,
+        "spectrum" : dplot.spectrum_plot, 
     }
     def __init__ (
         self,
@@ -422,7 +416,7 @@ class SignalDiagnostic(Diagnostic):
 
 class StateDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.functionOfTimePlot,
+        "plot" : dplot.function_of_time_plot,
         "npz" : dplot.savenpz,
     }
     def __init__ (
@@ -457,7 +451,7 @@ class StateDiagnostic(Diagnostic):
 
 class InstantDiagnostic(Diagnostic):
     export_functions = {
-        "plot" : dplot.plotIR,
+        "plot" : dplot.plot_ir,
         "matshow" : dplot.matshow, 
         "npz" : dplot.savenpz,
         "text" : dplot.txt, 
@@ -473,7 +467,7 @@ class InstantDiagnostic(Diagnostic):
         preprocess = None,
     ):
         if save_at is None:
-            save_freq = sim_info.sim_chunk_size * sim_info.chunk_per_export
+            save_freq = sim_info.export_frequency
             save_at = IntervalCounter.from_frequency(save_freq, sim_info.tot_samples, include_zero=False)
             export_at = save_freq
             #export_at = IndexCounter(save_freq)
@@ -486,6 +480,50 @@ class InstantDiagnostic(Diagnostic):
             else:
                 save_at = IntervalCounter.from_frequency(save_at, sim_info.tot_samples, include_zero=False)
         super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+
+
+
+# def attritemgetter(name):
+#     assert name[0] != "["
+#     attributes = name.replace("]", "").replace("'", "")
+#     attributes = attributes.split(".")
+#     attributes = [attr.split("[") for attr in attributes]
+
+#     def getter (obj):
+#         for sub_list in attributes:
+#             obj = getattr(obj, sub_list[0])
+#             for item in sub_list[1:]:
+#                 obj = obj[item]
+#         return obj
+#     return getter
+
+def attritemgetter(name):
+    """
+    If you have a dictionary with strings, use the name "dict_obj['key']"
+    Without apostrophes, the key is assumed to be a list index, and is converted to integer.
+
+    TODO: Possibly allow for objects other than integers, such as indexing arrays
+    
+    """
+    assert name[0] != "["
+    attributes = name.replace("]", "")
+    attributes = attributes.split(".")
+    attributes = [attr.split("[") for attr in attributes]
+
+    def getter (obj):
+        for sub_list in attributes:
+            obj = getattr(obj, sub_list[0])
+            for item in sub_list[1:]:
+                if item[0] == "'":
+                    if not item[-1] == "'":
+                        raise ValueError("Unmatched apostrophes")
+                    item = item.replace("'", "")
+                else:
+                    item = int(item)
+                obj = obj[item]
+        return obj
+    return getter
+
 
 
 
