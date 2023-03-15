@@ -148,7 +148,7 @@ class CircularTrajectory(Trajectory):
 
         super().__init__(pos_func)
 
-    def plot(self, ax, symbol, label):
+    def plot(self, ax, symbol="o", label=""):
         approx_num_points = 1000
         max_samples = self.samplerate*max(self.radial_period, self.angle_period)
         samples_per_point = max_samples // approx_num_points

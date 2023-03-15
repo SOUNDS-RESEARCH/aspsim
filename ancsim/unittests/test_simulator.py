@@ -3,6 +3,7 @@ import hypothesis as hyp
 #from hypothesis import given
 import hypothesis.strategies as st
 import pytest
+import copy
 #import sys
 #sys.path.append("c:/skola/utokyo_lab/ancsim/ancsim")
 
@@ -13,15 +14,32 @@ import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.sources as sources
 import ancsim.room.trajectory as tr
+import ancsim.signal.filterclasses as fc
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
     setup.sim_info.tot_samples = 100
     setup.sim_info.sim_chunk_size = 10
     setup.sim_info.sim_buffer = 10
-    setup.sim_info.export_frequency = 1
+    setup.sim_info.export_frequency = 100
     setup.sim_info.save_source_contributions = False
     setup.use_preset("debug")
+
+def reset_sim_setup_realistic(setup, samplerate):
+    setup.arrays = ar.ArrayCollection()
+    setup.sim_info.samplerate = samplerate
+    setup.sim_info.tot_samples = 10 * samplerate
+    setup.sim_info.sim_chunk_size = 20*samplerate
+    setup.sim_info.sim_buffer = samplerate
+    setup.sim_info.export_frequency = 10 * samplerate
+    setup.sim_info.save_source_contributions = False
+
+    setup.sim_info.reverb = "ism"
+    setup.sim_info.room_size = [7, 5, 5]
+    setup.sim_info.room_center = [-1, 0, 0]
+    setup.sim_info.rt60 = 0.25
+    setup.sim_info.max_room_ir_length : samplerate // 2
+
 
 @pytest.fixture(scope="session")
 def sim_setup(tmp_path_factory):
@@ -77,8 +95,41 @@ def test_correct_processing_delay(sim_setup, bs):
     assert np.allclose(proc.mic[:,:-bs], proc.ls[:,bs:])
 
 
-def test_multiple_free_sources():
-    assert False
+
+@hyp.settings(deadline=None)
+@hyp.given(num_src = st.integers(min_value=1, max_value=3))
+def test_multiple_free_sources(sim_setup, num_src):
+    rng = np.random.default_rng()
+    sr = 500
+    reset_sim_setup_realistic(sim_setup, sr)
+
+    for s in range(num_src):
+        sim_setup.add_free_source(f"src_{s}", rng.uniform(-2, 2, size=(1,3)), sources.WhiteNoiseSource(1, 1, rng))
+
+    sim_setup.add_mics("mic", rng.uniform(-2, 2, size=(1,3)))
+    sim_setup.add_controllable_source("loudspeaker", rng.uniform(-2, 2, size=(1,3)))
+    sim_setup.arrays.path_type["loudspeaker"]["mic"] = "none"
+
+    sim = sim_setup.create_simulator()
+
+    irs = np.concatenate([sim.arrays.paths[f"src_{s}"]["mic"] for s in range(num_src)], axis=0)
+    filt = fc.create_filter(ir=irs)
+    
+    srcs = [copy.deepcopy(sim.arrays[f"src_{s}"].source) for s in range(num_src)]
+    signals = np.concatenate([s.get_samples(sim.sim_info.tot_samples+sim.sim_info.sim_buffer) for s in srcs], axis=0)
+    sig_filt = filt.process(signals)
+
+    block_size = 5
+
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, block_size))
+    sim.run_simulation()
+
+    import matplotlib.pyplot as plt
+    plt.plot(sig_filt[:,sim.sim_info.sim_buffer:].T)
+    plt.plot(sim.processors[0].processor.mic.T)
+    plt.show()
+
+    assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].processor.mic[:,block_size:])
 
 def test_same_with_multiple_processors():
     assert False
