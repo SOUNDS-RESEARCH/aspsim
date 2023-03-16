@@ -22,7 +22,6 @@ class SimulatorInfo:
     rt60 : float
     max_room_ir_length : int
 
-    plot_begin : int
     export_frequency : int
     plot_output : str
     output_smoothing : int
