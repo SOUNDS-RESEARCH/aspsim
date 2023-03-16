@@ -19,7 +19,6 @@ rt60 : 0.45
 max_room_ir_length : 1900
 
 # PLOTS AND MISC
-plot_begin : 0
 export_frequency : 10000
 plot_output : pdf
 

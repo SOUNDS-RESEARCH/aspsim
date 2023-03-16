@@ -320,7 +320,6 @@ def test_find_export_bug(sim_setup):
     sim_setup.sim_info.max_room_ir_length = sr
 
     sim_setup.sim_info.export_frequency = 2*sr
-    sim_setup.sim_info.plot_begin = 1
     sim_setup.sim_info.output_smoothing = 4000
     sim_setup.sim_info.plot_output = "pdf"
     sim_setup.sim_info.auto_save_load = False
