@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import ancsim.utilities as util
 import ancsim.array as ar
-import ancsim.signal.filterclasses as fc
+import aspcore.filterclasses as fc
 
 import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia

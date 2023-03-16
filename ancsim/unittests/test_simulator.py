@@ -14,7 +14,7 @@ import ancsim.diagnostics.core as diacore
 import ancsim.diagnostics.diagnostics as dia
 import ancsim.signal.sources as sources
 import ancsim.room.trajectory as tr
-import ancsim.signal.filterclasses as fc
+import aspcore.filterclasses as fc
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
