@@ -138,13 +138,12 @@ class ProcessorWrapper():
 class AudioProcessor(ABC):
     def __init__(self, sim_info, arrays, block_size, diagnostics={}, rng=None):
         self.sim_info = sim_info
+        self.arrays = arrays
         self.block_size = block_size
 
         self.name = "Abstract Processor"
-        self.arrays = arrays
         self.metadata = {"block size" : self.block_size}
         self.idx = 0
-
         self.sig = {}
 
         self.diag = diacore.DiagnosticHandler(self.sim_info, self.block_size) 
