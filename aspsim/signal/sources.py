@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import ancsim.utilities as util
+import aspsim.utilities as util
 
 class Source(ABC):
     def __init__(self, num_channels, rng=None):

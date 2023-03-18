@@ -3,10 +3,10 @@ import numpy as np
 # np.random.seed(1)
 import copy
 
-import ancsim.room.generatepoints as gp
-import ancsim.array as ar
-import ancsim.room.region as reg
-import ancsim.signal.sources as src
+import aspsim.room.generatepoints as gp
+import aspsim.array as ar
+import aspsim.room.region as reg
+import aspsim.signal.sources as src
 
 def debug (sim_info):
     arrays = ar.ArrayCollection()

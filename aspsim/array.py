@@ -6,10 +6,10 @@ import copy
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-import ancsim.diagnostics.plot as dplot
-import ancsim.room.roomimpulseresponse as rir
-import ancsim.room.region as reg
-import ancsim.room.trajectory as tr
+import aspsim.diagnostics.plot as dplot
+import aspsim.room.roomimpulseresponse as rir
+import aspsim.room.region as reg
+import aspsim.room.trajectory as tr
 
 class ArrayCollection():
     def __init__(self):

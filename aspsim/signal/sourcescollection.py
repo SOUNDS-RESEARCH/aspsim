@@ -3,9 +3,9 @@ import scipy.signal as spsig
 import scipy.linalg as splin
 import soundfile as sf
 
-import ancsim.utilities as util
+import aspsim.utilities as util
 import aspcore.filterclasses as fc
-import ancsim.signal.sources as src
+import aspsim.signal.sources as src
 
 import aspcol.correlation as cr
 import aspcol.utilities as asputil

@@ -1,9 +1,9 @@
 import numpy as np
 import copy
 import aspcore.filterclasses as fc
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.preprocessing as pp
-import ancsim.diagnostics.plot as dplot
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.preprocessing as pp
+import aspsim.diagnostics.plot as dplot
 
 class RecordFilter(diacore.InstantDiagnostic):
     """

@@ -4,11 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="ancsim-PVJesper",
+    name="aspsim-PVJesper",
     version="0.0.1",
     author="Jesper Brunnström",
-    author_email="author@example.com",
-    description="ANC Simulation",
+    author_email="jesper.brunnstroem@kuleuven.be",
+    description="Audio signal processing simulator",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),

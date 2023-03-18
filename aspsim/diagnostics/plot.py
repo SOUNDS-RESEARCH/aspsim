@@ -6,8 +6,8 @@ import soundfile as sf
 import json
 
 
-import ancsim.fileutilities as fu
-import ancsim.diagnostics.soundfieldplot as sfplot
+import aspsim.fileutilities as fu
+import aspsim.diagnostics.soundfieldplot as sfplot
 
 
 

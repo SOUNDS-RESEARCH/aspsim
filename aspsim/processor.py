@@ -1,12 +1,12 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import ancsim.utilities as util
-import ancsim.array as ar
+import aspsim.utilities as util
+import aspsim.array as ar
 import aspcore.filterclasses as fc
 
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.diagnostics as dia
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.diagnostics as dia
 
 
 

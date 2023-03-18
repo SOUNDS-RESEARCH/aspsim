@@ -1,15 +1,15 @@
 import numpy as np
 import copy
 
-import ancsim.fileutilities as futil
-import ancsim.configutil as configutil
+import aspsim.fileutilities as futil
+import aspsim.configutil as configutil
 
-import ancsim.array as ar
-from ancsim.processor import ProcessorWrapper, FreeSourceHandler
+import aspsim.array as ar
+from aspsim.processor import ProcessorWrapper, FreeSourceHandler
 
-import ancsim.saveloadsession as sess
-import ancsim.presets as preset
-import ancsim.diagnostics.core as diacore
+import aspsim.saveloadsession as sess
+import aspsim.presets as preset
+import aspsim.diagnostics.core as diacore
 
 
 class SimulatorSetup:
