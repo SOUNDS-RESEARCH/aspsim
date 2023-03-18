@@ -5,7 +5,7 @@ import datetime
 
 def get_time_string(detailed=False):
     tm = datetime.datetime.now()
-    timestr = (
+    time_str = (
         str(tm.year)
         + "_"
         + str(tm.month).zfill(2)
@@ -18,99 +18,59 @@ def get_time_string(detailed=False):
     )  # + "_"+\
     # str(tm.second).zfill(2)
     if detailed:
-        timestr += "_" + str(tm.second).zfill(2)
-        timestr += "_" + str(tm.microsecond).zfill(2)
-    return timestr
+        time_str += "_" + str(tm.second).zfill(2)
+        time_str += "_" + str(tm.microsecond).zfill(2)
+    return time_str
 
 
 def get_unique_folder_name(prefix, parent_folder, detailed_naming=False):
-    fileName = prefix + get_time_string(detailed=detailed_naming)
-    fileName += "_0"
-    folderName = parent_folder.joinpath(fileName)
-    if folderName.exists():
+    file_name = prefix + get_time_string(detailed=detailed_naming)
+    file_name += "_0"
+    folder_name = parent_folder.joinpath(file_name)
+    if folder_name.exists():
         idx = 1
-        folderNameLen = len(folderName.name) - 2
-        while folderName.exists():
-            newName = folderName.name[:folderNameLen] + "_" + str(idx)
-            folderName = folderName.parent.joinpath(newName)
+        folder_name_len = len(folder_name.name) - 2
+        while folder_name.exists():
+            new_name = folder_name.name[:folder_name_len] + "_" + str(idx)
+            folder_name = folder_name.parent.joinpath(new_name)
             idx += 1
     # folderName += "/"
-    return folderName
+    return folder_name
 
 
 def get_multiple_unique_folder_names(prefix, parent_folder, num_names):
-    startPath = get_unique_folder_name(prefix, parent_folder)
-    subFolderName = startPath.parts[-1]
-    baseFolder = startPath.parent
+    start_path = get_unique_folder_name(prefix, parent_folder)
+    sub_folder_name = start_path.parts[-1]
+    base_folder = start_path.parent
 
-    startIdx = int(subFolderName.split("_")[-1])
-    startIdxLen = len(subFolderName.split("_")[-1])
-    baseName = subFolderName[:-startIdxLen]
+    start_idx = int(sub_folder_name.split("_")[-1])
+    start_idx_len = len(sub_folder_name.split("_")[-1])
+    base_name = sub_folder_name[:-start_idx_len]
 
-    folderNames = []
+    folder_names = []
     for i in range(num_names):
-        folderNames.append(baseFolder.joinpath(baseName + str(i + startIdx)))
+        folder_names.append(base_folder.joinpath(base_name + str(i + start_idx)))
 
-    return folderNames
-
-
-
-
-
-def indices_same_in_all_folders(folder_name, prefix, suffix, excluded_folders=[]):
-    firstSubFolder = True
-    prevGoodIndices = []
-    for subFolderName in folder_name.iterdir():
-        if subFolderName in excluded_folders:
-            continue
-        if folder_name.joinpath(subFolderName).is_dir():
-            goodIndices = []
-            for filePath in folder_name.joinpath(subFolderName).iterdir():
-                filename = filePath.name
-                if filename.startswith(prefix) and filename.endswith(suffix):
-                    summaryIdx = filename[len(prefix) : len(filename) - len(suffix)]
-                    try:
-                        summaryIdx = int(summaryIdx)
-                        if firstSubFolder or summaryIdx in prevGoodIndices:
-                            goodIndices.append(summaryIdx)
-                    except ValueError:
-                        pass
-            prevGoodIndices = goodIndices
-            firstSubFolder = False
-    return goodIndices
+    return folder_names
 
 
 def get_highest_numbered_file(folder, prefix, suffix):
-    highestFileIdx = -1
-    for filePath in folder.iterdir():
-        if filePath.name.startswith(prefix) and filePath.name.endswith(suffix):
-            summaryIdx = filePath.name[len(prefix) : len(filePath.name) - len(suffix)]
+    highest_file_idx = -1
+    for file_path in folder.iterdir():
+        if file_path.name.startswith(prefix) and file_path.name.endswith(suffix):
+            summary_idx = file_path.name[len(prefix) : len(file_path.name) - len(suffix)]
             try:
-                summaryIdx = int(summaryIdx)
-                if summaryIdx > highestFileIdx:
-                    highestFileIdx = summaryIdx
+                summary_idx = int(summary_idx)
+                if summary_idx > highest_file_idx:
+                    highest_file_idx = summary_idx
             except ValueError:
                 print("Warning: check prefix and suffix")
 
-    if highestFileIdx == -1:
+    if highest_file_idx == -1:
         return None
     else:
-        fname = prefix + str(highestFileIdx) + suffix
+        fname = prefix + str(highest_file_idx) + suffix
         return folder.joinpath(fname)
-
-
-def find_index_in_name(name):
-    idx = []
-    for ch in reversed(name):
-        if ch.isdigit():
-            idx.append(ch)
-        else:
-            break
-    if len(idx) == 0:
-        return None
-    idx = int("".join(idx[::-1]))
-    assert name.endswith(str(idx))
-    return idx
 
 
 def find_all_earlier_files(
@@ -121,31 +81,19 @@ def find_all_earlier_files(
     else:
         name = name + "_"
 
-    earlierFiles = []
+    earlier_files = []
     for f in folder.iterdir():
         if f.stem.startswith(name) and f.stem[len(name):].isdigit():
-            fIdx = int(f.stem[len(name) :])
-            if fIdx > current_idx:
+            f_idx = int(f.stem[len(name) :])
+            if f_idx > current_idx:
                 if error_if_future_files_exist:
                     raise ValueError
                 else:
                     continue
-            elif fIdx == current_idx:
+            elif f_idx == current_idx:
                 continue
-            earlierFiles.append(f)
-    return earlierFiles
-
-
-
-def to_num(val):
-    constructors = [int, float, str]
-    for c in constructors:
-        try:
-            val = c(val)
-            return val
-        except ValueError:
-            pass
-
+            earlier_files.append(f)
+    return earlier_files
 
 
 def find_index_in_name(name):
