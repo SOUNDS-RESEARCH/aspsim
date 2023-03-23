@@ -16,3 +16,4 @@ slask/*
 *.m~
 **/.DS_Store
 *.pyc
+.gitignore.bak

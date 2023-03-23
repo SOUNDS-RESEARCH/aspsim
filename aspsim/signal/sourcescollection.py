@@ -9,7 +9,7 @@ import aspsim.signal.sources as src
 
 import aspcol.correlation as cr
 import aspcol.utilities as asputil
-
+import aspcol.filterclasses as fccol
 #SOURCES
 
 class MultiSineSource(src.Source):
@@ -217,7 +217,7 @@ class AutocorrSource(src.Source):
             num_coeffs.append(nc)
             denom_coeffs.append(dc)
 
-        self.filt = fc.IIRFilter(num_coeffs, denom_coeffs)
+        self.filt = fccol.IIRFilter(num_coeffs, denom_coeffs)
         self.prepare()
 
     def prepare(self):
