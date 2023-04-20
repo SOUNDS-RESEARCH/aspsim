@@ -3,13 +3,13 @@ import scipy.signal as spsig
 import scipy.linalg as splin
 import soundfile as sf
 
-import ancsim.utilities as util
-import ancsim.signal.filterclasses as fc
-import ancsim.signal.sources as src
+import aspsim.utilities as util
+import aspcore.filterclasses as fc
+import aspsim.signal.sources as src
 
 import aspcol.correlation as cr
 import aspcol.utilities as asputil
-
+import aspcol.filterclasses as fccol
 #SOURCES
 
 class MultiSineSource(src.Source):
@@ -217,7 +217,7 @@ class AutocorrSource(src.Source):
             num_coeffs.append(nc)
             denom_coeffs.append(dc)
 
-        self.filt = fc.IIRFilter(num_coeffs, denom_coeffs)
+        self.filt = fccol.IIRFilter(num_coeffs, denom_coeffs)
         self.prepare()
 
     def prepare(self):

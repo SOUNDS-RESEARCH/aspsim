@@ -7,14 +7,14 @@ import copy
 #import sys
 #sys.path.append("c:/skola/utokyo_lab/ancsim/ancsim")
 
-from ancsim.simulator import SimulatorSetup
-import ancsim.array as ar
-import ancsim.processor as bse
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.diagnostics as dia
-import ancsim.signal.sources as sources
-import ancsim.room.trajectory as tr
-import ancsim.signal.filterclasses as fc
+from aspsim.simulator import SimulatorSetup
+import aspsim.array as ar
+import aspsim.processor as bse
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.diagnostics as dia
+import aspsim.signal.sources as sources
+import aspsim.room.trajectory as tr
+import aspcore.filterclasses as fc
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()

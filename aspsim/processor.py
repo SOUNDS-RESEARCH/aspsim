@@ -1,12 +1,12 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import ancsim.utilities as util
-import ancsim.array as ar
-import ancsim.signal.filterclasses as fc
+import aspsim.utilities as util
+import aspsim.array as ar
+import aspcore.filterclasses as fc
 
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.diagnostics as dia
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.diagnostics as dia
 
 
 
@@ -138,13 +138,12 @@ class ProcessorWrapper():
 class AudioProcessor(ABC):
     def __init__(self, sim_info, arrays, block_size, diagnostics={}, rng=None):
         self.sim_info = sim_info
+        self.arrays = arrays
         self.block_size = block_size
 
         self.name = "Abstract Processor"
-        self.arrays = arrays
         self.metadata = {"block size" : self.block_size}
         self.idx = 0
-
         self.sig = {}
 
         self.diag = diacore.DiagnosticHandler(self.sim_info, self.block_size) 

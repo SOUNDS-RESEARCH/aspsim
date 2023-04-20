@@ -2,8 +2,8 @@ import numpy as np
 import json
 import scipy.signal as spsig
 
-import ancsim.diagnostics.plot as dplt
-import ancsim.diagnostics.core as diacore
+import aspsim.diagnostics.plot as dplt
+import aspsim.diagnostics.core as diacore
 
 def add_to_summary(diagName, summaryValues, timeIdx, folderPath):
     fullPath = folderPath.joinpath("summary_" + str(timeIdx) + ".json")

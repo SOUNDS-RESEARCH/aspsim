@@ -3,8 +3,8 @@ import scipy.linalg as splin
 import scipy.signal as spsig
 import copy
 
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.plot as dplot
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.plot as dplot
 
 
 class EigenvaluesOverTime(diacore.StateDiagnostic):

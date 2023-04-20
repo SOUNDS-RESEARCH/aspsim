@@ -6,12 +6,12 @@ import pytest
 #import sys
 #sys.path.append("c:/skola/utokyo_lab/ancsim/ancsim")
 
-from ancsim.simulator import SimulatorSetup
-import ancsim.array as ar
-import ancsim.processor as bse
-import ancsim.diagnostics.core as diacore
-import ancsim.diagnostics.diagnostics as dia
-import ancsim.fileutilities as fu
+from aspsim.simulator import SimulatorSetup
+import aspsim.array as ar
+import aspsim.processor as bse
+import aspsim.diagnostics.core as diacore
+import aspsim.diagnostics.diagnostics as dia
+import aspsim.fileutilities as fu
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
@@ -296,7 +296,7 @@ def test_two_processors_with_different_diagnostics(sim_setup, bs):
 
 
 def test_find_export_bug(sim_setup):
-    import ancsim.signal.sources as sources
+    import aspsim.signal.sources as sources
     import soundfieldcontrol.anc as anc
 
     sr = 2000

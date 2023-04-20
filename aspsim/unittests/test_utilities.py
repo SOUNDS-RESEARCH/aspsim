@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-import ancsim.utilities as util
+import aspsim.utilities as util
 from hypothesis import given
 import hypothesis.strategies as st
 
