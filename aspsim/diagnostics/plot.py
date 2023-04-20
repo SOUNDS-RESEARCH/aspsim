@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.signal as spsig
 import matplotlib.pyplot as plt
 import tikzplotlib
 import soundfile as sf

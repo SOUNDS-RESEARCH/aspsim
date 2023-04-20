@@ -4,7 +4,6 @@ import scipy.linalg as splin
 import soundfile as sf
 
 import aspsim.utilities as util
-import aspcore.filterclasses as fc
 import aspsim.signal.sources as src
 
 import aspcol.correlation as cr

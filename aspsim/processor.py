@@ -1,8 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import aspsim.utilities as util
-import aspsim.array as ar
 import aspcore.filterclasses as fc
 
 import aspsim.diagnostics.core as diacore

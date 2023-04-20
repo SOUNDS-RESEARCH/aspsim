@@ -8,7 +8,7 @@ class Region(ABC):
         if rng is not None:
             self.rng = rng
         else:
-            self.rng = np.random.default_rng(10)
+            self.rng = np.random.default_rng()
         
 
     @abstractmethod

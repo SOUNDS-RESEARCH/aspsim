@@ -4,10 +4,8 @@ import hypothesis.strategies as st
 
 import numpy as np
 import scipy.signal.windows as win
-import scipy.signal as spsig
 
 import aspsim.signal.sources as sources
-import aspsim.signal.sourcescollection as sourcescol
 
 import aspcol.correlation as cr
 

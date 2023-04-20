@@ -1,5 +1,5 @@
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import aspsim.diagnostics.plot as dplot
 

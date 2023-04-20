@@ -1,11 +1,6 @@
 import numpy as np
-
-# np.random.seed(1)
-import copy
-
 import aspsim.room.generatepoints as gp
 import aspsim.array as ar
-import aspsim.room.region as reg
 import aspsim.signal.sources as src
 
 def debug (sim_info):

@@ -1,6 +1,6 @@
 import numpy as np
 
-import aspcol.utilities as asputil
+import aspsim.room.generatepoints as gp
 
 class Trajectory:
     def __init__(self, pos_func):
@@ -143,7 +143,7 @@ class CircularTrajectory(Trajectory):
             else:
                 rad = radius[0] + self.radius_diff * (radial_portion-0.5)*2
 
-            (x,y) = asputil.pol2cart(rad, angle)
+            (x,y) = gp.pol2cart(rad, angle)
             return np.array([[x,y,0]]) + center
 
         super().__init__(pos_func)

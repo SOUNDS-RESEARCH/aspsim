@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.linalg as splin
 import scipy.signal as spsig
-import copy
 
 import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.plot as dplot
