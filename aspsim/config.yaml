@@ -1,7 +1,7 @@
 #SIMULATION PARAMETERS
-tot_samples : 1801000
-sim_buffer : 5000
-sim_chunk_size : 10000
+tot_samples : 2000
+sim_buffer : 2000
+sim_chunk_size : 2000
 
 save_source_contributions : False
 array_update_freq : 1
@@ -16,10 +16,10 @@ reverb : ism
 room_size : [7, 5, 2.5]
 room_center : [-1, 0, 0]
 rt60 : 0.45
-max_room_ir_length : 1900
+max_room_ir_length : 500
 
 # PLOTS AND MISC
-export_frequency : 10000
+export_frequency : 1000
 plot_output : pdf
 
 output_smoothing : 1
