@@ -302,6 +302,21 @@ class Array(ABC):
     plot_symbol = "."
 
     def __init__(self, name, pos):
+        """
+        Abstract base class for all types of arrays
+        documentation refers to objects, which means microphone, loudspeaker
+        or source depending on array type. 
+
+        Parameters
+        ----------
+        name : str
+            name of the array, which will also be the name of the
+            signal associated with the array
+        pos : ndarray of shape (num_objects, spatial_dim)
+            or a list of ndarrays of the same shape, which will distribute
+                the objects into groups.
+            or a Trajectory object, which will produce a moving array
+        """
         self.name = name
 
         if isinstance(pos, (list, tuple)):

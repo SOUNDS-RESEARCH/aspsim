@@ -20,6 +20,24 @@ class SimulatorSetup:
         config_path = None,
         rng = None, 
         ):
+        """
+        Parameters
+        ----------
+        base_fig_path : str or Path from pathlib
+            If this is supplied, the simulator will create a new
+            subfolder in that directory and fill it with plots and metadata
+        session_folder : str or Path from pathlib
+            If the option auto_save_load in the config is True, the simulator will 
+            look in the session_folder for sessions to load, and will save the current
+            session there. 
+        config_path : str or Path from pathlib
+            Supply if you want to load the config parameters from a (yaml) file. 
+            Otherwise the default will be loaded, which can be changed inside your
+            Python code. 
+        rng : numpy Generator object
+            recommended to obtain your rng object from np.random.default_rng(seed)
+        
+        """
         self.arrays = ar.ArrayCollection()
 
         if config_path is None:
