@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="aspsim-PVJesper",
+    name="aspsim",
     version="0.0.1",
     author="Jesper Brunnström",
     author_email="jesper.brunnstroem@kuleuven.be",

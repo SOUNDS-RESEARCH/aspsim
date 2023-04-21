@@ -1,13 +1,19 @@
-# ASPSIM : Audio / Adaptive Signal Processing SIMulatior
+# ASPSIM : Audio / Adaptive Signal Processing SIMulator
 
 ## Introduction
 The package is intended to help evaluate and aid development of adaptive audio processing algorithms. 
 
 
 ## Installation
+I recommend an editable install. That basically means that python pretends that the package is installed like any other package, but it's instead just a link to a folder on your computer with the code. Then you can use the package from anywhere at the same time as you are developing it. It can be done by opening your favorite terminal and writing (changing out cd for the appropriate change-directory command, and the path to whatever you want) 
+```
+cd c:/folder/parent_folder_to_code
+git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
+pip install -e ./aspsim
+```
 
 ### Required depencies
-An attempt has been made to keep the necessary dependencies few. The only required non-standard dependencies are the packages aspcore and pyroomacoustics. Numpy, Scipy and Matplotlib are necessary for basic functionality. The unit tests are relying on hypothesis and pytest. 
+The required non-standard dependencies are the packages aspcore and pyroomacoustics. Numpy, Scipy, Matplotlib, Numba and dill are necessary for basic functionality. The unit tests are relying on hypothesis and pytest. 
 
 ### Non-required dependecies
 Some extra dependencies can be necessary for particular non-mandatory features. \
@@ -20,7 +26,7 @@ The collections modules, namely diagnostics/diagnosticscollection.py and signal/
 ### Example: Minimal setup
 **Not currently possible - A processor is currently required!**\
 Here a simulation is run for a single source and microphone with a default config. No data is saved to file.
-```
+```python
 from aspsim.simulator import SimulatorSetup
 import signal.sources as src
 
@@ -34,7 +40,7 @@ sim.run_simulation()
 
 ### Example: Minimal setup - Working in current version
 Here a simulation is run for a single source and microphone with a default config. No data is saved to file.
-```
+```python
 import numpy as np
 from aspsim.simulator import SimulatorSetup
 from aspsim.processor import AudioProcessor
@@ -59,7 +65,7 @@ sim.run_simulation()
 
 
 ### Audio reproduction example
-```
+```python
 import numpy as np
 from pathlib import Path
 

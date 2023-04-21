@@ -17,3 +17,5 @@ slask/*
 **/.DS_Store
 *.pyc
 .gitignore.bak
+
+aspsim.egg-info
