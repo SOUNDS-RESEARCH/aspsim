@@ -29,6 +29,11 @@ git clone --branch develop https://github.com/SOUNDS-RESEARCH/aspsim.git
 ```
 
 ### Dependencies
+To install all (except aspcore) dependencies use the command
+```
+pip install -r requirements.txt
+```
+
 It is required to have the package aspcore installed, which does not exist on PYPI as of yet (i.e. you can not install with pip install the regular way). \
 The collections modules, namely diagnostics/diagnosticscollection.py and signal/sourcescollection.py, are allowed to depend on the package aspcol. It is only required if you make use of classes or functions from a collections module. 
 
