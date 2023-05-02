@@ -12,7 +12,7 @@ Requires python version that satisfies 3.8 <= version <= 3.11, as those are supp
 ```
 git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
 pip install -e ./aspsim
-pip install aspsim/requirements.txt
+pip install -r aspsim/requirements.txt
 ```
 
 ### Installing the package
