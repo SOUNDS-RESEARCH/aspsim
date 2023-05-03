@@ -4,8 +4,6 @@ import hypothesis as hyp
 import hypothesis.strategies as st
 import pytest
 import copy
-#import sys
-#sys.path.append("c:/skola/utokyo_lab/ancsim/ancsim")
 
 from aspsim.simulator import SimulatorSetup
 import aspsim.array as ar
@@ -23,7 +21,17 @@ def reset_sim_setup(setup):
     setup.sim_info.sim_buffer = 10
     setup.sim_info.export_frequency = 100
     setup.sim_info.save_source_contributions = False
-    setup.use_preset("debug")
+    
+    arrays = ar.ArrayCollection()
+    arrays.add_array(
+        ar.FreeSourceArray("source", np.zeros((1,3)), 
+            sources.Counter(num_channels=1))
+    )
+    arrays.add_array(ar.ControllableSourceArray("loudspeaker", np.zeros((1,3))))
+    arrays.add_array(ar.MicArray("mic", np.zeros((1,3))))
+    arrays.set_prop_paths({"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}})
+    setup.arrays = arrays
+
 
 def reset_sim_setup_realistic(setup, samplerate):
     setup.arrays = ar.ArrayCollection()

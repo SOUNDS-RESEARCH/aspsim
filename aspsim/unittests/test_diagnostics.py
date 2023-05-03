@@ -12,6 +12,7 @@ import aspsim.processor as bse
 import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.fileutilities as fu
+import aspsim.signal.sources as sources
 
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
@@ -20,7 +21,16 @@ def reset_sim_setup(setup):
     setup.sim_info.sim_buffer = 10
     setup.sim_info.export_frequency = 10
     setup.sim_info.save_source_contributions = False
-    setup.use_preset("debug")
+    
+    arrays = ar.ArrayCollection()
+    arrays.add_array(
+        ar.FreeSourceArray("source", np.zeros((1,3)), 
+            sources.Counter(num_channels=1))
+    )
+    arrays.add_array(ar.ControllableSourceArray("loudspeaker", np.zeros((1,3))))
+    arrays.add_array(ar.MicArray("mic", np.zeros((1,3))))
+    arrays.set_prop_paths({"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}})
+    setup.arrays = arrays
 
 @pytest.fixture(scope="session")
 def sim_setup(tmp_path_factory):

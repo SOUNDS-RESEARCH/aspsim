@@ -8,7 +8,6 @@ import aspsim.array as ar
 from aspsim.processor import ProcessorWrapper, FreeSourceHandler
 
 import aspsim.saveloadsession as sess
-import aspsim.presets as preset
 import aspsim.diagnostics.core as diacore
 
 
@@ -87,18 +86,6 @@ class SimulatorSetup:
         self.sim_info, self.arrays = sess.load_from_path(session_path, self.folder_path)
         #self.freeSrcProp.prepare(self.config, self.arrays)
         #self.setConfig(loaded_config)
-
-    def use_preset(self, preset_name, **kwargs):
-        preset_functions = {
-            "audio_processing" : preset.audio_processing,
-            "signal_estimation" : preset.signal_estimation,
-            "anc_mpc" : preset.anc_multi_point,
-            "debug" : preset.debug,
-        }
-
-        arrays, chosen_prop_paths = preset_functions[preset_name](self.sim_info, **kwargs)
-        self.add_arrays(arrays)
-        self.arrays.set_path_types(chosen_prop_paths)
         
 
     def create_simulator(self):
