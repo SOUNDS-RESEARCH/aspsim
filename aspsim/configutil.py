@@ -8,6 +8,7 @@ class SimulatorInfo:
     tot_samples : int
     sim_buffer : int
     sim_chunk_size : int
+    block_size : int
 
     save_source_contributions : bool
     array_update_freq : int
@@ -29,6 +30,7 @@ class SimulatorInfo:
 
 
     def __post_init__(self):
+        # Should check here that sim_buffer is large enough that it wont cause errors
         assert len(self.room_size) == self.spatial_dims
         assert len(self.room_center) == self.spatial_dims
 

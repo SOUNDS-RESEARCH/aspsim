@@ -5,10 +5,11 @@ import aspsim.fileutilities as futil
 import aspsim.configutil as configutil
 
 import aspsim.array as ar
-from aspsim.processor import ProcessorWrapper, FreeSourceHandler
 
 import aspsim.saveloadsession as sess
 import aspsim.diagnostics.core as diacore
+
+import aspcore.filterclasses as fc
 
 
 class SimulatorSetup:
@@ -127,6 +128,14 @@ class SimulatorSetup:
 
 
 
+class Signals:
+    def __init__(self):
+        pass
+
+    def new_signal(self):
+        pass
+
+
 class Simulator:
     def __init__(
         self,
@@ -152,7 +161,7 @@ class Simulator:
             self.processors.extend(processor)
         except TypeError:
             self.processors.append(processor)
-            
+
     def _setup_simulation(self):
         set_unique_processor_names(self.processors)
         sess.write_processor_metadata(self.processors, self.folder_path)
@@ -161,12 +170,16 @@ class Simulator:
             self.sim_info, self.processors
         )
 
-        self.free_src_handler = FreeSourceHandler(self.sim_info, self.arrays)
-        self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
+        self.sig = Signals(self.sim_info, self.arrays)
+       
+        #self.free_src_handler = FreeSourceHandler(self.sim_info, self.arrays)
+        self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
+        #self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
         
-        self.free_src_handler.prepare()
+        #self.free_src_handler.prepare()
         for proc in self.processors:
-            self.free_src_handler.copy_sig_to_proc(proc, 0, self.sim_info.sim_buffer)
+            proc.sig = self.sig
+            #self.free_src_handler.copy_sig_to_proc(proc, 0, self.sim_info.sim_buffer)
             proc.prepare()
             
 
@@ -174,25 +187,24 @@ class Simulator:
         self._setup_simulation()
 
         assert len(self.processors) > 0
-        block_sizes = [proc.block_size for proc in self.processors]
-        max_block_size = np.max(block_sizes)
 
         print("SIM START")
         self.n_tot = 1
         buffer_idx = 0
-        while self.n_tot < self.sim_info.tot_samples+max_block_size:
+        while self.n_tot < self.sim_info.tot_samples+self.sim_info.block_size:
             for n in range(
                 self.sim_info.sim_buffer,
                 self.sim_info.sim_buffer
-                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + max_block_size - self.n_tot),
+                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + self.sim_info.block_size - self.n_tot),
             ):
 
                 #Generate and propagate noise from controllable sources
                 for i, proc in enumerate(self.processors):
-                    if self.n_tot % proc.block_size == 0:
-                        proc.process(self.n_tot)
-                        self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, proc.block_size)
-                        proc.propagate(self.n_tot)
+                    if self.n_tot % self.sim_info.block_size == 0:
+                        proc.process(self.sim_info.block_size)
+                        #self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, self.sim_info.block_size)
+                        self.propagator.propagate()
+                        self.diag_moved_from_propagate()
  
                 self.arrays.update(self.n_tot)
 
@@ -200,7 +212,7 @@ class Simulator:
                 #if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
                 if self.sim_info.plot_output != "none":
                     self.plot_exporter.dispatch(
-                        [p.processor for p in self.processors], self.n_tot, self.folder_path
+                        self.processors, self.n_tot, self.folder_path
                     )
 
                 # Write progress
@@ -211,12 +223,20 @@ class Simulator:
             buffer_idx += 1
         if self.sim_info.plot_output != "none":
             self.plot_exporter.dispatch(
-                [p.processor for p in self.processors], self.n_tot, self.folder_path
+                self.processors, self.n_tot, self.folder_path
             )
 
         print(self.n_tot)
 
+    def diag_moved_from_propagate(self):
+        last_block = self.last_block_on_buffer()
+        for proc in self.processors:
+            proc.diag.save_data(proc, self.sig.idx, self.n_tot, last_block)
+        if last_block:
+            self.sig._reset_signals()
 
+    def last_block_on_buffer(self):
+        return self.sig.idx+self.sim_info.block_size >= self.sim_info.sim_chunk_size+self.sim_info.sim_buffer
 
 def set_unique_processor_names(processors):
     names = []
@@ -231,3 +251,132 @@ def set_unique_processor_names(processors):
 
 
 
+
+
+class Signals():
+    """
+    A simple wrapper around a dictionary to hold all signals
+    """
+    def __init__(self, sim_info, arrays):
+        self.sim_info = sim_info
+        self.signals = {}
+        self.idx = 0
+        self.idx_tot = 0
+
+        for array in arrays:
+            self.create_signal(array.name, array.num)
+        if self.sim_info.save_source_contributions:
+            for src, mic in arrays.mic_src_combos():
+                self.create_signal(src.name+"~"+mic.name, mic.num)
+      
+    def __getitem__(self, key):
+        return self.signals[key]
+    
+    # def __setitem__(self, key, value):
+    #     self.sig[key] = value
+
+    def __contains__(self, key):
+        return key in self.signals
+
+    def items(self):
+        yield self.signals.items()
+    
+    def values(self):
+        yield self.signals.values()
+
+    def keys(self):
+        yield self.signals.keys()
+
+    def create_signal(self, name, dim):
+        """
+        Inserts a new signal of shape (*dim, simbuffer+simchunksize)
+
+        Parameters
+        ----------
+        name : str 
+            name of the signal, in the same way a dictionary entry has a name
+            signal is accessed as signals[name]
+        dim : int, list or tuple
+            dimensionality of the signal. signal will have the shape (*dim, simbuffer+simchunksize)
+            where the last axis represents time
+        """
+        if isinstance(dim, int):
+            dim = (dim,)
+        assert name not in self.signals
+        self.signals[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
+
+    def _reset_signals(self):
+        for name, sig in self.processor.sig.items():
+            self.signals[name] = np.concatenate(
+                (
+                    sig[..., -self.sim_info.sim_buffer :],
+                    np.zeros(sig.shape[:-1] + (self.sim_info.sim_chunk_size,)),
+                ),
+                axis=-1,
+            )
+        self.idx -= self.sim_info.sim_chunk_size
+
+    # def __setitem__(self, key, value):
+    #     if isinstance(value, np.ndarray):
+    #         super(Signals, self).__setitem__(key, value)
+    #     else:
+    #         raise ValueError("Only NumPy arrays can be added to the dictionary.")
+
+    # def __getitem__(self, key):
+    #     value = super(Signals, self).__getitem__(key)
+    #     if isinstance(value, np.ndarray):
+    #         return value
+    #     else:
+    #         raise ValueError("The value associated with the key is not a NumPy array.")
+
+
+
+class Propagator():
+    def __init__(self, sim_info, arrays, sig):
+        self.sim_info = sim_info
+        self.arrays = arrays
+        self.sig = sig
+
+        self.path_filters = {}
+        for src, mic, path in arrays.iter_paths():
+            if src.name not in self.path_filters:
+                self.path_filters[src.name] = {}
+            self.path_filters[src.name][mic.name] = fc.create_filter(ir=path, sum_over_input=True, dynamic=(src.dynamic or mic.dynamic))
+
+    def prepare(self):
+        # Does not take movement into account. Currently just propagates from the stationary RIRs
+        # associated with the initial position
+
+        for src, mic in self.arrays.mic_src_combos():
+            propagated_signal = self.path_filters[src.name][mic.name].process(
+                    self.processor.sig[src.name][:,:self.sim_info.sim_buffer])
+            self.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
+            if self.sim_info.save_source_contributions:
+                self.sig[f"{src.name}~{mic.name}"][:,:self.sim_info.sim_buffer] = propagated_signal
+        self.sig.idx = self.sim_info.sim_buffer
+
+
+    def propagate(self):
+        """ propagates audio from all sources.
+            The mic_signals are calculated for the indices
+            self.sig.idx to self.sig.idx+num_samples"""
+
+        i = self.sig.idx
+
+        #for src in self.arrays.free_sources():
+        #    self.processor.sig[src.name][:,i:i+self.block_size] = src.get_samples(self.block_size)
+
+        for src in self.arrays.free_sources():
+            self.sig[src.name][..., i:i+self.sim_info.block_size] = src.get_samples(self.sim_info.block_size)
+
+        for src, mic in self.arrays.mic_src_combos():
+            if src.dynamic or mic.dynamic:
+                self.path_filters[src.name][mic.name].ir = self.arrays.paths[src.name][mic.name]
+        
+        for src, mic in self.arrays.mic_src_combos():
+            propagated_signal = self.path_filters[src.name][mic.name].process(
+                    self.sig[src.name][...,i:i+self.sim_info.block_size])
+            self.sig[mic.name][...,i:i+self.sim_info.block_size] += propagated_signal
+            if self.sim_info.save_source_contributions:
+                self.sig[src.name+"~"+mic.name][...,i:i+self.sim_info.block_size] = propagated_signal
+        self.sig.idx += self.sim_info.block_size

@@ -425,8 +425,8 @@ class FreeSourceArray(Array):
         self.source = copy.deepcopy(self.source)
         self.source.reset()
 
-    def get_samples(self, numSamples):
-        return self.source.get_samples(numSamples)
+    def get_samples(self, num_samples):
+        return self.source.get_samples(num_samples)
 
     def set_source(self, source):
         assert source.num_channels == self.num
