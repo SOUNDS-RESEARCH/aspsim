@@ -38,8 +38,6 @@ class SimulatorSetup:
             recommended to obtain your rng object from np.random.default_rng(seed)
         
         """
-        self.arrays = ar.ArrayCollection()
-
         if config_path is None:
             self.sim_info = configutil.load_default_config()
         else:
@@ -52,6 +50,9 @@ class SimulatorSetup:
             self.rng = np.random.default_rng()
         else:
             self.rng = rng
+
+        self.arrays = ar.ArrayCollection()
+        self.diag = diacore.DiagnosticHandler(self.sim_info) 
 
     def add_arrays(self, array_collection):
         for ar in array_collection:
@@ -85,9 +86,6 @@ class SimulatorSetup:
     def load_from_path(self, session_path):
         self.folder_path = self._create_fig_folder(self.base_fig_path)
         self.sim_info, self.arrays = sess.load_from_path(session_path, self.folder_path)
-        #self.freeSrcProp.prepare(self.config, self.arrays)
-        #self.setConfig(loaded_config)
-        
 
     def create_simulator(self):
         assert not self.arrays.empty()
@@ -111,7 +109,7 @@ class SimulatorSetup:
         self.sim_info.save_to_file(folder_path)
         finished_arrays.plot(self.sim_info, folder_path, self.sim_info.plot_output)
         finished_arrays.save_metadata(folder_path)
-        return Simulator(self.sim_info, finished_arrays, folder_path)
+        return Simulator(self.sim_info, finished_arrays, folder_path, self.diag, rng=self.rng)
 
     def _create_fig_folder(self, folder_for_plots, gen_subfolder=True, safe_naming=False):
         if self.sim_info.plot_output == "none" or folder_for_plots is None:
@@ -142,12 +140,14 @@ class Simulator:
         sim_info,
         arrays,
         folder_path,
+        diag,
         rng = None, 
     ):
         
         self.sim_info = sim_info
         self.arrays = arrays
         self.folder_path = folder_path
+        self.diag = diag
         
         self.processors = []
 
@@ -167,30 +167,27 @@ class Simulator:
         sess.write_processor_metadata(self.processors, self.folder_path)
 
         self.plot_exporter = diacore.DiagnosticExporter(
-            self.sim_info, self.processors
+            self.sim_info, self.diag
         )
 
         self.sig = Signals(self.sim_info, self.arrays)
        
-        #self.free_src_handler = FreeSourceHandler(self.sim_info, self.arrays)
         self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
-        #self.processors = [ProcessorWrapper(pr, self.arrays) for pr in self.processors]
-        
-        #self.free_src_handler.prepare()
+
         for proc in self.processors:
+            self.propagator.prepare()
             proc.sig = self.sig
-            #self.free_src_handler.copy_sig_to_proc(proc, 0, self.sim_info.sim_buffer)
             proc.prepare()
             
 
     def run_simulation(self):
         self._setup_simulation()
 
-        assert len(self.processors) > 0
+        #assert len(self.processors) > 0
 
         print("SIM START")
         self.n_tot = 1
-        buffer_idx = 0
+        #buffer_idx = 0
         while self.n_tot < self.sim_info.tot_samples+self.sim_info.block_size:
             for n in range(
                 self.sim_info.sim_buffer,
@@ -198,40 +195,38 @@ class Simulator:
                 + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + self.sim_info.block_size - self.n_tot),
             ):
 
-                #Generate and propagate noise from controllable sources
-                for i, proc in enumerate(self.processors):
-                    if self.n_tot % self.sim_info.block_size == 0:
+                if self.n_tot % self.sim_info.block_size == 0:
+                    for proc in self.processors:
                         proc.process(self.sim_info.block_size)
                         #self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, self.sim_info.block_size)
-                        self.propagator.propagate()
-                        self.diag_moved_from_propagate()
+                    self.propagator.propagate()
+                    self.diag_moved_from_propagate()
  
                 self.arrays.update(self.n_tot)
 
                 # Generate plots and diagnostics
                 #if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
-                if self.sim_info.plot_output != "none":
-                    self.plot_exporter.dispatch(
-                        self.processors, self.n_tot, self.folder_path
-                    )
+                
+                self.plot_exporter.dispatch(
+                    self.diag, self.n_tot, self.folder_path
+                )
 
                 # Write progress
                 if self.n_tot % 1000 == 0:
                     print(f"Timestep: {self.n_tot}")#, end="\r")
 
                 self.n_tot += 1
-            buffer_idx += 1
-        if self.sim_info.plot_output != "none":
-            self.plot_exporter.dispatch(
-                self.processors, self.n_tot, self.folder_path
-            )
+            #buffer_idx += 1
+        self.plot_exporter.dispatch(
+            self.diag, self.n_tot, self.folder_path
+        )
 
         print(self.n_tot)
 
     def diag_moved_from_propagate(self):
         last_block = self.last_block_on_buffer()
-        for proc in self.processors:
-            proc.diag.save_data(proc, self.sig.idx, self.n_tot, last_block)
+        #for proc in self.processors:
+        self.diag.save_data(self.processors, self.sig, self.sig.idx, self.n_tot, last_block)
         if last_block:
             self.sig._reset_signals()
 
@@ -306,7 +301,7 @@ class Signals():
         self.signals[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
 
     def _reset_signals(self):
-        for name, sig in self.processor.sig.items():
+        for name, sig in self.signals.items():
             self.signals[name] = np.concatenate(
                 (
                     sig[..., -self.sim_info.sim_buffer :],
@@ -349,7 +344,7 @@ class Propagator():
 
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.processor.sig[src.name][:,:self.sim_info.sim_buffer])
+                    self.sig[src.name][:,:self.sim_info.sim_buffer])
             self.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
             if self.sim_info.save_source_contributions:
                 self.sig[f"{src.name}~{mic.name}"][:,:self.sim_info.sim_buffer] = propagated_signal

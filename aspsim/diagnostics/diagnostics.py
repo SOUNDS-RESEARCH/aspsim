@@ -21,7 +21,7 @@ class RecordFilter(diacore.InstantDiagnostic):
         self.get_prop = diacore.attritemgetter(prop_name)
         self.prop = None
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.prop = copy.deepcopy(self.get_prop(processor))
 
     def get_output(self):
@@ -39,7 +39,7 @@ class RecordFilterDifference(RecordFilter):
         super().__init__(state_name, *args, **kwargs)
         self.get_state_subtract = diacore.attritemgetter(state_name_subtract)
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.prop = copy.deepcopy(self.get_prop(processor)) - copy.deepcopy(self.get_state_subtract(processor))
 
 
@@ -96,17 +96,17 @@ class RecordSignal(diacore.SignalDiagnostic):
             assert len(self.channel_idx) == self.num_channels
         self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
         
-    def save(self, processor, chunkInterval, globInterval):
-        assert processor.sig[self.sig_name].ndim == 2
+    def save(self, processor, sig, chunkInterval, globInterval):
+        assert sig[self.sig_name].ndim == 2
         #assert processor.sig[self.sig_name].shape[0] == self.num_channels
         #if processor.sig[self.sig_name].shape[0] > 1:
         #    raise NotImplementedError
         if self.channel_idx is not None:
             self.signal[:, globInterval[0]:globInterval[1]] = \
-                processor.sig[self.sig_name][self.channel_idx,chunkInterval[0]:chunkInterval[1]]
+                sig[self.sig_name][self.channel_idx,chunkInterval[0]:chunkInterval[1]]
         else:
             self.signal[:, globInterval[0]:globInterval[1]] = \
-                processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
+                sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]]
 
     def get_output(self):
         return self.signal
@@ -141,7 +141,7 @@ class RecordState(diacore.StateDiagnostic):
             self.plot_data["label_suffix_channel"] = label_suffix_channel
         
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         assert globInterval[1] - globInterval[0] == 1
         self.state_values[:, self.diag_idx] = self.get_prop(processor)
         self.time_indices[self.diag_idx] = globInterval[0]
@@ -166,7 +166,7 @@ class SignalPower(diacore.SignalDiagnostic):
         self.sig_channels = sig_channels
         self.power = np.full((sim_info.tot_samples), np.nan)
     
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.power[globInterval[0]:globInterval[1]] = np.mean(np.abs(
             processor.sig[self.sig_name][self.sig_channels,chunkInterval[0]:chunkInterval[1]])**2, axis=0)
 
@@ -193,7 +193,7 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         self.numerator_channels = numerator_channels
         self.denom_channels = denom_channels
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         smoother_num = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
         smoother_denom = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
 
@@ -223,7 +223,7 @@ class StatePower(diacore.StateDiagnostic):
         self.diag_idx = 0
         
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         assert globInterval[1] - globInterval[0] == 1
         prop_val = self.get_prop(processor)
         self.power[self.diag_idx] = np.mean(np.abs(prop_val)**2)
@@ -252,7 +252,7 @@ class StateComparison(diacore.StateDiagnostic):
 
         self.plot_data["title"] = compare_func.__name__
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         assert globInterval[1] - globInterval[0] == 1
         state1 = self.get_state1(processor)
         state2 = self.get_state2(processor)
@@ -283,7 +283,7 @@ class StateSummary(diacore.StateDiagnostic):
         self.plot_data["title"] = summary_func.__name__
         
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         assert globInterval[1] - globInterval[0] == 1
         state = self.get_state(processor)
 
@@ -354,7 +354,7 @@ class SoundfieldPower(diacore.Diagnostic):
 
         #src_sig = {src_name : np.zeros((arrays[src_name].num)) for src_name in source_names}
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.power[:] += np.sum(np.abs(processor.sig[self.sig_name][:,chunkInterval[0]:chunkInterval[1]])**2, axis=-1) / self.num_avg
 
     def get_output(self):

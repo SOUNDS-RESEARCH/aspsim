@@ -52,16 +52,15 @@ and as explained above, by the time data is saved to diagnostics, the globalIdx 
 
 
 class DiagnosticExporter:
-    def __init__(self, sim_info, processors):
+    def __init__(self, sim_info, diag):
         self.sim_info = sim_info
         
         self.upcoming_export = 0
-        self.update_next_export(processors)
+        self.update_next_export(diag)
 
-    def update_next_export(self, processors):
+    def update_next_export(self, diag): 
         try:
-            self.upcoming_export = np.amin([dg.next_export() for proc in processors 
-                                            for dg in proc.diag])
+            self.upcoming_export = np.amin([dg.next_export() for dg in diag])
         except ValueError:
             self.upcoming_export = np.inf
 
@@ -79,14 +78,13 @@ class DiagnosticExporter:
     def next_export(self):
         return self.upcoming_export
         
-    def export_this_idx(self, processors, idx_to_check):
+    def export_this_idx(self, diag, idx_to_check):
         diag_names = []
-        for proc in processors:
-            for dg_name, dg in proc.diag.items():
-                if dg.next_export() <= idx_to_check:
-                    if dg.next_save()[0] >= idx_to_check:
-                        if dg_name not in diag_names:
-                            diag_names.append(dg_name)
+        for dg_name, dg in diag.items():
+            if dg.next_export() <= idx_to_check:
+                if dg.next_save()[0] >= idx_to_check:
+                    if dg_name not in diag_names:
+                        diag_names.append(dg_name)
         return diag_names
                 
     def verify_same_export_settings(self, diag_dict):
@@ -103,8 +101,9 @@ class DiagnosticExporter:
             #assert first_diag.preprocess == dg.preprocess
 
 
-    def export_single_diag(self, diag_name, processors, fldr):
-        diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
+    def export_single_diag(self, diag_name, diag, fldr):
+        diag_dict = {diag_name : diag[diag_name]}
+        #diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
         self.verify_same_export_settings(diag_dict)
 
         one_diag_object = diag_dict[list(diag_dict.keys())[0]]
@@ -119,34 +118,26 @@ class DiagnosticExporter:
             diag.progress_export()
 
 
-    def dispatch(self, processors, time_idx, fldr):
+    def dispatch(self, diag, time_idx, fldr):
         """
         processors is list of the processor objects
         time_idx is the global time index
         fldr is Path to figure folder
         """
         #if time_idx == self.next_export():
-        for diag_name in self.export_this_idx(processors, time_idx):
-            self.export_single_diag(diag_name, processors, fldr)
-        self.update_next_export(processors)
+        if self.sim_info.plot_output != "none":
+            for diag_name in self.export_this_idx(diag, time_idx):
+                self.export_single_diag(diag_name, diag, fldr)
+            self.update_next_export(diag)
 
 
 class DiagnosticHandler:
-    def __init__(self, sim_info, block_size):
+    def __init__(self, sim_info):
         self.sim_info = sim_info
-        #self.block_size = block_size
         self.diagnostics = {}
-
-        #To keep track of when each diagnostics are available to be exported
-        #self.exportAfterSample = {}
-        #self.toBeExported = []
 
     def prepare(self):
         pass
-        #for diagName, diag in self.diagnostics.items():
-        #    diag.prepare()
-        #    self.exportAfterSample[diagName] = self.sim_info.sim_chunk_size
-            
 
     def __contains__(self, key):
         return key in self.diagnostics
@@ -169,27 +160,21 @@ class DiagnosticHandler:
         assert name not in self.diagnostics
         self.diagnostics[name] = diagnostic
 
-    def reset(self):
-        raise NotImplementedError
-        for diag in self.diagnostics.values():
-            diag.reset()
-
     #def add_diagnostic(self, name, diagnostic):
     #    self.diagnostics[name] = diagnostic
 
-    def save_data(self, processor, idx, global_idx, last_block_on_chunk):
+    def save_data(self, processors, sig, idx, global_idx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
             start, end = diag.next_save()
 
             if global_idx >= end:
                 end_lcl = idx - (global_idx - end)
                 start_lcl = end_lcl - (end-start)
-                diag.save(processor, (start_lcl, end_lcl), (start, end))
+                diag.save(processors, sig, (start_lcl, end_lcl), (start, end))
                 diag.progress_save(end)
             elif last_block_on_chunk and global_idx > start:
                 start_lcl = idx - (global_idx-start)
-                #diag.save(processor, (start_lcl, idx), (start, global_idx))
-                diag.save(processor, (start_lcl, idx), (start, global_idx))
+                diag.save(processors, sig, (start_lcl, idx), (start, global_idx))
                 diag.progress_save(global_idx)
 
 
@@ -355,12 +340,12 @@ class Diagnostic:
 
 
     @abstractmethod
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunk_interval, glob_interval):
         pass
         # self.get_property = op.attrgetter(property_name)
         # prop = self.get_property(processor)
 
-        # signal = processor.sig[signal_name]
+        # signal = sig[signal_name]
 
     @abstractmethod
     def get_output(self):

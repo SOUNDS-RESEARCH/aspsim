@@ -11,6 +11,7 @@ figs/*
 savedsession/*
 slask
 slask/*
+examples/figs/*
 
 *.asv
 *.m~

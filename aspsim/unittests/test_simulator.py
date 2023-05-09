@@ -29,7 +29,7 @@ def reset_sim_setup(setup):
     )
     arrays.add_array(ar.ControllableSourceArray("loudspeaker", np.zeros((1,3))))
     arrays.add_array(ar.MicArray("mic", np.zeros((1,3))))
-    arrays.set_prop_paths({"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}})
+    arrays.set_path_types({"source":{"mic":"isolated"}, "loudspeaker" : {"mic":"none"}})
     setup.arrays = arrays
 
 
@@ -67,27 +67,29 @@ def sim_setup(tmp_path_factory):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
     reset_sim_setup(sim_setup)
+    sim_setup.sim_info.block_size = bs
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
-    assert sim.processors[0].processor.processed_samples >= sim.sim_info.tot_samples
+    assert sim.processors[0].processed_samples >= sim.sim_info.tot_samples
     #assert sim.n_tot >= sim.sim_info.tot_samples
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_consecutive_simulators_give_same_values(sim_setup, bs):
     reset_sim_setup(sim_setup)
+    sim_setup.sim_info.block_size = bs
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
 
-    sig1 = sim.processors[0].processor.sig["mic"]
+    sig1 = sim.sig["mic"]
 
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
 
-    sig2 = sim.processors[0].processor.sig["mic"]
+    sig2 = sim.sig["mic"]
 
     assert np.allclose(sig1, sig2)
 
@@ -95,11 +97,12 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
 def test_correct_processing_delay(sim_setup, bs):
     reset_sim_setup(sim_setup)
+    sim_setup.sim_info.block_size = bs
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
 
-    proc = sim.processors[0].processor
+    proc = sim.processors[0]
     assert np.allclose(proc.mic[:,:-bs], proc.ls[:,bs:])
 
 
@@ -107,9 +110,16 @@ def test_correct_processing_delay(sim_setup, bs):
 @hyp.settings(deadline=None)
 @hyp.given(num_src = st.integers(min_value=1, max_value=3))
 def test_multiple_free_sources(sim_setup, num_src):
+    """
+    The likely problem is that in the simulator case, the random source is used
+    in the prepare() step, so when they reach time 0, the seeds are different. 
+    """
+    block_size = 5
     rng = np.random.default_rng()
+    seed = rng.integers(0, 100000)
     sr = 500
     reset_sim_setup_realistic(sim_setup, sr)
+    sim_setup.block_size = block_size
 
     for s in range(num_src):
         sim_setup.add_free_source(f"src_{s}", rng.uniform(-2, 2, size=(1,3)), sources.WhiteNoiseSource(1, 1, rng))
@@ -127,20 +137,15 @@ def test_multiple_free_sources(sim_setup, num_src):
     signals = np.concatenate([s.get_samples(sim.sim_info.tot_samples+sim.sim_info.sim_buffer) for s in srcs], axis=0)
     sig_filt = filt.process(signals)
 
-    block_size = 5
-
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, block_size))
     sim.run_simulation()
 
     import matplotlib.pyplot as plt
     plt.plot(sig_filt[:,sim.sim_info.sim_buffer:].T)
-    plt.plot(sim.processors[0].processor.mic.T)
+    plt.plot(sim.processors[0].mic.T)
     plt.show()
 
-    assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].processor.mic[:,block_size:])
-
-def test_same_with_multiple_processors():
-    assert False
+    assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].mic[:,block_size:])
 
 #@hyp.settings(deadline=None)
 def test_trajectory_mic(sim_setup):
@@ -211,3 +216,8 @@ def test_unmoving_trajectory_same_as_static(sim_setup):
 
 #Kolla manuellt på noiset i rir_extimation_exp, och se att det är det jag förväntar mig. Efterssom
 # icke-modifierade noise correlation matrix är annorlunda. 
+
+
+
+# def test_same_with_multiple_processors():
+#     assert False

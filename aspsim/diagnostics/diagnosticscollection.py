@@ -34,7 +34,7 @@ class EigenvaluesOverTime(diacore.StateDiagnostic):
         else:
             self.plot_data["title"] = "Eigenvalues"
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         assert globInterval[1] - globInterval[0] == 1
         mat = self.get_matrix(processor)
         assert np.allclose(mat, mat.T.conj())
@@ -69,7 +69,7 @@ class Eigenvalues(diacore.InstantDiagnostic):
         else:
             self.plot_data["title"] = "Eigenvalues"
 
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         mat = self.get_mat(processor)
         assert np.allclose(mat, mat.T.conj())
         self.evs = splin.eigh(mat, eigvals_only=True)[None,None,:]
@@ -146,7 +146,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
 
         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         num_samples = chunkInterval[1] - chunkInterval[0]
         self.signal[:,self.sample_counter:self.sample_counter+num_samples] = processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]]
 
@@ -180,7 +180,7 @@ class SignalSummary(SummaryDiagnostic):
 
         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         if self.summary_func is None:
             self.mean += np.sum(processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
         else:

@@ -140,12 +140,12 @@ class AudioProcessor(ABC):
 
         self.name = "Abstract Processor"
         self.metadata = {}
-        self.idx = 0
+        #self.idx = 0
         self.sig = {}
 
-        self.diag = diacore.DiagnosticHandler(self.sim_info, self.sim_info.block_size) 
-        for diag_name, diag in diagnostics.items():
-            self.diag.add_diagnostic(diag_name, diag)
+        #self.diag = diacore.DiagnosticHandler(self.sim_info, self.sim_info.block_size) 
+        #for diag_name, diag in diagnostics.items():
+        #    self.diag.add_diagnostic(diag_name, diag)
 
         if rng is None:
             self.rng = np.random.default_rng()
@@ -153,27 +153,28 @@ class AudioProcessor(ABC):
             self.rng = rng
 
     def prepare(self):
-        self.diag.prepare()
-
-    def reset_buffer(self):
         pass
+        #self.diag.prepare()
 
-    def reset(self):
-        """Should probably reset diagnostics to be properly reset
-            Also, all user-defined signals and filters must be reset """
-        for sig in self.sig.values():
-            sig.fill(0)
-        self.diag.reset()
-        self.idx = self.sim_info.sim_buffer
+    #def reset_buffer(self):
+    #    pass
 
-    def create_buffer(self, name, dim):
-        """dim is a tuple or int
-        buffer is accessed as self.sig[name]
-        and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
-        if isinstance(dim, int):
-            dim = (dim,)
-        assert name not in self.sig
-        self.sig[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
+    # def reset(self):
+    #     """Should probably reset diagnostics to be properly reset
+    #         Also, all user-defined signals and filters must be reset """
+    #     for sig in self.sig.values():
+    #         sig.fill(0)
+    #     self.diag.reset()
+    #     self.idx = self.sim_info.sim_buffer
+
+    # def create_buffer(self, name, dim):
+    #     """dim is a tuple or int
+    #     buffer is accessed as self.sig[name]
+    #     and will have shape (dim[0], dim[1],...,dim[-1], simbuffer+simchunksize)"""
+    #     if isinstance(dim, int):
+    #         dim = (dim,)
+    #     assert name not in self.sig
+    #     self.sig[name] = np.zeros(dim + (self.sim_info.sim_buffer + self.sim_info.sim_chunk_size,))
 
     @abstractmethod
     def process(self, num_samples):
@@ -198,13 +199,12 @@ class DebugProcessor(AudioProcessor):
         self.manual_idx = 0
 
     def process(self, num_samples):
-        assert num_samples == self.block_size
         self.processed_samples += num_samples
         self.filt.ir += num_samples
-        self.sig["loudspeaker"][:,self.idx:self.idx+self.block_size] = \
-            self.sig["mic"][:,self.idx-self.block_size:self.idx]
+        self.sig["loudspeaker"][:,self.sig.idx:self.sig.idx+num_samples] = \
+            self.sig["mic"][:,self.sig.idx-num_samples:self.sig.idx]
 
-        for manual_i, i in zip(range(self.manual_idx,self.manual_idx+num_samples),range(self.idx-num_samples, self.idx)):
+        for manual_i, i in zip(range(self.manual_idx,self.manual_idx+num_samples),range(self.sig.idx-num_samples, self.sig.idx)):
             if manual_i < self.sim_info.tot_samples:
                 self.mic[:,manual_i] = self.sig["mic"][:,i]
                 self.ls[:,manual_i] = self.sig["loudspeaker"][:,i]
