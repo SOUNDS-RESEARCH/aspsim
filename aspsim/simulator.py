@@ -183,11 +183,8 @@ class Simulator:
     def run_simulation(self):
         self._setup_simulation()
 
-        #assert len(self.processors) > 0
-
         print("SIM START")
         self.n_tot = 1
-        #buffer_idx = 0
         while self.n_tot < self.sim_info.tot_samples+self.sim_info.block_size:
             for n in range(
                 self.sim_info.sim_buffer,
@@ -198,7 +195,6 @@ class Simulator:
                 if self.n_tot % self.sim_info.block_size == 0:
                     for proc in self.processors:
                         proc.process(self.sim_info.block_size)
-                        #self.free_src_handler.copy_sig_to_proc(proc, self.n_tot, self.sim_info.block_size)
                     self.propagator.propagate()
                     self.diag_moved_from_propagate()
  
@@ -216,7 +212,6 @@ class Simulator:
                     print(f"Timestep: {self.n_tot}")#, end="\r")
 
                 self.n_tot += 1
-            #buffer_idx += 1
         self.plot_exporter.dispatch(
             self.diag, self.n_tot, self.folder_path
         )
@@ -225,7 +220,6 @@ class Simulator:
 
     def diag_moved_from_propagate(self):
         last_block = self.last_block_on_buffer()
-        #for proc in self.processors:
         self.diag.save_data(self.processors, self.sig, self.sig.idx, self.n_tot, last_block)
         if last_block:
             self.sig._reset_signals()
@@ -266,9 +260,6 @@ class Signals():
       
     def __getitem__(self, key):
         return self.signals[key]
-    
-    # def __setitem__(self, key, value):
-    #     self.sig[key] = value
 
     def __contains__(self, key):
         return key in self.signals
@@ -310,20 +301,6 @@ class Signals():
                 axis=-1,
             )
         self.idx -= self.sim_info.sim_chunk_size
-
-    # def __setitem__(self, key, value):
-    #     if isinstance(value, np.ndarray):
-    #         super(Signals, self).__setitem__(key, value)
-    #     else:
-    #         raise ValueError("Only NumPy arrays can be added to the dictionary.")
-
-    # def __getitem__(self, key):
-    #     value = super(Signals, self).__getitem__(key)
-    #     if isinstance(value, np.ndarray):
-    #         return value
-    #     else:
-    #         raise ValueError("The value associated with the key is not a NumPy array.")
-
 
 
 class Propagator():
