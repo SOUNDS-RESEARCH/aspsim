@@ -136,7 +136,8 @@ class Simulator:
         self.sim_info = sim_info
         self.arrays = arrays
         self.folder_path = folder_path
-        self.diag = diacore.DiagnosticHandler(self.sim_info) 
+        self.diag = diacore.Logger(self.sim_info)
+        #self.diag = diacore.DiagnosticHandler(self.sim_info) 
         
         self.processors = []
 
@@ -151,20 +152,22 @@ class Simulator:
         except TypeError:
             self.processors.append(processor)
 
-    def _setup_simulation(self):
+    def _prepare_simulation(self):
         if len(self.processors) > 1:
             raise NotImplementedError
         
         set_unique_processor_names(self.processors)
         sess.write_processor_metadata(self.processors, self.folder_path)
 
-        self.plot_exporter = diacore.DiagnosticExporter(
-            self.sim_info, self.diag
-        )
+        
+        #self.plot_exporter = diacore.DiagnosticExporter(
+        #    self.sim_info, self.diag
+        #)
 
         self.sig = Signals(self.sim_info, self.arrays)
         self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
 
+        self.diag.prepare()
         self.propagator.prepare()
         for proc in self.processors:
             proc.sig = self.sig
@@ -172,7 +175,7 @@ class Simulator:
             
 
     def run_simulation(self):
-        self._setup_simulation()
+        self._prepare_simulation()
 
         # the else value (which happens when there is no processor) can be changed to just about anything. Could be set to 1, or 
         # set to a high value that can be used to speed up. 
@@ -189,10 +192,7 @@ class Simulator:
 
             self.arrays.update(self.n_tot)
 
-
-            self.plot_exporter.dispatch(
-                self.diag, self.n_tot, self.folder_path
-            )
+            self.diag.dispatch(self.folder_path)
 
             # Write progress
             if self.n_tot % 1000 == 0:
@@ -200,9 +200,7 @@ class Simulator:
 
             self.sig.idx += 1
             self.n_tot += 1
-        self.plot_exporter.dispatch(
-            self.diag, self.n_tot, self.folder_path
-        )
+        self.diag.dispatch(self.folder_path)
 
         print(self.n_tot)
 

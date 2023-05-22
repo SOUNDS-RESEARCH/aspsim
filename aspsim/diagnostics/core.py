@@ -49,109 +49,12 @@ and as explained above, by the time data is saved to diagnostics, the globalIdx 
 
 
 
-
-
-class DiagnosticExporter:
-    def __init__(self, sim_info, diag):
-        self.sim_info = sim_info
-        
-        self.upcoming_export = 0
-        self.update_next_export(diag)
-
-    def update_next_export(self, diag): 
-        try:
-            self.upcoming_export = np.amin([dg.next_export() for dg in diag])
-        except ValueError:
-            self.upcoming_export = np.inf
-
-        #self.upcoming_export = int(np.amin(np.array([dg.next_export() for proc in processors 
-        #                                    for dg in proc.diag], dtype=np.float64), initial=np.inf))
-
-    def ready_for_export(self, processors):
-        for proc in processors:
-            for _, dg in proc.diag.items():
-                start, end = dg.save_at.upcoming()
-                if start <= self.upcoming_export:
-                    return False
-        return True
-
-    def next_export(self):
-        return self.upcoming_export
-    
-    def export_this_idx(self, diag, idx_to_check):
-        diag_names = []
-        for dg_name, dg in diag.items():
-            #if dg.next_export() <= idx_to_check: # we have passed the set export index
-            if dg.next_export() <= dg.save_at.saved_until: # all relevant data have been saved
-                #lägg till while innan if, så att man exporterar alla relevanta gånger
-
-
-            #if dg.next_save()[1] <= idx_to_check:
-                    assert dg_name not in diag_names
-                    diag_names.append(dg_name)
-        return diag_names
-        
-    # def export_this_idx(self, diag, idx_to_check):
-    #     diag_names = []
-    #     for dg_name, dg in diag.items():
-    #         if dg.next_export() <= idx_to_check:
-    #             if dg.next_save()[0] >= idx_to_check:
-    #                 if dg_name not in diag_names:
-    #                     diag_names.append(dg_name)
-    #     return diag_names
-                
-    def verify_same_export_settings(self, diag_dict):
-        first_diag = diag_dict[list(diag_dict.keys())[0]]
-        for dg in diag_dict.values():
-            assert first_diag.export_function == dg.export_function
-            assert first_diag.next_export() == dg.next_export()
-            assert first_diag.keep_only_last_export == dg.keep_only_last_export
-            assert first_diag.export_kwargs == dg.export_kwargs
-            for prep1, prep2 in zip(first_diag.preprocess, dg.preprocess):
-                assert len(prep1) == len(prep2)
-                for pp_func1, pp_func2 in zip(prep1, prep2):
-                    assert pp_func1.__name__ == pp_func2.__name__
-
-
-    def export_single_diag(self, diag_name, diag, fldr):
-        diag_dict = {diag_name : diag[diag_name]}
-        #diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
-        self.verify_same_export_settings(diag_dict)
-
-        one_diag_object = diag_dict[list(diag_dict.keys())[0]]
-        exp_funcs = one_diag_object.export_function
-        exp_kwargs = one_diag_object.export_kwargs
-        preproc = one_diag_object.preprocess
-        #export_time_idx = one_diag_object.next_save()[1]
-        export_time_idx = one_diag_object.next_export()
-        for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
-            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, print_method=self.sim_info.plot_output, **exp_kwarg)
-
-        for diag in diag_dict.values():
-            diag.progress_export()
-
-
-    def dispatch(self, diag, time_idx, fldr):
-        """
-        processors is list of the processor objects
-        time_idx is the global time index
-        fldr is Path to figure folder
-        """
-        #if time_idx == self.next_export():
-        if self.sim_info.plot_output != "none":
-            while self.export_this_idx(diag, time_idx):
-                for diag_name in self.export_this_idx(diag, time_idx):
-                    self.export_single_diag(diag_name, diag, fldr)
-            self.update_next_export(diag)
-
-
-class DiagnosticHandler:
+class Logger:
     def __init__(self, sim_info):
         self.sim_info = sim_info
         self.diagnostics = {}
 
-    def prepare(self):
-        pass
+        self.upcoming_export = 0
 
     def __contains__(self, key):
         return key in self.diagnostics
@@ -169,19 +72,18 @@ class DiagnosticHandler:
 
     def __setitem__(self, name, diagnostic):
         self.add_diagnostic(name, diagnostic)
+
+    def prepare(self):
+        self.update_next_export()
     
     def add_diagnostic(self, name, diagnostic):
         assert name not in self.diagnostics
         self.diagnostics[name] = diagnostic
 
-    #def add_diagnostic(self, name, diagnostic):
-    #    self.diagnostics[name] = diagnostic
-
     def save_data(self, processors, sig, idx, global_idx, last_block_on_chunk):
-        for diagName, diag in self.diagnostics.items():
+        for diag_name, diag in self.diagnostics.items():
             start, end = diag.next_save()
             num_samples = end - start
-            #processors.
 
             if global_idx >= end:
                 end_lcl = idx - (global_idx - end) - 1# or maybe start_lcl should be +1
@@ -194,6 +96,67 @@ class DiagnosticHandler:
                 diag.save(processors, sig, (start_lcl, end_lcl), (start, global_idx))
                 diag.progress_save(global_idx)
 
+
+    def update_next_export(self): 
+        try:
+            self.upcoming_export = np.amin([dg.next_export() for dg in self.diagnostics.values()])
+        except ValueError:
+            self.upcoming_export = np.inf
+
+    def next_export(self):
+        return self.upcoming_export
+    
+    def export_this_idx(self):
+        diag_names = []
+        for dg_name, dg in self.diagnostics.items():
+            if dg.next_export() <= dg.save_at.saved_until: # all relevant data have been saved
+                assert dg_name not in diag_names
+                diag_names.append(dg_name)
+        return diag_names
+
+    def verify_same_export_settings(self, diag_dict):
+        first_diag = diag_dict[list(diag_dict.keys())[0]]
+        for dg in diag_dict.values():
+            assert first_diag.export_function == dg.export_function
+            assert first_diag.next_export() == dg.next_export()
+            assert first_diag.keep_only_last_export == dg.keep_only_last_export
+            assert first_diag.export_kwargs == dg.export_kwargs
+            for prep1, prep2 in zip(first_diag.preprocess, dg.preprocess):
+                assert len(prep1) == len(prep2)
+                for pp_func1, pp_func2 in zip(prep1, prep2):
+                    assert pp_func1.__name__ == pp_func2.__name__
+
+
+    def export_single_diag(self, diag_name, fldr):
+        diag_dict = {diag_name : self.diagnostics[diag_name]}
+        #diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
+        self.verify_same_export_settings(diag_dict)
+
+        one_diag_object = diag_dict[list(diag_dict.keys())[0]]
+        exp_funcs = one_diag_object.export_function
+        exp_kwargs = one_diag_object.export_kwargs
+        preproc = one_diag_object.preprocess
+        #export_time_idx = one_diag_object.next_save()[1]
+        export_time_idx = one_diag_object.next_export()
+        for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
+            exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, print_method=self.sim_info.plot_output, **exp_kwarg)
+
+        for diag in diag_dict.values():
+            diag.progress_export()
+
+
+    def dispatch(self, fldr):
+        """
+        processors is list of the processor objects
+        time_idx is the global time index
+        fldr is Path to figure folder
+        """
+        #if time_idx == self.next_export():
+        if self.sim_info.plot_output != "none":
+            while self.export_this_idx():
+                for diag_name in self.export_this_idx():
+                    self.export_single_diag(diag_name, fldr)
+            self.update_next_export()
 
 
 class IntervalCounter:
