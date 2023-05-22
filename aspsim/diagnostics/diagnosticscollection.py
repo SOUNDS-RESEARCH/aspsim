@@ -93,7 +93,6 @@ class SummaryDiagnostic(diacore.Diagnostic):
     def __init__ (
         self,
         sim_info,
-        block_size,
         save_at,
         export_func = "text",
         keep_only_last_export = False,
@@ -111,14 +110,13 @@ class SummaryDiagnostic(diacore.Diagnostic):
             export_at = [save_at[1]]
             save_at = diacore.IntervalCounter(((save_at[0], save_at[1]),))
 
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        super().__init__(sim_info, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
 
 class SignalPowerSpectrum(SummaryDiagnostic):
     def __init__(self, 
         sig_name,
         sim_info, 
-        block_size, 
         save_range,
         num_channels,
         nperseg, 
@@ -131,7 +129,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
         #save_at = diacore.IntervalCounter((save_range,))
-        super().__init__(sim_info, block_size, save_at=save_range, export_func = "spectrum", **kwargs)
+        super().__init__(sim_info, save_at=save_range, export_func = "spectrum", **kwargs)
         self.sig_name = sig_name
 
         self.samplerate = self.sim_info.samplerate
@@ -164,7 +162,6 @@ class SignalSummary(SummaryDiagnostic):
     def __init__(self, 
         sig_name,
         sim_info, 
-        block_size, 
         save_range,
         summary_func = None,
         **kwargs
@@ -172,7 +169,7 @@ class SignalSummary(SummaryDiagnostic):
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
         #save_at = diacore.IntervalCounter((save_range,))
-        super().__init__(sim_info, block_size, save_at=save_range, export_func = "text", **kwargs)
+        super().__init__(sim_info, save_at=save_range, export_func = "text", **kwargs)
         self.sig_name = sig_name
         self.summary_func = summary_func
 

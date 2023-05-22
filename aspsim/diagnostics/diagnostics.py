@@ -157,11 +157,10 @@ class RecordState(diacore.StateDiagnostic):
 class SignalPower(diacore.SignalDiagnostic):
     def __init__(self, sig_name,
                         sim_info, 
-                        block_size, 
                         export_at=None,
                         sig_channels =slice(None),
                         **kwargs):
-        super().__init__(sim_info, block_size, export_at, **kwargs)
+        super().__init__(sim_info, export_at, **kwargs)
         self.sig_name = sig_name
         self.sig_channels = sig_channels
         self.power = np.full((sim_info.tot_samples), np.nan)
@@ -179,13 +178,12 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         numerator_name,
         denom_name,
         sim_info, 
-        block_size, 
         export_at=None,
         numerator_channels=slice(None),
         denom_channels = slice(None),
         **kwargs
         ):
-        super().__init__(sim_info, block_size, export_at, **kwargs)
+        super().__init__(sim_info, export_at, **kwargs)
         self.numerator_name = numerator_name
         self.denom_name = denom_name
         self.power_ratio = np.full((sim_info.tot_samples), np.nan)
@@ -210,11 +208,10 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
 class StatePower(diacore.StateDiagnostic):
     def __init__(self, prop_name, 
                         sim_info, 
-                        block_size, 
                         export_at=None,
                         save_frequency=None, 
                         **kwargs):
-        super().__init__(sim_info, block_size, save_frequency, export_at, **kwargs)
+        super().__init__(sim_info, save_frequency, export_at, **kwargs)
         
         self.power = np.full((self.save_at.num_values), np.nan)
         self.time_indices = np.full((self.save_at.num_values), np.nan, dtype=int)
@@ -322,7 +319,6 @@ class SoundfieldPower(diacore.Diagnostic):
         pos_mic, 
         use_samples, 
         sim_info, 
-        block_size, 
         plot_arrays = None, 
         export_func = "image", 
         export_kwargs = None, 
@@ -340,7 +336,7 @@ class SoundfieldPower(diacore.Diagnostic):
 
         #save_at_idx = [exp_idx - num_avg]
         keep_only_last_export = False
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        super().__init__(sim_info, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
         self.sig_name = sig_name
         self.pos_mic = pos_mic
         self.num_mic = self.pos_mic.shape[0]
