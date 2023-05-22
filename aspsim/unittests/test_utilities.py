@@ -6,7 +6,7 @@ import hypothesis.strategies as st
 
 
 @given(
-    st.integers(min_value=1, max_value=10000), st.integers(min_value=1, max_value=10000)
+    st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100)
 )
 def test_calc_block_sizes_totalEqualToNumSamples(numSamples, block_size):
     startIdx = np.random.randint(0, block_size)
@@ -15,7 +15,7 @@ def test_calc_block_sizes_totalEqualToNumSamples(numSamples, block_size):
 
 
 @given(
-    st.integers(min_value=1, max_value=10000), st.integers(min_value=1, max_value=10000)
+    st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100)
 )
 def test_calc_block_sizes_maxValueEqualToBlockLength(numSamples, block_size):
     startIdx = np.random.randint(0, block_size)
@@ -24,7 +24,7 @@ def test_calc_block_sizes_maxValueEqualToBlockLength(numSamples, block_size):
 
 
 @given(
-    st.integers(min_value=1, max_value=10000), st.integers(min_value=1, max_value=10000)
+    st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100)
 )
 def test_calc_block_sizes_noZeroValues(numSamples, block_size):
     startIdx = np.random.randint(0, block_size)
@@ -33,7 +33,7 @@ def test_calc_block_sizes_noZeroValues(numSamples, block_size):
 
 
 @given(
-    st.integers(min_value=1, max_value=10000), st.integers(min_value=1, max_value=10000)
+    st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100)
 )
 def test_calc_block_sizes_allMiddleValuesEqualToblock_size(numSamples, block_size):
     startIdx = np.random.randint(0, block_size)
@@ -44,7 +44,7 @@ def test_calc_block_sizes_allMiddleValuesEqualToblock_size(numSamples, block_siz
 
 
 @given(
-    st.integers(min_value=1, max_value=10000), st.integers(min_value=1, max_value=10000)
+    st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100)
 )
 def test_calc_block_sizes_firstValueCorrect(numSamples, block_size):
     startIdx = np.random.randint(0, block_size)

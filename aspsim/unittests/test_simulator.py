@@ -14,6 +14,27 @@ import aspsim.signal.sources as sources
 import aspsim.room.trajectory as tr
 import aspcore.filterclasses as fc
 
+@pytest.fixture(scope="session")
+def fig_folder(tmp_path_factory):
+    return tmp_path_factory.mktemp("figs")
+
+def simple_setup(fig_folder):
+    setup = SimulatorSetup(fig_folder)
+    setup.sim_info.tot_samples = 20
+    setup.sim_info.sim_buffer = 20
+    setup.sim_info.export_frequency = 20
+    setup.sim_info.sim_chunk_size = 20
+
+    setup.add_free_source("src", np.array([[1,0,0]]), sources.WhiteNoiseSource(1,1))
+    setup.add_controllable_source("loudspeaker", np.array([[1,0,0]]))
+    setup.add_mics("mic", np.zeros((1,3)))
+
+    setup.arrays.path_type["loudspeaker"]["mic"] = "none"
+    setup.arrays.path_type["src"]["mic"] = "identity"
+    return setup
+
+
+
 def reset_sim_setup(setup):
     setup.arrays = ar.ArrayCollection()
     setup.sim_info.tot_samples = 100
@@ -65,9 +86,8 @@ def sim_setup(tmp_path_factory):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
-    reset_sim_setup(sim_setup)
-    sim_setup.sim_info.block_size = bs
+def test_minimum_of_tot_samples_are_processed(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
@@ -76,9 +96,8 @@ def test_minimum_of_tot_samples_are_processed(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_consecutive_simulators_give_same_values(sim_setup, bs):
-    reset_sim_setup(sim_setup)
-    sim_setup.sim_info.block_size = bs
+def test_consecutive_simulators_give_same_values(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
@@ -95,9 +114,8 @@ def test_consecutive_simulators_give_same_values(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_correct_processing_delay(sim_setup, bs):
-    reset_sim_setup(sim_setup)
-    sim_setup.sim_info.block_size = bs
+def test_correct_processing_delay(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
@@ -119,7 +137,6 @@ def test_multiple_free_sources(sim_setup, num_src):
     seed = rng.integers(0, 100000)
     sr = 500
     reset_sim_setup_realistic(sim_setup, sr)
-    sim_setup.block_size = block_size
 
     for s in range(num_src):
         sim_setup.add_free_source(f"src_{s}", rng.uniform(-2, 2, size=(1,3)), sources.WhiteNoiseSource(1, 1, rng))
@@ -148,9 +165,9 @@ def test_multiple_free_sources(sim_setup, num_src):
     assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].mic[:,block_size:])
 
 #@hyp.settings(deadline=None)
-def test_trajectory_mic(sim_setup):
+def test_trajectory_mic(fig_folder):
     bs = 1
-    reset_sim_setup(sim_setup)
+    sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.reverb = "ism"
     sim_setup.sim_info.rt60 = 0.15
     #room_size = [4, 3, 3]
@@ -167,9 +184,9 @@ def test_trajectory_mic(sim_setup):
     assert False
 
 
-def test_unmoving_trajectory_same_as_static(sim_setup):
+def test_unmoving_trajectory_same_as_static(fig_folder):
     bs = 1
-    reset_sim_setup(sim_setup)
+    sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.reverb = "ism"
     sim_setup.sim_info.rt60 = 0.15
     room_size = [4, 3, 3]

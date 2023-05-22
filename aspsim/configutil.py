@@ -8,7 +8,6 @@ class SimulatorInfo:
     tot_samples : int
     sim_buffer : int
     sim_chunk_size : int
-    block_size : int
 
     save_source_contributions : bool
     array_update_freq : int

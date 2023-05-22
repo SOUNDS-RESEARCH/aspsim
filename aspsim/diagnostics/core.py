@@ -77,15 +77,28 @@ class DiagnosticExporter:
 
     def next_export(self):
         return self.upcoming_export
-        
+    
     def export_this_idx(self, diag, idx_to_check):
         diag_names = []
         for dg_name, dg in diag.items():
-            if dg.next_export() <= idx_to_check:
-                if dg.next_save()[0] >= idx_to_check:
-                    if dg_name not in diag_names:
-                        diag_names.append(dg_name)
+            #if dg.next_export() <= idx_to_check: # we have passed the set export index
+            if dg.next_export() <= dg.save_at.saved_until: # all relevant data have been saved
+                #lägg till while innan if, så att man exporterar alla relevanta gånger
+
+
+            #if dg.next_save()[1] <= idx_to_check:
+                    assert dg_name not in diag_names
+                    diag_names.append(dg_name)
         return diag_names
+        
+    # def export_this_idx(self, diag, idx_to_check):
+    #     diag_names = []
+    #     for dg_name, dg in diag.items():
+    #         if dg.next_export() <= idx_to_check:
+    #             if dg.next_save()[0] >= idx_to_check:
+    #                 if dg_name not in diag_names:
+    #                     diag_names.append(dg_name)
+    #     return diag_names
                 
     def verify_same_export_settings(self, diag_dict):
         first_diag = diag_dict[list(diag_dict.keys())[0]]
@@ -98,7 +111,6 @@ class DiagnosticExporter:
                 assert len(prep1) == len(prep2)
                 for pp_func1, pp_func2 in zip(prep1, prep2):
                     assert pp_func1.__name__ == pp_func2.__name__
-            #assert first_diag.preprocess == dg.preprocess
 
 
     def export_single_diag(self, diag_name, diag, fldr):
@@ -110,6 +122,7 @@ class DiagnosticExporter:
         exp_funcs = one_diag_object.export_function
         exp_kwargs = one_diag_object.export_kwargs
         preproc = one_diag_object.preprocess
+        #export_time_idx = one_diag_object.next_save()[1]
         export_time_idx = one_diag_object.next_export()
         for exp_func, exp_kwarg, pp in zip(exp_funcs, exp_kwargs, preproc):
             exp_func(diag_name, diag_dict, export_time_idx, fldr, pp, print_method=self.sim_info.plot_output, **exp_kwarg)
@@ -126,8 +139,9 @@ class DiagnosticExporter:
         """
         #if time_idx == self.next_export():
         if self.sim_info.plot_output != "none":
-            for diag_name in self.export_this_idx(diag, time_idx):
-                self.export_single_diag(diag_name, diag, fldr)
+            while self.export_this_idx(diag, time_idx):
+                for diag_name in self.export_this_idx(diag, time_idx):
+                    self.export_single_diag(diag_name, diag, fldr)
             self.update_next_export(diag)
 
 
@@ -166,15 +180,18 @@ class DiagnosticHandler:
     def save_data(self, processors, sig, idx, global_idx, last_block_on_chunk):
         for diagName, diag in self.diagnostics.items():
             start, end = diag.next_save()
+            num_samples = end - start
+            #processors.
 
             if global_idx >= end:
-                end_lcl = idx - (global_idx - end)
-                start_lcl = end_lcl - (end-start)
+                end_lcl = idx - (global_idx - end) - 1# or maybe start_lcl should be +1
+                start_lcl = end_lcl - num_samples
                 diag.save(processors, sig, (start_lcl, end_lcl), (start, end))
                 diag.progress_save(end)
             elif last_block_on_chunk and global_idx > start:
-                start_lcl = idx - (global_idx-start)
-                diag.save(processors, sig, (start_lcl, idx), (start, global_idx))
+                end_lcl = idx - 1
+                start_lcl = idx - (global_idx-start) - 1
+                diag.save(processors, sig, (start_lcl, end_lcl), (start, global_idx))
                 diag.progress_save(global_idx)
 
 
@@ -201,7 +218,7 @@ class IntervalCounter:
             self.intervals = intervals
             self.num_values = num_values
 
-
+        self.saved_until = 0
         self.start, self.end = next(self.intervals, (np.inf, np.inf))
         
 
@@ -228,6 +245,7 @@ class IntervalCounter:
         return self.start, self.end
 
     def progress(self, progress_until):
+        self.saved_until = progress_until
         self.start = progress_until
         assert self.end >= self.start
         if self.start == self.end:
@@ -276,7 +294,6 @@ class Diagnostic:
     def __init__(
         self, 
         sim_info, 
-        block_size, 
         export_at,
         save_at,
         export_func,
@@ -290,17 +307,16 @@ class Diagnostic:
                     must be equal or larger than the block size)
         """
         self.sim_info = sim_info
-        self.block_size = block_size
 
         assert isinstance(save_at, IntervalCounter)
         self.save_at = save_at
 
         if export_at is None:
             export_at = sim_info.export_frequency
-        if isinstance(export_at, (list, tuple, np.ndarray)):
-            assert all([exp_at >= block_size for exp_at in export_at])
-        else:
-            assert export_at >= block_size
+        #if isinstance(export_at, (list, tuple, np.ndarray)):
+        #    assert all([exp_at >= block_size for exp_at in export_at])
+        #else:
+            #assert export_at >= block_size
         
         self.export_at = IndexCounter(export_at, self.sim_info.tot_samples)
 
@@ -338,7 +354,6 @@ class Diagnostic:
     def progress_export(self):
         self.export_at.progress()
 
-
     @abstractmethod
     def save(self, processor, sig, chunk_interval, glob_interval):
         pass
@@ -371,7 +386,6 @@ class SignalDiagnostic(Diagnostic):
     def __init__ (
         self,
         sim_info,
-        block_size,
         export_at=None,
         save_at = None, 
         export_func = "plot",
@@ -381,12 +395,9 @@ class SignalDiagnostic(Diagnostic):
     ):
         if save_at is None:
             save_at = IntervalCounter(((0,sim_info.tot_samples),))
-            if keep_only_last_export is None:
-                keep_only_last_export = True
-        else:
-            if keep_only_last_export is None:
-                keep_only_last_export = False
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        if keep_only_last_export is None:
+            keep_only_last_export = False
+        super().__init__(sim_info, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
         self.plot_data["xlabel"] = "Samples"
         self.plot_data["ylabel"] = ""
@@ -407,17 +418,17 @@ class StateDiagnostic(Diagnostic):
     def __init__ (
         self,
         sim_info,
-        block_size,
         export_at=None,
         save_frequency=None,
         export_func = "plot",
-        keep_only_last_export=True,
+        keep_only_last_export=False,
         export_kwargs = None,
         preprocess = None,
     ):
         if save_frequency is None:
-            save_frequency = block_size
-        super().__init__(sim_info, block_size, export_at, 
+            raise NotImplementedError
+            #save_frequency = block_size
+        super().__init__(sim_info, export_at, 
                         IntervalCounter.from_frequency(save_frequency, sim_info.tot_samples,include_zero=False),
                         export_func, 
                         keep_only_last_export,
@@ -444,7 +455,6 @@ class InstantDiagnostic(Diagnostic):
     def __init__ (
         self,
         sim_info,
-        block_size,
         save_at = None, 
         export_func = "plot",
         keep_only_last_export = False,
@@ -464,7 +474,7 @@ class InstantDiagnostic(Diagnostic):
                 save_at = IntervalCounter(save_at)
             else:
                 save_at = IntervalCounter.from_frequency(save_at, sim_info.tot_samples, include_zero=False)
-        super().__init__(sim_info, block_size, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
+        super().__init__(sim_info, export_at, save_at, export_func, keep_only_last_export, export_kwargs, preprocess)
 
 
 

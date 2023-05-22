@@ -3,11 +3,10 @@ import copy
 
 import aspsim.fileutilities as futil
 import aspsim.configutil as configutil
-
 import aspsim.array as ar
-
 import aspsim.saveloadsession as sess
 import aspsim.diagnostics.core as diacore
+import aspsim.counter as counter
 
 import aspcore.filterclasses as fc
 
@@ -52,7 +51,7 @@ class SimulatorSetup:
             self.rng = rng
 
         self.arrays = ar.ArrayCollection()
-        self.diag = diacore.DiagnosticHandler(self.sim_info) 
+        #self.diag = diacore.DiagnosticHandler(self.sim_info) 
 
     def add_arrays(self, array_collection):
         for ar in array_collection:
@@ -109,7 +108,7 @@ class SimulatorSetup:
         self.sim_info.save_to_file(folder_path)
         finished_arrays.plot(self.sim_info, folder_path, self.sim_info.plot_output)
         finished_arrays.save_metadata(folder_path)
-        return Simulator(self.sim_info, finished_arrays, folder_path, self.diag, rng=self.rng)
+        return Simulator(self.sim_info, finished_arrays, folder_path, rng=self.rng)
 
     def _create_fig_folder(self, folder_for_plots, gen_subfolder=True, safe_naming=False):
         if self.sim_info.plot_output == "none" or folder_for_plots is None:
@@ -125,29 +124,19 @@ class SimulatorSetup:
         return folder_name
 
 
-
-class Signals:
-    def __init__(self):
-        pass
-
-    def new_signal(self):
-        pass
-
-
 class Simulator:
     def __init__(
         self,
         sim_info,
         arrays,
         folder_path,
-        diag,
         rng = None, 
     ):
         
         self.sim_info = sim_info
         self.arrays = arrays
         self.folder_path = folder_path
-        self.diag = diag
+        self.diag = diacore.DiagnosticHandler(self.sim_info) 
         
         self.processors = []
 
@@ -163,6 +152,9 @@ class Simulator:
             self.processors.append(processor)
 
     def _setup_simulation(self):
+        if len(self.processors) > 1:
+            raise NotImplementedError
+        
         set_unique_processor_names(self.processors)
         sess.write_processor_metadata(self.processors, self.folder_path)
 
@@ -171,11 +163,10 @@ class Simulator:
         )
 
         self.sig = Signals(self.sim_info, self.arrays)
-       
         self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
 
+        self.propagator.prepare()
         for proc in self.processors:
-            self.propagator.prepare()
             proc.sig = self.sig
             proc.prepare()
             
@@ -183,49 +174,46 @@ class Simulator:
     def run_simulation(self):
         self._setup_simulation()
 
+        # the else value (which happens when there is no processor) can be changed to just about anything. Could be set to 1, or 
+        # set to a high value that can be used to speed up. 
+        max_block_size = np.max([proc.block_size for proc in self.processors]) if self.processors else self.sim_info.sim_buffer // 4  
+
         print("SIM START")
-        self.n_tot = 1
-        while self.n_tot < self.sim_info.tot_samples+self.sim_info.block_size:
-            for n in range(
-                self.sim_info.sim_buffer,
-                self.sim_info.sim_buffer
-                + min(self.sim_info.sim_chunk_size, self.sim_info.tot_samples + self.sim_info.block_size - self.n_tot),
-            ):
+        self.n_tot = 0
+        while self.n_tot < self.sim_info.tot_samples+max_block_size:
+            for proc in self.processors:
+                if self.n_tot % proc.block_size == proc.block_size-1:
+                    proc.process(proc.block_size)
+            self.propagator.propagate(1)
+            self.diag_moved_from_propagate(max_block_size)
 
-                if self.n_tot % self.sim_info.block_size == 0:
-                    for proc in self.processors:
-                        proc.process(self.sim_info.block_size)
-                    self.propagator.propagate()
-                    self.diag_moved_from_propagate()
- 
-                self.arrays.update(self.n_tot)
+            self.arrays.update(self.n_tot)
 
-                # Generate plots and diagnostics
-                #if self.plot_exporter.ready_for_export([p.processor for p in self.processors]):
-                
-                self.plot_exporter.dispatch(
-                    self.diag, self.n_tot, self.folder_path
-                )
 
-                # Write progress
-                if self.n_tot % 1000 == 0:
-                    print(f"Timestep: {self.n_tot}")#, end="\r")
+            self.plot_exporter.dispatch(
+                self.diag, self.n_tot, self.folder_path
+            )
 
-                self.n_tot += 1
+            # Write progress
+            if self.n_tot % 1000 == 0:
+                print(f"Timestep: {self.n_tot}")#, end="\r")
+
+            self.sig.idx += 1
+            self.n_tot += 1
         self.plot_exporter.dispatch(
             self.diag, self.n_tot, self.folder_path
         )
 
         print(self.n_tot)
 
-    def diag_moved_from_propagate(self):
-        last_block = self.last_block_on_buffer()
+    def diag_moved_from_propagate(self, max_block_size):
+        last_block = self.last_block_on_buffer(max_block_size)
         self.diag.save_data(self.processors, self.sig, self.sig.idx, self.n_tot, last_block)
         if last_block:
             self.sig._reset_signals()
 
-    def last_block_on_buffer(self):
-        return self.sig.idx+self.sim_info.block_size >= self.sim_info.sim_chunk_size+self.sim_info.sim_buffer
+    def last_block_on_buffer(self, max_block_size):
+        return self.sig.idx+max_block_size >= self.sim_info.sim_chunk_size+self.sim_info.sim_buffer
 
 def set_unique_processor_names(processors):
     names = []
@@ -319,6 +307,9 @@ class Propagator():
         # Does not take movement into account. Currently just propagates from the stationary RIRs
         # associated with the initial position
 
+        for src in self.arrays.free_sources():
+            self.sig[src.name][..., :self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
+
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
                     self.sig[src.name][:,:self.sim_info.sim_buffer])
@@ -328,18 +319,15 @@ class Propagator():
         self.sig.idx = self.sim_info.sim_buffer
 
 
-    def propagate(self):
+    def propagate(self, num_samples):
         """ propagates audio from all sources.
             The mic_signals are calculated for the indices
             self.sig.idx to self.sig.idx+num_samples"""
 
         i = self.sig.idx
 
-        #for src in self.arrays.free_sources():
-        #    self.processor.sig[src.name][:,i:i+self.block_size] = src.get_samples(self.block_size)
-
         for src in self.arrays.free_sources():
-            self.sig[src.name][..., i:i+self.sim_info.block_size] = src.get_samples(self.sim_info.block_size)
+            self.sig[src.name][..., i:i+num_samples] = src.get_samples(num_samples)
 
         for src, mic in self.arrays.mic_src_combos():
             if src.dynamic or mic.dynamic:
@@ -347,8 +335,8 @@ class Propagator():
         
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.sig[src.name][...,i:i+self.sim_info.block_size])
-            self.sig[mic.name][...,i:i+self.sim_info.block_size] += propagated_signal
+                    self.sig[src.name][...,i:i+num_samples])
+            self.sig[mic.name][...,i:i+num_samples] += propagated_signal
             if self.sim_info.save_source_contributions:
-                self.sig[src.name+"~"+mic.name][...,i:i+self.sim_info.block_size] = propagated_signal
-        self.sig.idx += self.sim_info.block_size
+                self.sig[src.name+"~"+mic.name][...,i:i+num_samples] = propagated_signal
+        #self.sig.idx += num_samples

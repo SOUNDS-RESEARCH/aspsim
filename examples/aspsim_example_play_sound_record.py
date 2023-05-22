@@ -12,7 +12,7 @@ class PlaySoundProcessor(AudioProcessor):
         self.src = src.WhiteNoiseSource(1,1)
     
     def process(self, num_samples):
-        self.sig["ls"][:, self.idx:self.idx+num_samples] = self.src.get_samples(num_samples)
+        self.sig["ls"][:, self.sig.idx:self.sig.idx+num_samples] = self.src.get_samples(num_samples)
 
 bs = 64
 
@@ -26,3 +26,4 @@ sim.diag.add_diagnostic("loudspeaker signal", dg.RecordSignal("ls", sim.sim_info
 
 sim.add_processor(proc)
 sim.run_simulation()
+pass

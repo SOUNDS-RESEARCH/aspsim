@@ -2,7 +2,6 @@
 tot_samples : 2000
 sim_buffer : 2000
 sim_chunk_size : 2000
-block_size : 256
 
 save_source_contributions : False
 array_update_freq : 1
