@@ -184,13 +184,13 @@ class Simulator:
         print("SIM START")
         self.n_tot = 0
         while self.n_tot < self.sim_info.tot_samples+max_block_size:
+            self.arrays.update(self.n_tot)
+
             for proc in self.processors:
                 if self.n_tot % proc.block_size == proc.block_size-1:
                     proc.process(proc.block_size)
             self.propagator.propagate(1)
             self.diag_moved_from_propagate(max_block_size)
-
-            self.arrays.update(self.n_tot)
 
             self.diag.dispatch(self.folder_path)
 

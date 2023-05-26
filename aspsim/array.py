@@ -265,7 +265,7 @@ class ArrayCollection():
     def plot(self, sim_info, fig_folder, print_method):
         fig, ax = plt.subplots()
         for ar in self.arrays.values():
-            ar.plot(ax)
+            ar.plot(ax, sim_info)
 
         if "ism" in [self.path_type[src.name][mic.name] for src, mic in self.mic_src_combos()]:
             corner = [c - sz/2 for c, sz in zip(sim_info.room_center[:2], sim_info.room_size[:2])]
@@ -340,6 +340,8 @@ class Array(ABC):
             self.pos = self.trajectory.current_pos(0)
             self.pos_segments = [pos]
             self.dynamic = True
+            self.pos_all = []
+            self.time_all = []
         else:
             raise ValueError("Incorrect datatype for pos")
 
@@ -367,15 +369,17 @@ class Array(ABC):
         self.num_groups = len(group_idxs)
         self.group_idxs = group_idxs
 
-    def plot(self, ax):
+    def plot(self, ax, sim_info):
         if self.dynamic:
-            self.trajectory.plot(ax, self.plot_symbol, self.name)
+            self.trajectory.plot(ax, self.plot_symbol, self.name, sim_info.tot_samples)
         else:
             ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
 
     def update(self, glob_idx):
         if self.dynamic:
             self.pos = self.trajectory.current_pos(glob_idx)
+            self.time_all.append(glob_idx)
+            self.pos_all.append(self.pos)
             return True
         return False
 
@@ -403,7 +407,7 @@ class RegionArray(MicArray):
         self.region = region
         self.metadata["region shape"] = self.region.__class__.__name__
 
-    def plot(self, ax):
+    def plot(self, ax, sim_info):
         self.region.plot(ax, self.name)
         
 class ControllableSourceArray(Array):

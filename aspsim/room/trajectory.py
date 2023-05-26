@@ -15,43 +15,101 @@ class Trajectory:
         pass
 
 
+class TrajectoryCollection(Trajectory):
+    def __init__(self, trajectories):
+        self.trajectories = trajectories
+        #self.num_pos = len(self.trajectories)
+
+    def current_pos(self, time_idx):
+        return np.concatenate([traj.current_pos(time_idx) for traj in self.trajectories], axis=0)
+    
+    def plot(self, ax, symbol, name, tot_samples):
+        for traj in self.trajectories:
+            traj.plot(ax, symbol, name, tot_samples)
+
 class LinearTrajectory(Trajectory):
-    def __init__(self, points, period, samplerate):
+    def __init__(self, points, period, samplerate, mode="constant_speed"):
         """
         points is array of shape (numpoints, spatial_dim) or equivalent list of lists
         period is in seconds
         update freq is in samples
+        mode : {'constant_speed' or 'constant_time'}
+            if 'constant_speed', the speed of the movement will be constant, and
+            calibrated such that it returns to the starting position after one period.
+            if 'constant_time', each segment will take equal time, and the speed will
+            therefore go up for long segments and down for short segments. 
         """
         if isinstance(points, (list, tuple)):
             points = np.array(points)
+        #self.num_pos = 1
 
         if not np.allclose(points[-1,:], points[0,:]):
             points = np.concatenate((points, points[:1,:]), axis=0)
         self.anchor_points = points
+        self.period = period
+        self.samplerate = samplerate
 
+        if mode == "constant_speed":
+            pos_func = self._constant_speed_pos_func(points, period, samplerate)
+        elif mode == "constant_time":
+            pos_func = self._constant_time_pos_func(points, period, samplerate)
+        else:
+            raise ValueError ("Invalid mode argument")
+
+        super().__init__(pos_func)
+
+    def _constant_speed_pos_func(self, points, period, samplerate):
         segment_distance = np.sqrt(np.sum((points[:-1,:] - points[1:,:])**2, axis=-1))
         assert all(segment_distance > 0)
         
         tot_distance = np.sum(segment_distance)
         distance_per_sample = tot_distance / (samplerate * period)
-        segment_samples = segment_distance / distance_per_sample
+        self.samples_per_segment = segment_distance / distance_per_sample
 
         #cycle_start = 0
-        cumulative_samples = np.concatenate(([0], np.cumsum(segment_samples)))
+        self.cumulative_samples = np.concatenate(([0], np.cumsum(self.samples_per_segment)))
 
-        def pos_func(t):
-            period_samples = t % (period * samplerate)
+        def pos_func(n):
+            period_samples = n % (period * samplerate)
 
-            point_idx = np.argmax(period_samples < cumulative_samples)
-            time_this_segment = period_samples - cumulative_samples[point_idx-1]
-            ip_factor = time_this_segment / segment_samples[point_idx-1]
+            point_idx = np.argmax(period_samples < self.cumulative_samples)
+            time_this_segment = period_samples - self.cumulative_samples[point_idx-1]
+            ip_factor = time_this_segment / self.samples_per_segment[point_idx-1]
             pos = points[point_idx-1,:]*(1-ip_factor) + points[point_idx,:]*ip_factor
             return pos[None,:]
+        return pos_func
+    
+    def _constant_time_pos_func(self, points, period, samplerate):
+        num_segments = points.shape[0]
+        time_per_segment = period / num_segments
+        self.samples_per_segment = time_per_segment * samplerate
+        segment_distance = np.sqrt(np.sum((points[:-1,:] - points[1:,:])**2, axis=-1))
+        
+        distance_per_time = segment_distance / time_per_segment
+        distance_per_sample = distance_per_time / samplerate
 
-        super().__init__(pos_func)
+        self.cumulative_samples = np.arange(num_segments) * self.samples_per_segment #np.concatenate(([0], np.cumsum(samples_per_segment)))
 
-    def plot(self, ax, symbol, label):
-        ax.plot(self.anchor_points[:,0], self.anchor_points[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
+        def pos_func(n):
+            period_samples = n % (period * samplerate)
+
+            point_idx = np.argmax(period_samples < self.cumulative_samples)
+            time_this_segment = period_samples - self.cumulative_samples[point_idx-1] # time in number of samples
+            ip_factor = time_this_segment / self.samples_per_segment
+            pos = points[point_idx-1,:]*(1-ip_factor) + points[point_idx,:]*ip_factor
+            return pos[None,:]
+        return pos_func
+
+    def plot(self, ax, symbol, label, tot_samples=None):
+        if tot_samples is None:
+            points = self.anchor_points
+        else:
+            if tot_samples >= self.period*self.samplerate:
+                points = self.anchor_points
+            else:
+                point_idx = np.argmax(tot_samples < self.cumulative_samples)
+                points = self.anchor_points[:point_idx,:]
+        ax.plot(points[:,0], points[:,1], marker=symbol, linestyle="dashed", label=label, alpha=0.8)
 
     # @classmethod
     # def linear_interpolation_const_speed(cls, points, period, samplerate):
@@ -125,6 +183,7 @@ class CircularTrajectory(Trajectory):
         self.radial_period = radial_period
         self.angle_period = angle_period
         self.samplerate = samplerate
+        #self.num_pos = 1
 
         self.radius_diff = self.radius[1] - self.radius[0]
         assert self.radius_diff >= 0
@@ -148,7 +207,9 @@ class CircularTrajectory(Trajectory):
 
         super().__init__(pos_func)
 
-    def plot(self, ax, symbol="o", label=""):
+    def plot(self, ax, symbol="o", label="", tot_samples=None):
+        if tot_samples is not None:
+            raise NotImplementedError
         approx_num_points = 1000
         max_samples = self.samplerate*max(self.radial_period, self.angle_period)
         samples_per_point = max_samples // approx_num_points
