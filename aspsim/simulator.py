@@ -329,7 +329,7 @@ class Propagator():
 
         for src, mic in self.arrays.mic_src_combos():
             if src.dynamic or mic.dynamic:
-                self.path_filters[src.name][mic.name].ir = self.arrays.paths[src.name][mic.name]
+                self.path_filters[src.name][mic.name].update_ir(self.arrays.paths[src.name][mic.name])
         
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
