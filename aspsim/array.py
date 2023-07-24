@@ -201,6 +201,7 @@ class ArrayCollection():
                         src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
                         sim_info.max_room_ir_length, sim_info.rt60, 
                         sim_info.samplerate, sim_info.c,
+                        randomized_ism = sim_info.randomized_ism,
                         calculate_metadata=return_path_info,
                         verbose = verbose)
                 if return_path_info:
@@ -236,7 +237,6 @@ class ArrayCollection():
         #3. update the paths connecting the updated arrays
         if glob_idx % self.sim_info.array_update_freq != 0:
             return 
-        #print("update position")
 
         changed_arrays = []
 
