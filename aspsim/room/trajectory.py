@@ -155,7 +155,9 @@ class CircularTrajectory(Trajectory):
             center : tuple[float, float, float], 
             radial_period : float, 
             angle_period : float, 
-            samplerate : int):
+            samplerate : int,
+            start_angle : float = 0, 
+            ):
         """
         Moves around a circle in one angle_period, while it moves from the outer radius
         to the inner radius and back again in one radial_period
@@ -183,6 +185,7 @@ class CircularTrajectory(Trajectory):
         self.radial_period = radial_period
         self.angle_period = angle_period
         self.samplerate = samplerate
+        self.start_angle = start_angle
         #self.num_pos = 1
 
         self.radius_diff = self.radius[1] - self.radius[0]
@@ -195,7 +198,8 @@ class CircularTrajectory(Trajectory):
             angle_portion = angle_period_samples / (angle_period * samplerate)
             radial_portion = radial_period_samples / (radial_period * samplerate)
 
-            angle = 2 * np.pi * angle_portion
+            angle = self.start_angle + 2 * np.pi * angle_portion
+            #angle = angle % (2*np.pi)
 
             if radial_portion < 0.5:
                 rad = radius[0] + self.radius_diff * (1 - 2 * radial_portion)
@@ -208,8 +212,10 @@ class CircularTrajectory(Trajectory):
         super().__init__(pos_func)
 
     def plot(self, ax, symbol="o", label="", tot_samples=None):
-        if tot_samples is not None:
-            raise NotImplementedError
+        #if tot_samples is not None:
+        #    max_samples = 
+        #    raise NotImplementedError
+        
         approx_num_points = 1000
         max_samples = self.samplerate*max(self.radial_period, self.angle_period)
         samples_per_point = max_samples // approx_num_points
