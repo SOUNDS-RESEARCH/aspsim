@@ -106,7 +106,8 @@ def ir_room_image_source_3d(
     ir_len,
     rt60,
     samplerate,
-    c, 
+    c,
+    randomized_ism = True,
     calculate_metadata=False,
     verbose=False,
 ):
@@ -148,7 +149,7 @@ def ir_room_image_source_3d(
             materials=pra.Material(e_absorbtion),
             fs=samplerate,
             max_order=max_order,
-            use_rand_ism = True, 
+            use_rand_ism = randomized_ism, 
             max_rand_disp = 0.05
         )
         # room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
