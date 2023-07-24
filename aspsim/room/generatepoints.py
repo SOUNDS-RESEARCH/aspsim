@@ -52,26 +52,53 @@ def concentrical_circles(
 
 
 def equiangular_circle(num_points, radius, start_angle=0, z=None, rng=None):
-    """radius is a tuple of length two. The actual radia of the points
-        is uniformly distributed between the two provided values. 
-        Two dimensional points are returned if no z value is provided. """
+    """
+    Generates equiangularly spaced points on a circle
+
+    Parameters
+    ----------
+    num_points : int
+        number of points on the circle
+    radius : int or 2-tuple
+        radius of the circle
+        if a tuple is suppled, as (inner_radius, outer_radius)
+        each point will be placed randomly (uniform distribution)
+        between the inner and outer radius 
+    start_angle : float
+        the angle in radians of the first point
+    z : None or float
+        if z is supplied, the all points are given the same z-coordinate
+        according to the value of the argument
+    rng : None or numpy Generator object
+        can be supplied to control the seed of the random number
+        generator
+    
+
+    Returns
+    -------
+    coordinates : ndarray of shape (num_points, 2) or (num_points, 3)
+        if argument z was supplied
+    """
     if rng is None:
         rng = np.random.default_rng()
+    
+    if isinstance(radius, (int, float)):
+        radius = (radius, radius)
 
-    angleStep = 2 * np.pi / num_points
+    angle_step = 2 * np.pi / num_points
 
-    angles = start_angle + np.arange(num_points) * angleStep
+    angles = start_angle + np.arange(num_points) * angle_step
     angles = np.mod(angles, 2 * np.pi)
     radia = rng.uniform(radius[0], radius[1], size=num_points)
     [x, y] = pol2cart(radia, angles)
 
     if z is not None:
-        coords = np.zeros((num_points, 3))
-        coords[:, 2] = z
+        pos = np.zeros((num_points, 3))
+        pos[:, 2] = z
     else:
-        coords = np.zeros((num_points, 2))
-    coords[:, 0:2] = np.stack((x, y)).T
-    return coords
+        pos = np.zeros((num_points, 2))
+    pos[:, 0:2] = np.stack((x, y)).T
+    return pos
 
 
 def uniform_cylinder(num_points, radius, height):
