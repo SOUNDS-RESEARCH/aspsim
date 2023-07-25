@@ -110,6 +110,7 @@ def ir_room_image_source_3d(
     randomized_ism = True,
     calculate_metadata=False,
     verbose=False,
+    extra_delay = 0, # this is multiplied by two since frac_dly must be even
 ):
 
     num_from = pos_from.shape[0]
@@ -132,8 +133,9 @@ def ir_room_image_source_3d(
     pra.constants.set("c", c)
 
     shortest_distance = np.min(distfuncs.cdist(pos_from, pos_to))
-    min_dly = int(np.ceil(shortest_distance * samplerate / c))
-    frac_dly_len = 2*min_dly+1
+    #min_dly = int(np.ceil(shortest_distance * samplerate / c))
+    min_dly = 0
+    frac_dly_len = 2*(min_dly + extra_delay) + 1
     pra.constants.set("frac_delay_length",frac_dly_len)
     if verbose:
         if frac_dly_len < 20:

@@ -203,7 +203,8 @@ class ArrayCollection():
                         sim_info.samplerate, sim_info.c,
                         randomized_ism = sim_info.randomized_ism,
                         calculate_metadata=return_path_info,
-                        verbose = verbose)
+                        verbose = verbose,
+                        extra_delay=sim_info.extra_delay)
                 if return_path_info:
                     path, path_info["ism_info"] = path
             else:

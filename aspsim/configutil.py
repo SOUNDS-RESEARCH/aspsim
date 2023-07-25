@@ -22,6 +22,7 @@ class SimulatorInfo:
     rt60 : float
     max_room_ir_length : int
     randomized_ism : bool
+    extra_delay : int
 
     export_frequency : int
     plot_output : str
@@ -68,6 +69,7 @@ def equal_audio(info1, info2, path_types):
             info1.room_center == info2.room_center and \
             info1.rt60 == info2.rt60 and \
             info1.max_room_ir_length == info2.max_room_ir_length and \
-            info1.randomized_ism == info2.randomized_ism
+            info1.randomized_ism == info2.randomized_ism and \
+            info1.extra_delay == info2.extra_delay
     return same_audio
 
