@@ -1,99 +1,6 @@
 import numpy as np
 import scipy.spatial.distance as distfuncs
-import scipy.special as special
 import pyroomacoustics as pra
-
-
-def tf_point_source_2d(pos_from, pos_to, freq, c):
-    assert (pos_from.shape[1] == 2) and (pos_to.shape[1] == 2)
-    dist = distfuncs.cdist(pos_from, pos_to)[None, :, :]
-    k = 2 * np.pi * freq[:, None, None] / c
-    tf = (1j / 4) * special.hankel2(0, k * dist)
-    return np.transpose(tf, (0, 2, 1))
-
-
-def tf_point_source_3d(pos_from, pos_to, freqs, c):
-    assert (pos_from.shape[1] == 3) and (pos_to.shape[1] == 3)
-    dist = distfuncs.cdist(pos_from, pos_to)[None, :, :]
-    k = 2 * np.pi * freqs[:, None, None] / c
-    tf = np.exp(-1j * dist * k) / (4 * np.pi * dist)
-    return np.moveaxis(tf,1,2)
-
-
-def ir_point_source_3d(pos_from, pos_to, samplerate, c, max_order=25):
-    dist = distfuncs.cdist(pos_from, pos_to)
-    sample_delay = (samplerate * dist) / c
-    max_filt_len = int(np.max(sample_delay)) + 1 + (max_order // 2) + 1
-    ir = np.zeros((dist.shape[0], dist.shape[1], max_filt_len))
-
-    attenuation = lambda d: 1 / (4 * np.pi * np.max((d, 1e-2)))
-
-    for row in range(dist.shape[0]):
-        for col in range(dist.shape[1]):
-            ir[row, col, :] = _frac_delay_lagrange_filter(
-                sample_delay[row, col], max_order, max_filt_len
-            )
-            ir[row, col, :] *= attenuation(dist[row, col])
-    return ir
-
-
-def ir_point_source_2d(pos_from, pos_to, samplerate, c, extra_len=100, max_order=25):
-    dist = distfuncs.cdist(pos_from, pos_to)
-    sample_delay = (samplerate * dist) / c
-
-    delay_filt_len = int(np.max(sample_delay)) + 1 + (max_order // 2) + 1
-    max_filt_len = delay_filt_len + extra_len - 1
-    ir = np.zeros((dist.shape[0], dist.shape[1], max_filt_len))
-    for row in range(dist.shape[0]):
-        for col in range(dist.shape[1]):
-            ir_from_impact = 1 / (
-                2
-                * np.pi
-                * np.sqrt(
-                    c ** 2
-                    * ((sample_delay[row, col] + 0.5 + np.arange(extra_len)) / samplerate)
-                    ** 2
-                    - (dist[row, col] ** 2)
-                )
-            )
-            correct_delay = _frac_delay_lagrange_filter(
-                sample_delay[row, col], max_order, delay_filt_len
-            )
-            ir_full = np.convolve(ir_from_impact, correct_delay, "full")
-
-            ir[row, col, :] = ir_full
-    return ir
-
-
-
-def _frac_delay_lagrange_filter(delay, max_order, max_filt_len):
-    """Generates fractional delay filter using lagrange interpolation
-    if maxOrder would require a longer filter than maxFiltLen,
-    maxFiltLen will will override and set a lower interpolation order"""
-    ir = np.zeros(max_filt_len)
-    frac_dly, dly = np.modf(delay)
-    order = int(np.min((max_order, 2 * dly, 2 * (max_filt_len - 1 - dly))))
-
-    delta = np.floor(order / 2) + frac_dly
-    h = _lagrange_interpol(order, delta)
-
-    diff = delay - delta
-    start_idx = int(np.floor(diff))
-    ir[start_idx : start_idx + order + 1] = h
-    return ir
-
-
-def _lagrange_interpol(N, delta):
-    ir_len = int(N + 1)
-    h = np.zeros(ir_len)
-
-    for n in range(ir_len):
-        k = np.arange(ir_len)
-        k = k[np.arange(ir_len) != n]
-
-        h[n] = np.prod((delta - k) / (n - k))
-    return h
-
 
 
 
@@ -123,7 +30,7 @@ def ir_room_image_source_3d(
 
     if rt60 > 0:
         e_absorbtion, max_order = pra.inverse_sabine(rt60, room_size)
-        max_order += 3
+        max_order += 8
     else:
         e_absorbtion = 0.9
         max_order = 0
