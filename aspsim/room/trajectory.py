@@ -3,12 +3,30 @@ import numpy as np
 import aspsim.room.generatepoints as gp
 
 class Trajectory:
+    """Base class defining a trajectory through the room. 
+    
+    In order to simulate a moving source or microphone, the trajectory must be 
+    defined in accordance with this API. Easiest way is to create a function defining 
+    the position at each time index, and pass it to the constructor. Alternatively, 
+    subclass this class and implement the current_pos method.
+    """
     def __init__(self, pos_func):
         """pos_func is a function, which takes a time_index in samples and outputs a position"""
         self.pos_func = pos_func
         #self.pos = np.full((1,3), np.nan)
 
     def current_pos(self, time_idx):
+        """
+        Parameters
+        ----------
+        time_idx : int
+            time index in samples
+
+        Returns
+        -------
+        pos : array of shape (1,3)
+            position at time time_idx
+        """
         return self.pos_func(time_idx)
 
     def plot(self, ax, symbol, name):
@@ -16,7 +34,17 @@ class Trajectory:
 
 
 class TrajectoryCollection(Trajectory):
+    """
+    This can be used when you want to have multiple moving objects in the same array
+    
+    
+    """
     def __init__(self, trajectories):
+        """
+        Parameters
+        ----------
+        trajectories : list of Trajectory objects
+        """
         self.trajectories = trajectories
         #self.num_pos = len(self.trajectories)
 
