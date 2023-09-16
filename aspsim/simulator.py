@@ -19,7 +19,12 @@ class SimulatorSetup:
         config_path = None,
         rng = None, 
         ):
-        """
+        """Use this class to set up a simulation. 
+
+        Unless you really know what you are doing, you should use this 
+        and not the Simulator class directly. After all parameters and arrays are
+        set, call create_simulator() to obtain a Simulator object.
+
         Parameters
         ----------
         base_fig_path : str or Path from pathlib
@@ -35,7 +40,6 @@ class SimulatorSetup:
             Python code. 
         rng : numpy Generator object
             recommended to obtain your rng object from np.random.default_rng(seed)
-        
         """
         if config_path is None:
             self.sim_info = configutil.load_default_config()
@@ -54,6 +58,12 @@ class SimulatorSetup:
         #self.diag = diacore.DiagnosticHandler(self.sim_info) 
 
     def add_arrays(self, array_collection):
+        """Adds all arrays and path types from an array collection
+        
+        Parameters
+        ----------
+        array_collection : array.ArrayCollection
+        """
         for ar in array_collection:
             self.arrays.add_array(ar)
         self.arrays.set_path_types(array_collection.path_type)
@@ -62,31 +72,115 @@ class SimulatorSetup:
             #    self.arrays.paths[ar.name] = {}
 
     def add_array(self, array):
+        """Add an array to the simulation.
+        
+        Parameters
+        ----------
+        array : array object
+            The array to add, subclass of Array. 
+            See the array module for examples.
+        """
         self.arrays.add_array(array)
 
     def add_free_source(self, name, pos, source):
+        """Adds a free source array at the given position.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the array
+        pos : ndarray of shape (num_pos, spatial_dim)
+            Positions of the sources in the array
+        source : source object
+            The sound source to use for the array. See the sources module for examples.
+            Can in principle be any object with a get_samples(num_samples) method 
+            that returns an ndarray of shape (num_pos, num_samples)
+        """
         arr = ar.FreeSourceArray(name, pos, source)
         self.add_array(arr)
 
     def add_controllable_source(self, name, pos):
+        """Adds a controllable source array at the given position.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the array
+        pos : ndarray of shape (num_pos, spatial_dim)
+            Positions of the sources in the array
+        """
         arr = ar.ControllableSourceArray(name, pos)
         self.add_array(arr)
     
     def add_mics(self, name, pos):
+        """Adds a microphone array at the given position.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the array
+        pos : ndarray of shape (num_pos, spatial_dim)
+            Positions of the mics in the array
+        """
         arr = ar.MicArray(name,pos)
         self.add_array(arr)
 
     def set_path(self, src_name, mic_name, path):
+        """Sets the path between a source and a microphone array.
+        
+        Parameters
+        ----------
+        src_name : str
+            Name of the source array
+        mic_name : str
+            Name of the microphone array
+        path : ndarray of shape (num_src, num_mic, path_len)
+            The path between the source and the microphone array.
+        """
         self.arrays.set_prop_path(path, src_name, mic_name)
 
     def set_source(self, name, source):
+        """Adds a source to a FreeSourceArray.
+        
+        Will raise an error if the array is not a FreeSourceArray or 
+        is not added to the simulation yet.
+
+        Parameters
+        ----------
+        name : str
+            Name of the array
+        source : source object
+            see sources module for examples
+        """
         self.arrays[name].set_source(source)
 
     def load_from_path(self, session_path):
+        """Loads simulator setup from a previous session in session_path.
+        
+        Parameters
+        ----------
+        session_path : str or Path from pathlib
+        """
         self.folder_path = self._create_fig_folder(self.base_fig_path)
         self.sim_info, self.arrays = sess.load_from_path(session_path, self.folder_path)
 
     def create_simulator(self):
+        """Creates and returns a simulator object from the current setup.
+
+        If fig_path is set, the simulator will create a new subfolder and save
+        metadata about the simulation parameters.
+
+        If possible, the simulator will load a previous session from the session_folder
+        
+        Returns
+        -------
+        Simulator
+
+        Notes
+        -----
+        Can be used multiple times with changes to the config in between to 
+        create similar simulations with different parameters.
+        """
         assert not self.arrays.empty()
         finished_arrays = copy.deepcopy(self.arrays)
         finished_arrays.set_default_path_type(self.sim_info.reverb)
@@ -99,8 +193,8 @@ class SimulatorSetup:
                 finished_arrays = sess.load_session(self.session_folder, folder_path, self.sim_info, finished_arrays)
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                irMetadata = finished_arrays.setup_ir(self.sim_info)
-                sess.save_session(self.session_folder, self.sim_info, finished_arrays, sim_metadata=irMetadata)   
+                ir_metadata = finished_arrays.setup_ir(self.sim_info)
+                sess.save_session(self.session_folder, self.sim_info, finished_arrays, sim_metadata=ir_metadata)   
         else:
             finished_arrays.setup_ir(self.sim_info)
 
@@ -147,6 +241,13 @@ class Simulator:
             self.rng = rng
 
     def add_processor(self, processor):
+        """Add one or several processors to the simulation.
+
+        Parameters
+        ----------
+        processor : processor object or list of processor objects
+            See the processors module for examples.
+        """
         try:
             self.processors.extend(processor)
         except TypeError:
