@@ -14,6 +14,20 @@ import aspsim.signal.sources as sources
 import aspsim.room.trajectory as tr
 import aspcore.filterclasses as fc
 
+import aspsim.configutil as cu
+
+def default_sim_info():
+
+    sim_info = cu.load_default_config()
+    sim_info.tot_samples = 20
+    sim_info.sim_buffer = 20
+    sim_info.export_frequency = 20
+    sim_info.sim_chunk_size = 20
+    sim_info.max_room_ir_length = 8
+
+    sim_info.start_sources_before_0 = False
+    return sim_info
+
 @pytest.fixture(scope="session")
 def fig_folder(tmp_path_factory):
     return tmp_path_factory.mktemp("figs")
@@ -109,55 +123,35 @@ def test_correct_processing_delay(fig_folder, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(num_src = st.integers(min_value=1, max_value=3))
-def test_multiple_free_sources(sim_setup, num_src):
-    """
-    The likely problem is that in the simulator case, the random source is used
-    in the prepare() step, so when they reach time 0, the seeds are different. 
-    """
-    block_size = 5
+def test_simulation_equals_direct_convolution_multiple_sources(fig_folder, num_src):
     rng = np.random.default_rng()
-    seed = rng.integers(0, 100000)
-    sr = 500
-    reset_sim_setup_ism(sim_setup, sr)
+    setup = SimulatorSetup(fig_folder)
+    setup.sim_info = default_sim_info()
 
-    for s in range(num_src):
-        sim_setup.add_free_source(f"src_{s}", rng.uniform(-2, 2, size=(1,3)), sources.WhiteNoiseSource(1, 1, rng))
+    src_sig = [rng.normal(size=(1, setup.sim_info.tot_samples)) for s in range(num_src)]
 
-    sim_setup.add_mics("mic", rng.uniform(-2, 2, size=(1,3)))
-    sim_setup.add_controllable_source("loudspeaker", rng.uniform(-2, 2, size=(1,3)))
-    sim_setup.arrays.path_type["loudspeaker"]["mic"] = "none"
+    setup.add_mics("mic", np.zeros((1,3)))
+    for s in range(num_src):    
+        setup.add_free_source(f"src_{s}", np.zeros((1,3)), sources.Sequence(src_sig[s]))
+        setup.arrays.path_type[f"src_{s}"]["mic"] = "random"
 
-    sim = sim_setup.create_simulator()
-
-    irs = np.concatenate([sim.arrays.paths[f"src_{s}"]["mic"] for s in range(num_src)], axis=0)
-    filt = fc.create_filter(ir=irs)
-    
-    srcs = [copy.deepcopy(sim.arrays[f"src_{s}"].source) for s in range(num_src)]
-    signals = np.concatenate([s.get_samples(sim.sim_info.tot_samples+sim.sim_info.sim_buffer) for s in srcs], axis=0)
-    sig_filt = filt.process(signals)
-
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, block_size))
+    sim = setup.create_simulator()
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz"))
     sim.run_simulation()
 
-    import matplotlib.pyplot as plt
-    plt.plot(sig_filt[:,sim.sim_info.sim_buffer:].T)
-    plt.plot(sim.processors[0].mic.T)
-    plt.show()
+    sig_sim = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
 
-    assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].mic[:,block_size:])
+    filt = [fc.create_filter(ir=sim.arrays.paths[f"src_{s}"]["mic"]) for s in range(num_src)]
+    direct_mic_sig = np.sum(np.concatenate([filt[s].process(src_sig[s]) for s in range(num_src)], axis=0), axis=0)
+
+    assert np.allclose(sig_sim, direct_mic_sig)
 
 
 #@hyp.settings(deadline=None)
 def test_simulation_equals_direct_convolution(fig_folder):
     rng = np.random.default_rng()
     setup = SimulatorSetup(fig_folder)
-    setup.sim_info.tot_samples = 20
-    setup.sim_info.sim_buffer = 10
-    setup.sim_info.export_frequency = 20
-    setup.sim_info.sim_chunk_size = 20
-    setup.sim_info.start_sources_before_0 = False
-
-    setup.sim_info.max_room_ir_length = 8
+    setup.sim_info = default_sim_info()
 
     src_sig = rng.normal(size=(1, setup.sim_info.tot_samples))
 
@@ -174,7 +168,6 @@ def test_simulation_equals_direct_convolution(fig_folder):
     filt = fc.create_filter(ir=sim.arrays.paths["src"]["mic"])
     direct_mic_sig = filt.process(src_sig)
 
- 
     assert np.allclose(sig_sim, direct_mic_sig)
 
 #@hyp.settings(deadline=None)
