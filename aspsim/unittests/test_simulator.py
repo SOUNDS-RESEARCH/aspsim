@@ -51,14 +51,15 @@ def setup_simple(fig_folder):
 def setup_ism(fig_folder, samplerate):
     setup = SimulatorSetup(fig_folder)
     setup.sim_info.samplerate = samplerate
-    setup.sim_info.tot_samples = 10 * samplerate
-    setup.sim_info.sim_chunk_size = 20*samplerate
+    setup.sim_info.tot_samples = 2 * samplerate
+    setup.sim_info.sim_chunk_size = 3*samplerate
     setup.sim_info.sim_buffer = samplerate
-    setup.sim_info.export_frequency = 10 * samplerate
+    setup.sim_info.export_frequency = 2 * samplerate
     setup.sim_info.save_source_contributions = False
+    setup.sim_info.randomized_ism = False
 
     setup.sim_info.reverb = "ism"
-    setup.sim_info.room_size = [7, 5, 5]
+    setup.sim_info.room_size = [4, 3, 3]
     setup.sim_info.room_center = [-1, 0, 0]
     setup.sim_info.rt60 = 0.25
     setup.sim_info.max_room_ir_length : samplerate // 2
@@ -191,55 +192,30 @@ def test_simulation_equals_direct_convolution(fig_folder):
 
 
 def test_unmoving_trajectory_same_as_static(fig_folder):
-    bs = 1
     sr = 500
     sim_setup = setup_ism(fig_folder, sr)
-    sim_setup.sim_info.rt60 = 0.15
-    room_size = [4, 3, 3]
-    sim_setup.sim_info.max_room_ir_length = 256
-    sim_setup.arrays = ar.ArrayCollection()
     def zero_pos_func(time):
         return np.zeros((1,3))
 
     mic_traj = tr.Trajectory(zero_pos_func)
-    sim_setup.add_mics("mic", mic_traj)
-    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
+    sim_setup.add_mics("mic", np.zeros((1,3)))
+    sim_setup.add_mics("trajectory", mic_traj)
     sim_setup.add_free_source("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
 
     sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
-    diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz"))
+    sim.diag.add_diagnostic("trajectory", dia.RecordSignal("trajectory", sim.sim_info, 1, export_func="npz"))
     sim.run_simulation()
 
+    sig_mic = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
+    
+    sig_traj = np.load(sim.folder_path.joinpath(f"trajectory_{sim.sim_info.tot_samples}.npz"))["trajectory"]
+    assert np.allclose(sig_mic, sig_traj)
 
-    sim_setup = setup_ism(fig_folder, sr)
-    sim_setup.sim_info.rt60 = 0.15
-    room_size = [4, 3, 3]
-    sim_setup.sim_info.max_room_ir_length = 256
-    sim_setup.arrays = ar.ArrayCollection()
-    sim_setup.add_mics("mic", np.array([[0,0,0]]))
-    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
-    sim_setup.add_free_source("source", np.array([[0, -1, -1]]), sources.WhiteNoiseSource(1, 1, np.random.default_rng(1)))
 
-    sim2 = sim_setup.create_simulator()
-    sim2.add_processor(bse.DebugProcessor(sim2.sim_info, sim2.arrays, bs, 
-    diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
-    sim2.run_simulation()
 
-    for f, f2 in zip(sim.folder_path.iterdir(), sim2.folder_path.iterdir()):
-        assert f.name == f2.name
-        if f.suffix == ".npy" or f.suffix == ".npz":
-            saved_data = np.load(f)
-            saved_data2 = np.load(f2)
-            for data, data2 in zip(saved_data.values(), saved_data2.values()):
-                assert np.allclose(data, data2)
 
 
 
 #Kolla manuellt på noiset i rir_extimation_exp, och se att det är det jag förväntar mig. Efterssom
 # icke-modifierade noise correlation matrix är annorlunda. 
-
-
-
-# def test_same_with_multiple_processors():
-#     assert False
