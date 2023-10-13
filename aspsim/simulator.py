@@ -403,25 +403,46 @@ class Propagator():
             self.path_filters[src.name][mic.name] = fc.create_filter(ir=path, sum_over_input=True, dynamic=(src.dynamic or mic.dynamic))
 
     def prepare(self):
-        # Does not take movement into account. Currently just propagates from the stationary RIRs
-        # associated with the initial position
+        """Prepares the initial state of the signals.
+
+        If start_sources_before_0 is True, the source signals will have started sim_buffer samples before time 0. This can be
+        useful if you want to have a stationary signal at time 0.
+
+        If start_sources_before_0 is False, the source signals will start at time 0. Therefore this function only generates
+        a single sample of the source signals. 
+        
+        Currently does not take movement into account. It just propagates from the stationary RIRs associated with the initial position
+        """
+        num_samples = self.sim_info.sim_buffer if self.sim_info.start_sources_before_0 else 1
+        end_sample = self.sim_info.sim_buffer
 
         for src in self.arrays.free_sources():
-            self.sig[src.name][..., :self.sim_info.sim_buffer] = src.get_samples(self.sim_info.sim_buffer)
+            self.sig[src.name][..., end_sample - num_samples:end_sample] = src.get_samples(num_samples)
 
         for src, mic in self.arrays.mic_src_combos():
             propagated_signal = self.path_filters[src.name][mic.name].process(
-                    self.sig[src.name][:,:self.sim_info.sim_buffer])
+                    self.sig[src.name][:, end_sample - num_samples:end_sample])
             self.sig[mic.name][:,:self.sim_info.sim_buffer] += propagated_signal
             if self.sim_info.save_source_contributions:
-                self.sig[f"{src.name}~{mic.name}"][:,:self.sim_info.sim_buffer] = propagated_signal
+                self.sig[f"{src.name}~{mic.name}"][:,end_sample - num_samples:end_sample] = propagated_signal
         self.sig.idx = self.sim_info.sim_buffer
 
 
     def propagate(self, num_samples):
-        """ propagates audio from all sources.
-            The mic_signals are calculated for the indices
-            self.sig.idx to self.sig.idx+num_samples"""
+        """Propagates signals from their sources to the microphones. 
+
+        Generates signals from the sources, updates the RIRs if the sources or microphones are dynamic, and
+        then filters the source signals through the RIRs. 
+        
+        Parameters
+        ----------
+        num_samples : int
+            Number of samples to propagate.
+        
+        Notes
+        -----
+        The mic_signals are calculated for the indices self.sig.idx (inclusive) to self.sig.idx+num_samples (exclusive)
+        """
 
         i = self.sig.idx
 

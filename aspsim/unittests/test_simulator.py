@@ -30,7 +30,7 @@ def setup_simple(fig_folder):
     setup.add_mics("mic", np.zeros((1,3)))
 
     setup.arrays.path_type["loudspeaker"]["mic"] = "none"
-    setup.arrays.path_type["src"]["mic"] = "identity"
+    setup.arrays.path_type["src"]["mic"] = "direct"
     return setup
 
 
@@ -146,24 +146,55 @@ def test_multiple_free_sources(sim_setup, num_src):
 
     assert np.allclose(sig_filt[:,sim.sim_info.sim_buffer:-block_size], sim.processors[0].mic[:,block_size:])
 
-#@hyp.settings(deadline=None)
-def test_trajectory_mic(fig_folder):
-    bs = 1
-    sim_setup = setup_simple(fig_folder)
-    sim_setup.sim_info.reverb = "ism"
-    sim_setup.sim_info.rt60 = 0.15
-    #room_size = [4, 3, 3]
-    sim_setup.sim_info.max_room_ir_length = 256
-    sim_setup.arrays = ar.ArrayCollection()
-    mic_traj = tr.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
-    sim_setup.add_mics("mic", mic_traj)
-    sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
 
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+#@hyp.settings(deadline=None)
+def test_simulation_equals_direct_convolution(fig_folder):
+    rng = np.random.default_rng()
+    setup = SimulatorSetup(fig_folder)
+    setup.sim_info.tot_samples = 20
+    setup.sim_info.sim_buffer = 10
+    setup.sim_info.export_frequency = 20
+    setup.sim_info.sim_chunk_size = 20
+    setup.sim_info.start_sources_before_0 = False
+
+    setup.sim_info.max_room_ir_length = 8
+
+    src_sig = rng.normal(size=(1, setup.sim_info.tot_samples))
+
+    setup.add_mics("mic", np.zeros((1,3)))
+    setup.add_free_source("src", np.array([[1,0,0]]), sources.Sequence(src_sig))
+    setup.arrays.path_type["src"]["mic"] = "random"
+
+    sim = setup.create_simulator()
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz"))
     sim.run_simulation()
 
-    assert False
+    sig_sim = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
+
+    filt = fc.create_filter(ir=sim.arrays.paths["src"]["mic"])
+    direct_mic_sig = filt.process(src_sig)
+
+ 
+    assert np.allclose(sig_sim, direct_mic_sig)
+
+#@hyp.settings(deadline=None)
+# def test_trajectory_mic(fig_folder):
+#     bs = 1
+#     sim_setup = setup_simple(fig_folder)
+#     sim_setup.sim_info.reverb = "ism"
+#     sim_setup.sim_info.rt60 = 0.15
+#     #room_size = [4, 3, 3]
+#     sim_setup.sim_info.max_room_ir_length = 256
+#     sim_setup.arrays = ar.ArrayCollection()
+#     mic_traj = tr.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
+#     sim_setup.add_mics("mic", mic_traj)
+#     sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
+
+#     sim = sim_setup.create_simulator()
+#     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+#     sim.run_simulation()
+
+#     assert False
 
 
 def test_unmoving_trajectory_same_as_static(fig_folder):

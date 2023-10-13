@@ -9,6 +9,7 @@ class SimulatorInfo:
     sim_buffer : int
     sim_chunk_size : int
 
+    start_sources_before_0 : bool
     save_source_contributions : bool
     array_update_freq : int
 
