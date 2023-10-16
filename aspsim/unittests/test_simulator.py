@@ -299,7 +299,6 @@ def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory
     rng = np.random.default_rng()
     sr = 500
 
-    raise NotImplementedError
     setup = setup_ism(fig_folder, sr)
     src_sig = rng.random(size=(1, setup.sim_info.tot_samples*2))
 
@@ -311,16 +310,21 @@ def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory
     setup.add_mics("mic", all_pos)
     setup.add_free_source("src", pos_src, sources.Sequence(src_sig))
     sim = setup.create_simulator()
-    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, num_channels = all_pos.shape[0], export_func="npz"))
-    sim.diag.add_diagnostic("traj", dia.RecordSignal("traj", sim.sim_info, num_channels = 1, export_func="npz"))
+    
     sim.run_simulation()
 
+    rir1 = np.array(sim.arrays._rir_dynamic_all)[:setup.sim_info.tot_samples,0,0,:]
+    rir2 = sim.arrays.paths["src"]["mic"][0,:,:]
+    #sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, num_channels = all_pos.shape[0], export_func="npz"))
+    #sim.diag.add_diagnostic("traj_rir", dia.RecordState("traj", sim.sim_info, num_channels = 1, export_func="npz"))
+    #sim.run_simulation()
 
-    sig_mic = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
-    sig_traj_reconstruct = np.array([sig_mic[i,i] for i in range(sig_mic.shape[0])])[None,:]
-    sig_traj = np.load(sim.folder_path.joinpath(f"traj_{sim.sim_info.tot_samples}.npz"))["traj"]
 
-    assert np.allclose(sig_traj, sig_traj_reconstruct)
+    #sig_mic = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
+    #sig_traj_reconstruct = np.array([sig_mic[i,i] for i in range(sig_mic.shape[0])])[None,:]
+    #sig_traj = np.load(sim.folder_path.joinpath(f"traj_{sim.sim_info.tot_samples}.npz"))["traj"]
+
+    assert np.allclose(rir1, rir2)
 
 
 
@@ -333,7 +337,7 @@ def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolution
 
     pos_src = np.zeros((1,3))
     traj = tr.LinearTrajectory([[1,1,1], [0,1,0], [1,0,1]], 1, setup.sim_info.samplerate)
-    all_pos = np.array([traj.current_pos(t) for t in range(setup.sim_info.tot_samples)])[:,0,:]
+    all_pos = np.array([traj.current_pos(t) for t in range(-1, setup.sim_info.tot_samples-1)])[:,0,:]
 
     setup.add_mics("traj", traj)
     setup.add_mics("mic", all_pos)
@@ -349,9 +353,4 @@ def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolution
     sig_traj = np.load(sim.folder_path.joinpath(f"traj_{sim.sim_info.tot_samples}.npz"))["traj"]
 
     assert np.allclose(sig_traj, sig_traj_reconstruct)
-   
 
-
-
-#Kolla manuellt på noiset i rir_extimation_exp, och se att det är det jag förväntar mig. Efterssom
-# icke-modifierade noise correlation matrix är annorlunda. 
