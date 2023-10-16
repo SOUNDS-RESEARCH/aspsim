@@ -329,6 +329,9 @@ def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory
 
 
 def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolutions(fig_folder):
+    """The equivalence is currently for the range (-1, tot_samples-1), which is not the 
+    intended behaviour. The sim should be changed to correctly give equivalence for (0, tot_samples)
+    """
     rng = np.random.default_rng()
     sr = 500
 
