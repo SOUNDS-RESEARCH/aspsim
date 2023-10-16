@@ -48,6 +48,8 @@ class ArrayCollection():
 
         self.path_info = {}
 
+        self._rir_dynamic_all = [] #used to save dynamic RIRs. Temporary and for debugging only
+
     def __getitem__(self, key):
         return self.arrays[key]
 
@@ -228,6 +230,8 @@ class ArrayCollection():
         """
         metadata = {}
         self.sim_info = sim_info
+        self.path_generator = rir.PathGenerator(self.sim_info, self)
+
         for src, mic in self.mic_src_combos():
             self.path_info[f"{src.name}->{mic.name}"] = {}
 
@@ -239,72 +243,10 @@ class ArrayCollection():
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
             if reverb != "modified":
-                self.paths[src.name][mic.name], path_info = self.create_path(src, mic, reverb, sim_info, True, True)
+                self.paths[src.name][mic.name], path_info = self.path_generator.create_path(src, mic, reverb, sim_info, True, True)
                 for key, val in path_info.items():
                     self.path_info[f"{src.name}->{mic.name}"][key] = val
-            
-
-    def create_path (self, src, mic, reverb, sim_info, return_path_info=False, verbose=False):
-        """Generate the impulse response between a source and a microphone array
         
-        Parameters
-        ----------
-        src : Array 
-            The source array
-        mic : Array
-            The microphone array
-        reverb : str
-            The type of propagation between the source and the microphone array
-            Possible values are "none", "identity", "isolated", "random", "ism", "freespace"
-        sim_info : SimInfo
-            The simulation info object
-        return_path_info : bool, optional
-            If True, the method will return a tuple of the path and a dict containing metadata
-            about the path. The default is False.
-        verbose : bool, optional
-            If True, the method will print information about the path generation. The default is False.
-        """
-        path_info = {}
-        if reverb == "none": 
-            path = np.zeros((src.num, mic.num, 1))
-        elif reverb == "identity":
-            path = np.ones((src.num,mic.num, 1))
-        elif reverb == "isolated":
-            assert src.num == mic.num
-            path = np.eye(src.num, mic.num)[...,None]
-        elif reverb == "random":
-            path = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
-        elif reverb == "ism":
-            if sim_info.spatial_dims == 3:
-                path = rir.ir_room_image_source_3d(
-                        src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
-                        sim_info.max_room_ir_length, sim_info.rt60, 
-                        sim_info.samplerate, sim_info.c,
-                        randomized_ism = sim_info.randomized_ism,
-                        calculate_metadata=return_path_info,
-                        verbose = verbose,
-                        extra_delay=sim_info.extra_delay)
-                if return_path_info:
-                    path, path_info["ism_info"] = path
-            else:
-                raise ValueError
-        elif reverb == "freespace":
-            if sim_info.spatial_dims == 3:
-                path = rir.ir_point_source_3d(
-                src.pos, mic.pos, sim_info.samplerate, sim_info.c)
-            elif sim_info.spatial_dims == 2:
-                path = rir.ir_point_source_2d(
-                    src.pos, mic.pos, sim_info.samplerate, sim_info.c
-                )
-            else:
-                raise ValueError
-        #elif reverb == "modified":
-        #    pass
-        else:
-            raise ValueError
-        if return_path_info:
-            return path, path_info
-        return path
 
     def update_path(self, src, mic):
         """Updates the path between a source and a microphone array
@@ -318,7 +260,7 @@ class ArrayCollection():
         """
         reverb = self.path_type[src.name][mic.name]
         assert reverb != "modified"
-        self.paths[src.name][mic.name] = self.create_path(src, mic, reverb, self.sim_info)
+        self.paths[src.name][mic.name] = self.path_generator.create_path(src, mic, reverb, self.sim_info)
 
     def update(self, glob_idx):
         """Updates the arrays and paths that change over time
@@ -351,12 +293,14 @@ class ArrayCollection():
                 for src in self.sources():
                     if not src.name in already_updated:
                         self.update_path(src, self.arrays[ar_name])
+                self._rir_dynamic_all.append(self.paths[src.name][ar_name]) # for debugging only
             elif self.arrays[ar_name].is_source:
                 for mic in self.mics():
                     if not mic.name in already_updated:
                         self.update_path(self.arrays[ar_name], mic)
             else:
                 raise ValueError("Array must be mic or source")
+            
             already_updated.append(ar_name)
 
 

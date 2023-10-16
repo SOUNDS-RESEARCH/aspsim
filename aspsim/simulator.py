@@ -231,7 +231,6 @@ class Simulator:
         self.arrays = arrays
         self.folder_path = folder_path
         self.diag = diacore.Logger(self.sim_info)
-        #self.diag = diacore.DiagnosticHandler(self.sim_info) 
         
         self.processors = []
 

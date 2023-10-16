@@ -341,6 +341,8 @@ def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolution
     pos_src = np.zeros((1,3))
     traj = tr.LinearTrajectory([[1,1,1], [0,1,0], [1,0,1]], 1, setup.sim_info.samplerate)
     all_pos = np.array([traj.current_pos(t) for t in range(-1, setup.sim_info.tot_samples-1)])[:,0,:]
+    all_pos[0,:] += 2 # position at index 0 does not matter
+    all_pos[1,:] += 2 # position at index 1 does not matter
 
     setup.add_mics("traj", traj)
     setup.add_mics("mic", all_pos)
