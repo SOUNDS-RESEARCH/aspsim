@@ -29,15 +29,12 @@ class Trajectory:
         """
         return self.pos_func(time_idx)
 
-    def plot(self, ax, symbol, name):
+    def plot(self, ax, symbol, name, tot_samples):
         pass
 
 
 class TrajectoryCollection(Trajectory):
-    """
-    This can be used when you want to have multiple moving objects in the same array
-    
-    
+    """A class for combining multiple trajectories into one, in the case where you want to have multiple moving objects in the same array. 
     """
     def __init__(self, trajectories):
         """
@@ -57,15 +54,23 @@ class TrajectoryCollection(Trajectory):
 
 class LinearTrajectory(Trajectory):
     def __init__(self, points, period, samplerate, mode="constant_speed"):
-        """
-        points is array of shape (numpoints, spatial_dim) or equivalent list of lists
-        period is in seconds
-        update freq is in samples
-        mode : {'constant_speed' or 'constant_time'}
+        """A trajectory that moves through a series of points in straight lines.
+
+        Parameters
+        ----------
+        points : ndarray of shape (numpoints, spatial_dim) or equivalent list of lists
+            The points that the trajectory will move through. The trajectory will
+            start and end at the first point.
+        period : float
+            The time in seconds for the trajectory to go through all the points and
+            return to the starting point.
+        samplerate : int
+            The samplerate of the simulation. 
+        mode : 'constant_speed' or 'constant_time'
             if 'constant_speed', the speed of the movement will be constant, and
             calibrated such that it returns to the starting position after one period.
             if 'constant_time', each segment will take equal time, and the speed will
-            therefore go up for long segments and down for short segments. 
+            therefore go up for long segments and down for short segments.
         """
         if isinstance(points, (list, tuple)):
             points = np.array(points)
@@ -186,7 +191,8 @@ class CircularTrajectory(Trajectory):
             samplerate : int,
             start_angle : float = 0, 
             ):
-        """
+        """A trajectory that moves around a circle. 
+
         Moves around a circle in one angle_period, while it moves from the outer radius
         to the inner radius and back again in one radial_period
 
@@ -195,7 +201,7 @@ class CircularTrajectory(Trajectory):
         Parameters
         ----------
         radius : length-2 tuple of floats
-            inner and outer radius. Interpreted by ancsim as meters
+            inner and outer radius. Interpreted by aspsim as meters
         center : length-3 tuple of floats
             center of the disc/circle
         radial_period : float
