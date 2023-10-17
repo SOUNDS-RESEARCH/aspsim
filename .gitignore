@@ -18,5 +18,7 @@ examples/figs/*
 **/.DS_Store
 *.pyc
 .gitignore.bak
+*.bak
+*.txt.bak
 
 aspsim.egg-info
