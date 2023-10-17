@@ -44,7 +44,3 @@ The collections modules, namely diagnostics/diagnosticscollection.py and signal/
 
 ## Usage
 A number of examples with varying complexity can be found in the examples folder. 
-
-sim.add_processor(proc)
-sim.run_simulation()
-```
