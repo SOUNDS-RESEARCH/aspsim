@@ -1,10 +1,21 @@
 # ASPSIM : Audio / Adaptive Signal Processing SIMulator
 
 ## Introduction
-The package is intended to help evaluate and aid development of adaptive audio processing algorithms. 
+The package simulates sound in a reverberant space for evaluating audio processing algorithms. 
 
 
 ## Installation
+Requires python version that satisfies 3.8 <= version <= 3.11, as those are supported by Numba.
+### Quick installation
+1. Install ASPCORE by following the instructions at https://github.com/SOUNDS-RESEARCH/aspcore/tree/develop \
+2. Navigate into an appropriate folder and run
+```
+git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
+pip install -e ./aspsim
+pip install -r aspsim/requirements.txt
+```
+
+### Installing the package
 I recommend an editable install. That basically means that python pretends that the package is installed like any other package, but it's instead just a link to a folder on your computer with the code. Then you can use the package from anywhere at the same time as you are developing it. It can be done by opening your favorite terminal and writing (changing out cd for the appropriate change-directory command, and the path to whatever you want) 
 ```
 cd c:/folder/parent_folder_to_code
@@ -12,14 +23,20 @@ git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
 pip install -e ./aspsim
 ```
 
-### Required depencies
-The required non-standard dependencies are the packages aspcore and pyroomacoustics. Numpy, Scipy, Matplotlib, Numba and dill are necessary for basic functionality. The unit tests are relying on hypothesis and pytest. 
+It might be easier to get the develop branch directly instead. Use the command
+```
+git clone --branch develop https://github.com/SOUNDS-RESEARCH/aspsim.git
+```
 
-### Non-required dependecies
-Some extra dependencies can be necessary for particular non-mandatory features. \
-To make use of functions for loading audio files, the package soundfile is used. \
-To make use of the "tikz" option for plotting, the package tikzplotlib is used. \
-The collections modules, namely diagnostics/diagnosticscollection.py and signal/sourcescollection.py are allowed to depend on the package aspcol, which is then only required if you make use of classes or functions from a collections module. 
+### Dependencies
+To install all (except aspcore) dependencies use the command
+```
+pip install -r requirements.txt
+```
+
+It is required to have the package aspcore installed, which does not exist on PYPI as of yet (i.e. you can not install with pip install the regular way). \
+The collections modules, namely diagnostics/diagnosticscollection.py and signal/sourcescollection.py, are allowed to depend on the package aspcol. It is only required if you make use of classes or functions from a collections module. 
+
 
 ## Usage
 

@@ -185,6 +185,9 @@ class ArrayCollection():
             
 
     def create_path (self, src, mic, reverb, sim_info, return_path_info=False, verbose=False):
+        """Generate the impulse response between a source and a microphone array
+        
+        """
         path_info = {}
         if reverb == "none": 
             path = np.zeros((src.num, mic.num, 1))
