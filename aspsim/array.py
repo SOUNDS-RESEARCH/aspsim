@@ -500,12 +500,33 @@ class Array(ABC):
         return False
 
 class MicArray(Array):
+    """Array class for microphones
+    
+    
+    """
     is_mic = True
     plot_symbol = "x"
     def __init__(self, name, pos):
         super().__init__(name, pos)
 
 class RegionArray(MicArray):
+    """Class for representing a continuous region with an microphone array
+    
+    Requires a Region object to be used as representation of the region. The Region object
+    has a equally_spaced_points method, which is used to generate the positions of the microphones
+    that are actually used in the simulation. Therefore, the signals generated will be 
+    identical to using a MicArray() with region.equally_spaced_points() as positions. 
+
+    Attributes
+    ----------
+    region : Region
+        The region object used to represent the region
+    region_segments : list of Region
+        If the region is a CombinedRegion, this attribute will contain the individual regions
+        that were combined to create the region. 
+    pos : ndarray of shape (num_mics, spatial_dim)
+        The positions of the microphones that are used in the simulation
+    """
     def __init__(self, name, region, pos=None):
         if isinstance(region, (list, tuple)):
             if len(region) > 1:
@@ -527,12 +548,25 @@ class RegionArray(MicArray):
         self.region.plot(ax, self.name)
         
 class ControllableSourceArray(Array):
+    """ Array for sources controllable by a processor
+    
+    
+    """
     is_source = True
     plot_symbol="o"
     def __init__(self, name, pos):
         super().__init__(name, pos)
         
 class FreeSourceArray(Array):
+    """ Array for free sound sources, that cannot be adaptively controlled 
+    
+    Attributes
+    ----------
+    source : Source
+        The source object used to generate the signal
+        see aspsim.room.source module for more info. More sources are also available
+        in the aspsim.room.sourcescollection module
+    """
     is_source = True
     plot_symbol = "s"
     def __init__(self, name, pos, source):

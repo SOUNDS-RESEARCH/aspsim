@@ -4,12 +4,38 @@ import pyroomacoustics as pra
 
 class PathGenerator:
     def __init__(self, sim_info, arrays):
+        """A class in charge of generating the impulse response between sources and microphones
+
+        Parameters
+        ----------
+        sim_info : SimInfo
+            The simulation info object
+        arrays : ArrayCollection
+            The array collection object
+        
+        Notes
+        -----
+        Currently the PathGenerator is instantiated as a member of the ArrayCollections class,
+        while also requiring an ArrayCollection object as an argument. This is not a natural
+        dependency and should be changed in the future.
+        """
         self.sim_info = sim_info
         self.arrays = arrays
 
         self.calc_rir_parameters(self.sim_info)
 
     def calc_rir_parameters(self, sim_info):
+        """Calculates the parameters used to generate the impulse response. 
+        
+        These parameters should be constant over the course of a simulation, and are calculated
+        once at the beginning of the simulation. 
+
+        Parameters
+        ----------
+        sim_info : SimInfo
+            The simulation info object
+        
+        """
         pra.constants.set("c", sim_info.c)
 
         room_center = np.array(sim_info.room_center)
@@ -48,7 +74,7 @@ class PathGenerator:
             The microphone array
         reverb : str
             The type of propagation between the source and the microphone array
-            Possible values are "none", "identity", "isolated", "random", "ism", "freespace"
+            Possible values are "none", "direct", "random", "ism"
         sim_info : SimInfo
             The simulation info object
         return_path_info : bool, optional
@@ -112,7 +138,50 @@ def ir_room_image_source_3d(
     calculate_metadata=False,
     verbose=False,
     #extra_delay = 0, # this is multiplied by two since frac_dly must be even
-):
+    ):
+    """Generates a room impulse response using the image-source method from the pyroomacoustics library.
+
+    Parameters
+    ----------
+    pos_from : ndarray of shape (num_sources, 3)
+        The positions of the sources
+    pos_to : ndarray of shape (num_mics, 3)
+        The positions of the microphones
+    room_size : list of length 3 or ndarray of shape (3,)
+        The size of the room in meters
+    room_center : list of length 3 or ndarray of shape (3,)
+        Coordinate of the center of the room
+    ir_len : int
+        The length of the impulse responses in samples. 
+        The impulse responses will be truncated to this length.
+    rt60 : float
+        The desired reverberation time of the room
+    samplerate : int
+        The sampling rate of the impulse responses
+    e_absorbtion : float
+        The energy absorption coefficient of the room
+    max_order : int
+        The maximum order of the image sources
+    min_dly : int
+        The smallest propagation delay between any of the sources and microphones. If this is
+        known and the value used as argument, the generated RIRs will have the correct propagation delay. 
+        Otherwise they will have an extra delay.
+    randomized_ism : bool, optional
+        If True, it will use the randomized image-source method. The default is True.
+    calculate_metadata : bool, optional
+        If True, the method will also return adict containing metadata
+        about the impulse responses. The default is False.
+    verbose : bool, optional
+        If True, the method will print information about the path generation. The default is False.
+
+    Returns
+    -------
+    ir : ndarray of shape (num_sources, num_mics, ir_len)
+        The generated impulse responses
+    metadata : dict
+        A dictionary containing metadata about the impulse responses. This is only returned if
+        calculate_metadata is True.
+    """
 
     num_from = pos_from.shape[0]
     num_to = pos_to.shape[0]
