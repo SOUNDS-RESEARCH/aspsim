@@ -7,7 +7,7 @@ The package simulates sound in a reverberant space for evaluating audio processi
 ## Installation
 Requires python version that satisfies 3.8 <= version <= 3.11, as those are supported by Numba.
 ### Quick installation
-1. Install ASPCORE by following the instructions at https://github.com/SOUNDS-RESEARCH/aspcore/tree/develop \
+1. Install ASPCORE by following the instructions at https://github.com/SOUNDS-RESEARCH/aspcore/tree/develop (including ASPCORE installation via `pip install -e ./aspcore`)\
 2. Navigate into an appropriate folder and run
 ```
 git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
