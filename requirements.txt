@@ -8,3 +8,4 @@ soundfile
 pyroomacoustics
 pytest
 hypothesis
+numba
