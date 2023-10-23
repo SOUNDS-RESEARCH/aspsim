@@ -22,7 +22,7 @@ setup.add_controllable_source("loudspeaker", np.array([[1,0,0]]))
 setup.add_mics("mic", np.array([[0,0,0]]))
 
 setup.arrays.path_type["loudspeaker"]["mic"] = "none"
-setup.arrays.path_type["src"]["mic"] = "identity"
+setup.arrays.path_type["src"]["mic"] = "direct"
 
 sim = setup.create_simulator()
 proc = DebugProcessor(sim.sim_info, sim.arrays, bs)

@@ -12,7 +12,7 @@ samplerate : 2000
 c : 343.0
 spatial_dims : 3
 
-# reverb options: "none", "identity", "freespace", "ism", "recorded"
+# reverb options: "none", "direct", "random", "ism"
 reverb : ism
 room_size : [7, 5, 2.5]
 room_center : [-1, 0, 0]

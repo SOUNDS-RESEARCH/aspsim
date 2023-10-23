@@ -36,7 +36,7 @@ class SimulatorInfo:
         assert len(self.room_size) == self.spatial_dims
         assert len(self.room_center) == self.spatial_dims
 
-        assert self.reverb in ("none", "identity", "freespace", "ism", "recorded")
+        assert self.reverb in ("none", "direct", "ism")
 
 
     def save_to_file(self, path):

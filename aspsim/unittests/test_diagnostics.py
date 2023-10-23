@@ -31,7 +31,7 @@ def simple_setup(fig_folder):
     setup.add_mics("mic", np.array([[0,0,0]]))
 
     setup.arrays.path_type["loudspeaker"]["mic"] = "none"
-    setup.arrays.path_type["src"]["mic"] = "identity"
+    setup.arrays.path_type["src"]["mic"] = "direct"
     return setup
 
 @hyp.settings(deadline=None)
