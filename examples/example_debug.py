@@ -8,7 +8,10 @@ import aspsim.diagnostics.diagnostics as dg
 
 bs = 4
 
-setup = SimulatorSetup(Path(__file__).parent.joinpath("figs"))
+fig_path = Path(__file__).parent.joinpath("figs")
+fig_path.mkdir(exist_ok=True)
+setup = SimulatorSetup(fig_path)
+
 setup.sim_info.tot_samples = 20
 setup.sim_info.sim_buffer = 20
 setup.sim_info.export_frequency = 6
