@@ -1,14 +1,10 @@
 import numpy as np
 import hypothesis as hyp
-#from hypothesis import given
 import hypothesis.strategies as st
 import pytest
-import copy
 
 from aspsim.simulator import SimulatorSetup
-import aspsim.array as ar
 import aspsim.processor as bse
-import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.signal.sources as sources
 import aspsim.room.trajectory as tr
