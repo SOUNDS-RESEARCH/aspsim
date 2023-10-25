@@ -5,24 +5,22 @@ import numpy as np
 
 
 class PhaseCounter:
-    """
-    An index counter to keep track of non-overlapping continous phases
-    
-    Example:
-    A processor needs the first 2000 samples for an initialization, 
-    then must wait 5000 samples before beginning the real processing step.
-    The class can then be used by providing
-    phase_def = {
-        'init' : 2000,
-        'wait' : 5000,
-        'process' : np.inf
-    }
-    and then checking if phase_counter.phase == 'init'
-    or if phase_counter.current_phase_is('init'):
-    
-    The number is how many samples that each phase should be
-    The first phase will start at sample 0.
+    """An index counter to keep track of non-overlapping continous phases. 
 
+    The number is how many samples that each phase should be. The first phase will start at sample 0.
+
+    Example
+    -------
+    A processor needs the first 2000 samples for an initialization, then must wait 5000 samples before beginning the real processing step.
+    The class can be used by defining the phases as
+    >>> phase_def = {'init' : 2000, 'wait' : 5000, 'process' : np.inf}
+
+    and then checking if either of the following is true
+    >>> if phase_counter.phase == 'init'
+    >>> if phase_counter.current_phase_is('init')
+
+    Notes
+    -----
     np.inf represents an infinite length
     This should naturally only be used for the last phase
     If all phases has finished, the phase will be None. 
@@ -31,6 +29,7 @@ class PhaseCounter:
     allowing running one-time functions in each phase
 
     Extended implementation to block_size != 1 can be done later
+
     """
     def __init__(self, phase_lengths, verbose=False):
         assert isinstance(phase_lengths, dict)
