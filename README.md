@@ -42,5 +42,15 @@ It is required to have [aspcore](https://github.com/SOUNDS-RESEARCH/aspcore) ins
 The collections modules, namely diagnostics/diagnosticscollection.py and signal/sourcescollection.py, are allowed to depend on the package [aspcol](https://github.com/SOUNDS-RESEARCH/aspcol). It is only required if you make use of classes or functions from a collections module. 
 
 
+## Documentation
+Once the repository is public, the documentation will be hosted on github and more easily accessible. Until then, it can be built from the source code locally. The docs are built using sphinx. To build the docs, navigate to the aspsim folder and run
+```
+cd ./docs
+pip install -r requirements.txt
+sphinx-build -M html ./source ./build
+```
+The docs can then be read by opening aspsim/docs/build/html/index.html
+
+
 ## Usage
 A number of examples with varying complexity can be found in the examples folder. 

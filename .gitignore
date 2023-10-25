@@ -22,3 +22,7 @@ examples/figs/*
 *.txt.bak
 
 aspsim.egg-info
+
+docs/source/_autosummary
+docs/source/_autosummary/*
+docs/build/*
