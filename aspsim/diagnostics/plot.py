@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import tikzplotlib
 import soundfile as sf
 import json
 
@@ -51,6 +50,7 @@ def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
         plt.show()
     elif print_method == "tikz":
         if folder is not None:
+            import tikzplotlib
             nested_folder = folder.joinpath(name)
             try:
                 nested_folder.mkdir()

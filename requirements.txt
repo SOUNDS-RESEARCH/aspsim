@@ -1,7 +1,6 @@
 numpy
 scipy
 matplotlib
-tikzplotlib
 dill
 pyyaml
 soundfile
