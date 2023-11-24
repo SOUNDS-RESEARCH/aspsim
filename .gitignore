@@ -11,11 +11,20 @@ figs/*
 savedsession/*
 slask
 slask/*
+examples/figs/*
 
 *.asv
 *.m~
 **/.DS_Store
 *.pyc
 .gitignore.bak
+*.bak
+*.txt.bak
 
 aspsim.egg-info
+
+docs/source/_autosummary
+docs/source/_autosummary/*
+docs/build/*
+
+examples/figs/*
