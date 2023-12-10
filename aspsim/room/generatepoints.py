@@ -1,6 +1,52 @@
 import numpy as np
 
 
+def cart2spherical(cart_coord):
+    """Transforms the provided cartesian coordinates to spherical coordinates
+
+    Parameters
+    ----------
+    cart_coord : ndarray of shape (num_points, 3)
+
+    Returns
+    -------
+    r : ndarray of shape (num_points, 1)
+        radius of each point
+    angle : ndarray of shape (num_points, 2)
+        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction
+        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction
+    """
+    r = np.linalg.norm(cart_coord, axis=1)
+    r_xy = np.linalg.norm(cart_coord[:,:2], axis=1)
+
+    theta = np.arctan2(cart_coord[:,1], cart_coord[:,0])
+    phi = np.arctan2(r_xy, cart_coord[:,2])
+    angle = np.concatenate((theta[:,None], phi[:,None]), axis=1)
+    return (r, angle)
+
+def spherical2cart(r, angle):
+    """Transforms the provided spherical coordinates to cartesian coordinates
+    
+    Parameters
+    ----------
+    r : ndarray of shape (num_points, 1) or (num_points,)
+        radius of each point
+    angle : ndarray of shape (num_points, 2)
+        the angles in radians
+        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction
+        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction
+    
+    Returns
+    -------
+    cart_coord : ndarray of shape (num_points, 3)
+        the cartesian coordinates
+    """
+    num_points = r.shape[0]
+    cart_coord = np.zeros((num_points,3))
+    cart_coord[:,0] = np.squeeze(r) * np.cos(angle[:,0]) * np.sin(angle[:,1])
+    cart_coord[:,1] = np.squeeze(r) * np.sin(angle[:,0]) * np.sin(angle[:,1])
+    cart_coord[:,2] = np.squeeze(r) * np.cos(angle[:,1])
+    return cart_coord
 
 def cart2pol(x, y):
     r = np.hypot(x, y)
