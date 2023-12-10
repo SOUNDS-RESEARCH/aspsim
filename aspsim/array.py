@@ -411,12 +411,9 @@ class Array(ABC):
     is_mic = False
     is_source = False
     plot_symbol = "."
-
-    def __init__(self, name, pos):
-        """Abstract base class for all types of arrays
-
-        Documentation refers to objects, which means any of microphone, loudspeaker
-        or source depending on array type. 
+    def __init__(self, name, pos, directivity_type=None, directivity_dir=None):
+        """Abstract base class for all types of arrays. Establishes
+        the common attributes and methods of all array types
 
         Parameters
         ----------
@@ -427,6 +424,18 @@ class Array(ABC):
             or a list of ndarrays of the same shape, which will distribute
                 the objects into groups.
             or a Trajectory object, which will produce a moving array
+        directivity_type : optional, list of str
+            each string is one of "omni", "cardioid", "hypercardioid", 
+            "supercardioid", "bidirectional". 
+            If supplied, directivity_dir must also be supplied
+            if not supplied, the array will be omnidirectional
+        directivity_dir : optional, ndarray of shape (num_objects, spatial_dim)
+            each row is a unit vector pointing in the direction of the directivity for that object
+            If supplied, directivity_type must also be supplied
+        Notes
+        -----
+        Documentation refers to objects, which means any of microphone, loudspeaker
+        or source depending on array type. 
         """
         self.name = name
 
@@ -459,19 +468,24 @@ class Array(ABC):
         self.num = self.pos.shape[0]
         assert self.pos.ndim == 2
 
+        if directivity_type is None or directivity_dir is None:
+            assert directivity_type is None and directivity_dir is None
+            directivity_type = ["omni" for _ in range(self.num)]
+        else:
+            assert directivity_type is not None and directivity_dir is not None
+            assert len(directivity_type) == self.num
+            assert directivity_dir.shape[0] == self.num
+            assert all([d in ["omni", "cardioid", "hypercardioid", "supercardioid", "bidirectional"] for d in directivity_type])
+            assert np.allclose(np.linalg.norm(directivity_dir, axis=-1), 1)
+        self.directivity_type = directivity_type
+        self.directivity_dir = directivity_dir
+
         self.metadata = {
             "type" : self.__class__.__name__,
             "number" : self.num,
             "number of groups" : self.num_groups,
             "dynamic" : self.dynamic,
         }
-
-    # def __eq__(self, other):
-    #     if isinstance(other, Array):
-
-    #         if self.pos != other.pos:
-    #             return False
-    #     return NotImplemented
 
     def set_groups(self, group_idxs):
         """Sorts each object of the array into groups
@@ -502,19 +516,25 @@ class Array(ABC):
 class MicArray(Array):
     """Array class for microphones
     
-    
+    Parameters
+    ----------
+    name : str
+        name of the array, which will also be the name of the
+        signal associated with the array
+    pos : ndarray of shape (num_mics, spatial_dim)
+        position of the microphones
     """
     is_mic = True
     plot_symbol = "x"
-    def __init__(self, name, pos):
-        super().__init__(name, pos)
+    def __init__(self, name, pos, **kwargs):
+        super().__init__(name, pos, **kwargs)
 
 class RegionArray(MicArray):
     """Class for representing a continuous region with an microphone array
     
     Requires a Region object to be used as representation of the region. The Region object
     has a equally_spaced_points method, which is used to generate the positions of the microphones
-    that are actually used in the simulation. Therefore, the signals generated will be 
+    unless the pos argument is supplied. In that case, the signals generated will be 
     identical to using a MicArray() with region.equally_spaced_points() as positions. 
 
     Attributes
@@ -527,7 +547,7 @@ class RegionArray(MicArray):
     pos : ndarray of shape (num_mics, spatial_dim)
         The positions of the microphones that are used in the simulation
     """
-    def __init__(self, name, region, pos=None):
+    def __init__(self, name, region, pos=None, **kwargs):
         if isinstance(region, (list, tuple)):
             if len(region) > 1:
                 self.region_segments = region
@@ -540,7 +560,7 @@ class RegionArray(MicArray):
 
         if pos is None:
             pos = [r.equally_spaced_points() for r in self.region_segments]
-        super().__init__(name, pos)
+        super().__init__(name, pos, **kwargs)
         self.region = region
         self.metadata["region shape"] = self.region.__class__.__name__
 
@@ -550,27 +570,40 @@ class RegionArray(MicArray):
 class ControllableSourceArray(Array):
     """ Array for sources controllable by a processor
     
+    Parameters
+    ----------
+    name : str
+        name of the array, which will also be the name of the
+        signal associated with the array
+    pos : ndarray of shape (num_sources, spatial_dim)
+        position of the sources
     
     """
     is_source = True
     plot_symbol="o"
-    def __init__(self, name, pos):
-        super().__init__(name, pos)
+    def __init__(self, name, pos, **kwargs):
+        super().__init__(name, pos, **kwargs)
         
 class FreeSourceArray(Array):
     """ Array for free sound sources, that cannot be adaptively controlled 
     
-    Attributes
+    Parameters
     ----------
+    name : str
+        name of the array, which will also be the name of the
+        signal associated with the array
+    pos : ndarray of shape (num_sources, spatial_dim)
+        position of the sources
     source : Source
         The source object used to generate the signal
-        see aspsim.room.source module for more info. More sources are also available
-        in the aspsim.room.sourcescollection module
+        see aspsim.signal.source module for more info. More sources are also available
+        in the aspsim.room.sourcescollection module. 
+
     """
     is_source = True
     plot_symbol = "s"
-    def __init__(self, name, pos, source):
-        super().__init__(name, pos)
+    def __init__(self, name, pos, source, **kwargs):
+        super().__init__(name, pos, **kwargs)
         self.set_source(source)
 
         self.metadata["source info"] = self.source.metadata

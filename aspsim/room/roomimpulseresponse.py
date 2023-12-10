@@ -1,6 +1,9 @@
 import numpy as np
 import scipy.spatial.distance as distfuncs
 import pyroomacoustics as pra
+import pyroomacoustics.directivities as pradir
+
+import aspsim.room.generatepoints as gp
 
 class PathGenerator:
     def __init__(self, sim_info, arrays):
@@ -104,6 +107,8 @@ class PathGenerator:
                         self.e_absorbtion, 
                         self.max_order, 
                         self.min_dly,
+                        mic.directivity_type,
+                        mic.directivity_dir,
                         randomized_ism = sim_info.randomized_ism,
                         calculate_metadata=return_path_info,
                         verbose = verbose)
@@ -122,10 +127,26 @@ class PathGenerator:
 
 
 
+def directionality_arg_to_pyroomacoustics(dir_type, dir_dir):
+    if len(dir_type) > 1:
+        raise NotImplementedError
+
+    if dir_type[0] == "cardioid":
+        radius, angles = gp.cart2spherical(dir_dir)
+        dir_obj = pradir.CardioidFamily(
+            orientation=pradir.DirectionVector(azimuth=angles[0,0], colatitude=angles[0,1], degrees=False),
+            pattern_enum=pradir.DirectivityPattern.CARDIOID,
+        )
+    elif dir_type[0] == "omni":
+        dir_obj = None
+    else:
+        raise NotImplementedError
+    return dir_obj
+
 
 def ir_room_image_source_3d(
-    pos_from,
-    pos_to,
+    pos_src,
+    pos_mic,
     room_size,
     room_center,
     ir_len,
@@ -133,7 +154,9 @@ def ir_room_image_source_3d(
     samplerate,
     e_absorbtion,
     max_order,
-    min_dly, 
+    min_dly,
+    dir_type_mic = None,
+    dir_dir_mic = None,
     randomized_ism = True,
     calculate_metadata=False,
     verbose=False,
@@ -183,13 +206,15 @@ def ir_room_image_source_3d(
         calculate_metadata is True.
     """
 
-    num_from = pos_from.shape[0]
-    num_to = pos_to.shape[0]
+    num_from = pos_src.shape[0]
+    num_to = pos_mic.shape[0]
     ir = np.zeros((num_from, num_to, ir_len))
 
     room_center = np.array(room_center)
     room_size = np.array(room_size)
     pos_offset = room_size / 2 - room_center
+
+    dir_arg = directionality_arg_to_pyroomacoustics(dir_type_mic, dir_dir_mic)
 
     max_trunc_error = np.NINF
     max_trunc_value = np.NINF
@@ -206,13 +231,20 @@ def ir_room_image_source_3d(
         )
 
         for src_idx in range(num_from):
-            room.add_source((pos_from[src_idx, :] + pos_offset).T)
+            room.add_source((pos_src[src_idx, :] + pos_offset).T)
 
         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
-        mics = pra.MicrophoneArray(
-            (pos_to[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
-            samplerate,
-        )
+        if dir_arg is None:
+            mics = pra.MicrophoneArray(
+                (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
+                samplerate,
+            )
+        else:
+            mics = pra.MicrophoneArray(
+                (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
+                samplerate,
+                directivity=dir_arg,
+            )
         room.add_microphone_array(mics)
 
         if verbose:

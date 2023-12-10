@@ -112,7 +112,7 @@ class SimulatorSetup:
         arr = ar.ControllableSourceArray(name, pos)
         self.add_array(arr)
     
-    def add_mics(self, name, pos):
+    def add_mics(self, name, pos, **kwargs):
         """Adds a microphone array at the given position.
         
         Parameters
@@ -122,7 +122,7 @@ class SimulatorSetup:
         pos : ndarray of shape (num_pos, spatial_dim)
             Positions of the mics in the array
         """
-        arr = ar.MicArray(name,pos)
+        arr = ar.MicArray(name, pos, **kwargs)
         self.add_array(arr)
 
     def set_path(self, src_name, mic_name, path):

@@ -94,7 +94,7 @@ class EventCounter:
     only happen every x samples
 
     event_def is a dictionary with all event
-    each entry is 'event_name' : (frequency, offset)
+    each entry is event_name : (frequency, offset)
 
     Example:
     event_counter = EventCounter({'event_1' : (256,0), 'event_2' : (1,0), 'event_3' : (1024,256)})
@@ -102,7 +102,7 @@ class EventCounter:
     First at sample 256 all three events will happen simultaneouly. 
 
     To be used as:
-    if 'event_name' in event_counter.event:
+    if event_name in event_counter.event:
         do_thing()
 
     """
