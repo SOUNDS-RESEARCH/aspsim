@@ -74,8 +74,8 @@ class ArrayCollection():
         
     def _save_metadata_arrays(self, filepath):
         array_info = {}
-        for arName, ar in self.arrays.items():
-            array_info[arName] = ar.metadata
+        for ar_name, ar in self.arrays.items():
+            array_info[ar_name] = ar.metadata
         with open(filepath.joinpath("metadata_arrays.json"), "w") as f:
             json.dump(array_info, f, indent=4)
 
@@ -88,8 +88,8 @@ class ArrayCollection():
 
     def _save_readable_pos(self, filepath):
         pos = {}
-        for arName, ar in self.arrays.items():
-            pos[arName] = ar.pos.tolist()
+        for ar_name, ar in self.arrays.items():
+            pos[ar_name] = ar.pos.tolist()
         with open(filepath.joinpath("array_pos.json"), "w") as f:
             json.dump(pos, f, indent=4)
 
@@ -350,6 +350,47 @@ class ArrayCollection():
             with open(folder_path.joinpath("arrays.pickle"), "wb") as f:
                 dill.dump(self, f)
 
+    def get_freq_paths(self, num_freqs, samplerate):
+        """Get the frequency domain response of the paths between all sources and microphones
+        
+        Parameters
+        ----------
+        arrays : ArrayCollection
+            The array collection to get the frequency paths from
+        num_freqs : int
+            The number of frequencies to calculate the response for. The number refers to the total FFT
+            length, so the number of real frequencies is num_freqs // 2 + 1, which is the number of 
+            frequency bins in the output. 
+        
+        Returns
+        -------
+        freq_paths : dict of dicts of ndarrays
+            freq_paths[src_name][mic_name] is a complex ndarray of shape (num_real_freqs, num_mic, num_src)
+            representing the frequency response between a source and a microphone array
+        freqs : ndarray of shape (num_real_freqs,)
+            The real frequencies in Hz of the response
+
+        Notes
+        -----
+        The frequencies returned are compatible with get_real_freqs of the package aspcol, as well as the
+        output of np.fft.rfft. 
+
+        num_freqs can be safely chosen as a larger number than the number of samples in the impulse response,
+        as the FFT will zero-pad the signal to the desired length. But if num_freqs is smaller, then the
+        signal will be truncated.
+        """
+        if num_freqs % 2 == 1:
+            raise NotImplementedError("Odd number of frequencies not supported yet")
+        
+        freqs = (samplerate / (num_freqs)) * np.arange(num_freqs // 2 + 1)
+
+        fpaths = {}
+        for src, mic, path in self.iter_paths():
+            fpaths.setdefault(src.name, {})
+            fpaths[src.name][mic.name] = np.fft.rfft(path, n=num_freqs, axis=-1).T
+                
+        return fpaths, freqs
+
 def load_arrays(folder_path):
     """Loads the array collection from file
     
@@ -402,10 +443,6 @@ def prototype_equals(prototype, initialized):
             return False
 
     return True
-
-
-
-
 
 class Array(ABC):
     is_mic = False
