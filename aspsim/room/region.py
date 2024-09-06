@@ -248,6 +248,7 @@ class Ball(Region):
         super().__init__(rng)
         self.radius = radius
         self.center = np.array(center)
+        assert self.center.ndim == 1
         self.point_spacing = np.array(point_spacing)
 
         self.volume = (4/3) * self.radius**3 * np.pi
@@ -259,7 +260,12 @@ class Ball(Region):
         return is_in
 
     def equally_spaced_points(self):
-        raise NotImplementedError
+        cuboid = Cuboid((2*self.radius, 2*self.radius, 2*self.radius), point_spacing=self.point_spacing)
+        grid_points = cuboid.equally_spaced_points()
+        inside_ball = np.linalg.norm(grid_points, axis=-1) <= self.radius
+        grid_points = grid_points[inside_ball,:]
+        grid_points += self.center[None,:]
+        return grid_points
 
     def sample_points(self, num_points):
         finished = False
@@ -272,7 +278,6 @@ class Ball(Region):
             filtered_samples = uniform_samples[np.linalg.norm(uniform_samples, axis=-1) <= self.radius,:]
             num_new = filtered_samples.shape[0]
             num_to_accept = min(num_new, num_points - num_accepted)
-
 
             samples[num_accepted:num_accepted+num_to_accept,:] = filtered_samples[:num_to_accept,:] 
             num_accepted += num_to_accept
