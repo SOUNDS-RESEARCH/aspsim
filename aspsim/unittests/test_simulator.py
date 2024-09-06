@@ -59,7 +59,7 @@ def setup_ism(fig_folder, samplerate):
     setup.sim_info.room_size = [4, 3, 3]
     setup.sim_info.room_center = [-1, 0, 0]
     setup.sim_info.rt60 = 0.25
-    setup.sim_info.max_room_ir_length : samplerate // 2
+    setup.sim_info.max_room_ir_length = samplerate // 2
     return setup
 
 

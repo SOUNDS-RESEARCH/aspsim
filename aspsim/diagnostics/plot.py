@@ -45,7 +45,7 @@ def tikzplotlib_fix_ncols(obj):
         tikzplotlib_fix_ncols(child)
 
 
-def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
+def output_plot(print_method, folder, name="", keep_only_latest_tikz=False):
     if print_method == "show":
         plt.show()
     elif print_method == "tikz":

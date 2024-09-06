@@ -102,7 +102,6 @@ class PathGenerator:
                         sim_info.room_size, 
                         sim_info.room_center, 
                         sim_info.max_room_ir_length, 
-                        sim_info.rt60, 
                         sim_info.samplerate, 
                         self.e_absorbtion, 
                         self.max_order, 
@@ -125,18 +124,32 @@ class PathGenerator:
         return path
 
 
+def _cardoid_to_pyroomacoustics(dir_dir):
+    assert dir_dir.ndim == 2
+    assert dir_dir.shape[1] == 3
+    
+    radius, angles = gp.cart2spherical(dir_dir)
+    dir_obj = pradir.CardioidFamily(
+        orientation=pradir.DirectionVector(azimuth=angles[0,0], colatitude=angles[0,1], degrees=False),
+        pattern_enum=pradir.DirectivityPattern.CARDIOID,
+    )
+    return dir_obj
 
+def _directionality_arg_to_pyroomacoustics(dir_type, dir_dir):
+    if dir_type is None:
+        assert dir_dir is None
+        return None
 
-def directionality_arg_to_pyroomacoustics(dir_type, dir_dir):
     if len(dir_type) > 1:
+        if all([dt == "omni" for dt in dir_type]):
+            return None
+        elif all([dt == "cardioid" for dt in dir_type]):
+            return [_cardoid_to_pyroomacoustics(dir_dir[i:i+1,:]) for i in range(len(dir_type))]
         raise NotImplementedError
 
     if dir_type[0] == "cardioid":
-        radius, angles = gp.cart2spherical(dir_dir)
-        dir_obj = pradir.CardioidFamily(
-            orientation=pradir.DirectionVector(azimuth=angles[0,0], colatitude=angles[0,1], degrees=False),
-            pattern_enum=pradir.DirectivityPattern.CARDIOID,
-        )
+        dir_obj = [_cardoid_to_pyroomacoustics(dir_dir)]
+
     elif dir_type[0] == "omni":
         dir_obj = None
     else:
@@ -150,7 +163,6 @@ def ir_room_image_source_3d(
     room_size,
     room_center,
     ir_len,
-    rt60,
     samplerate,
     e_absorbtion,
     max_order,
@@ -177,8 +189,6 @@ def ir_room_image_source_3d(
     ir_len : int
         The length of the impulse responses in samples. 
         The impulse responses will be truncated to this length.
-    rt60 : float
-        The desired reverberation time of the room
     samplerate : int
         The sampling rate of the impulse responses
     e_absorbtion : float
@@ -214,7 +224,7 @@ def ir_room_image_source_3d(
     room_size = np.array(room_size)
     pos_offset = room_size / 2 - room_center
 
-    dir_arg = directionality_arg_to_pyroomacoustics(dir_type_mic, dir_dir_mic)
+    dir_arg = _directionality_arg_to_pyroomacoustics(dir_type_mic, dir_dir_mic)
 
     max_trunc_error = np.NINF
     max_trunc_value = np.NINF
@@ -234,17 +244,18 @@ def ir_room_image_source_3d(
             room.add_source((pos_src[src_idx, :] + pos_offset).T)
 
         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
-        if dir_arg is None:
+        
+        if dir_arg is not None:
             mics = pra.MicrophoneArray(
                 (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
                 samplerate,
+                directivity=dir_arg[num_computed : num_computed + block_size],
             )
         else:
             mics = pra.MicrophoneArray(
-                (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
-                samplerate,
-                directivity=dir_arg,
-            )
+            (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
+            samplerate
+        )
         room.add_microphone_array(mics)
 
         if verbose:
@@ -273,7 +284,7 @@ def ir_room_image_source_3d(
         metadata = {}
         metadata["Max Normalized Truncation Error (dB)"] = max_trunc_error
         metadata["Max Normalized Truncated Value (dB)"] = max_trunc_value
-        if rt60 > 0:
+        if max_order > 0:
             try:
                 metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
                 metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
@@ -418,6 +429,8 @@ def calc_truncation_error(rir, trunc_len):
     tot_power = np.sum(rir ** 2)
     trunc_power = np.sum(rir[trunc_len:] ** 2)
     trunc_error = trunc_power / tot_power
+    if trunc_error == 0:
+        return -np.inf
     return 10 * np.log10(trunc_error)
 
 

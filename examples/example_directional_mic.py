@@ -62,6 +62,7 @@ recorded_power = recorded_power / np.max(recorded_power)
 num_true_cardioid_angles = 300
 true_cardioid_angles = np.linspace(0, 2*np.pi, num_true_cardioid_angles)
 (x, y) = gp.pol2cart(np.ones(num_true_cardioid_angles), true_cardioid_angles)
+
 pos_true_cardioid = np.zeros((num_true_cardioid_angles, 3))
 pos_true_cardioid[:,0] = x
 pos_true_cardioid[:,1] = y
