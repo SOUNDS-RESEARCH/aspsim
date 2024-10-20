@@ -1,9 +1,39 @@
 import numpy as np
 import scipy.spatial.distance as distfuncs
+import scipy.signal as spsig
 import pyroomacoustics as pra
 import pyroomacoustics.directivities as pradir
 
 import aspsim.room.generatepoints as gp
+
+
+# def setup_ir(arrays, sim_info):
+#     """Generates the impulse responses between all sources and microphones
+
+#     The method uses the path_type attribute to determine the type of propagation
+    
+#     Parameters
+#     ----------
+#     sim_info : SimInfo
+#         The simulation info object
+#     """
+#     metadata = {}
+#     path_generator = PathGenerator(sim_info, arrays)
+
+#     for src, mic in self.mic_src_combos():
+#         self.path_info[f"{src.name}->{mic.name}"] = {}
+
+#         if src.num == 0 or mic.num == 0:
+#             reverb = "none"
+#         else:
+#             reverb = self.path_type[src.name][mic.name]
+
+#         self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
+#         print(f"{src.name}->{mic.name} has propagation type: {reverb}")
+#         if reverb != "modified":
+#             self.paths[src.name][mic.name], path_info = self.path_generator.create_path(src, mic, reverb, sim_info, True, True)
+#             for key, val in path_info.items():
+#                 self.path_info[f"{src.name}->{mic.name}"][key] = val
 
 class PathGenerator:
     def __init__(self, sim_info, arrays):
@@ -24,6 +54,11 @@ class PathGenerator:
         """
         self.sim_info = sim_info
         self.arrays = arrays
+
+        self.filter_below = 20
+        self.filt_ir = spsig.firwin(2*int(0.05 * sim_info.samplerate) + 1, cutoff=self.filter_below, pass_zero="highpass", fs=sim_info.samplerate)
+
+        self.truncate_at = sim_info.max_room_ir_length
 
         self.calc_rir_parameters(self.sim_info)
 
@@ -119,6 +154,16 @@ class PathGenerator:
         #    pass
         else:
             raise ValueError
+        
+        # ADD POST PROCESSING HERE
+        if self.filter_below > 0:
+            tot_len = path.shape[2] + self.filt_ir.shape[-1] - 1
+            path_new = np.zeros((path.shape[0], path.shape[1], tot_len))
+            for i in range(path.shape[0]):
+                for j in range(path.shape[1]):
+                    path_new[i,j,:] = spsig.convolve(path[i,j,:], self.filt_ir, mode="full")
+            path = path_new
+
         if return_path_info:
             return path, path_info
         return path

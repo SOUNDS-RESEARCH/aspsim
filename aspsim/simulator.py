@@ -174,7 +174,7 @@ class SimulatorSetup:
         
         Returns
         -------
-        Simulator
+        simulator : Simulator object
 
         Notes
         -----

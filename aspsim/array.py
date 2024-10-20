@@ -218,6 +218,19 @@ class ArrayCollection():
                 self.path_type[src_name][mic_name] = pt
 
 
+    
+# def setup_ir(self, sim_info):
+#     """Generates the impulse responses between all sources and microphones
+
+#     The method uses the path_type attribute to determine the type of propagation
+    
+#     Parameters
+#     ----------
+#     sim_info : SimInfo
+#         The simulation info object
+#     """
+#     rir.setup_ir(self, sim_info)
+
     def setup_ir(self, sim_info):
         """Generates the impulse responses between all sources and microphones
 
