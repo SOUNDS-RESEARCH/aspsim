@@ -2,10 +2,6 @@ import numpy as np
 import pathlib
 
 from aspsim.simulator import SimulatorSetup
-import aspsim.signal.sources as sources
-import aspsim.diagnostics.diagnostics as dia
-
-import aspcore.filterclasses as fc
 
 def _setup_ism(fig_folder, samplerate):
     setup = SimulatorSetup(fig_folder)

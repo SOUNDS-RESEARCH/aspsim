@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-import aspcore.filterclasses as fc
+import aspsim.signal.filterclasses as fc
 import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.preprocessing as pp
 import aspsim.diagnostics.plot as dplot

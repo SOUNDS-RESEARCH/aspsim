@@ -6,9 +6,8 @@ import aspsim.configutil as configutil
 import aspsim.array as ar
 import aspsim.saveloadsession as sess
 import aspsim.diagnostics.core as diacore
-import aspsim.counter as counter
 
-import aspcore.filterclasses as fc
+import aspsim.signal.filterclasses as fc
 
 
 class SimulatorSetup:
