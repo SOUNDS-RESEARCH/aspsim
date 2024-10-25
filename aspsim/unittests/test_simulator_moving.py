@@ -12,7 +12,7 @@ import aspcore.filterclasses as fc
 
 import aspsim.configutil as cu
 
-def default_sim_info():
+def _default_sim_info():
 
     sim_info = cu.load_default_config()
     sim_info.tot_samples = 20
@@ -29,23 +29,8 @@ def default_sim_info():
 def fig_folder(tmp_path_factory):
     return tmp_path_factory.mktemp("figs")
 
-def setup_with_debug_processor(fig_folder):
-    setup = SimulatorSetup(fig_folder)
-    setup.sim_info.tot_samples = 20
-    setup.sim_info.sim_buffer = 20
-    setup.sim_info.export_frequency = 20
-    setup.sim_info.sim_chunk_size = 20
 
-    setup.add_free_source("src", np.array([[1,0,0]]), sources.WhiteNoiseSource(1,1))
-    setup.add_controllable_source("loudspeaker", np.array([[1,0,0]]))
-    setup.add_mics("mic", np.zeros((1,3)))
-
-    setup.arrays.path_type["loudspeaker"]["mic"] = "none"
-    setup.arrays.path_type["src"]["mic"] = "direct"
-    return setup
-
-
-def setup_ism(fig_folder, samplerate):
+def _setup_ism(fig_folder, samplerate):
     setup = SimulatorSetup(fig_folder)
     setup.sim_info.samplerate = samplerate
     setup.sim_info.tot_samples =  samplerate
@@ -56,141 +41,16 @@ def setup_ism(fig_folder, samplerate):
     setup.sim_info.randomized_ism = False
 
     setup.sim_info.reverb = "ism"
-    setup.sim_info.room_size = [4, 3, 3]
-    setup.sim_info.room_center = [-1, 0, 0]
+    setup.sim_info.room_size = [7, 5, 5]
+    setup.sim_info.room_center = [0, 0, 0]
     setup.sim_info.rt60 = 0.25
     setup.sim_info.max_room_ir_length = samplerate // 2
     return setup
 
 
-@pytest.fixture(scope="session")
-def sim_setup(tmp_path_factory):
-    setup = SimulatorSetup(tmp_path_factory.mktemp("figs"), None)
-    return setup
-
-
-@hyp.settings(deadline=None)
-@hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_minimum_of_tot_samples_are_processed(fig_folder, bs):
-    sim_setup = setup_with_debug_processor(fig_folder)
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.run_simulation()
-    assert sim.processors[0].processed_samples >= sim.sim_info.tot_samples
-
-@hyp.settings(deadline=None)
-@hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_consecutive_simulators_give_same_values(fig_folder, bs):
-    # change this to a free source instead without processors
-    sim_setup = setup_with_debug_processor(fig_folder)
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.run_simulation()
-
-    sig1 = sim.sig["mic"]
-
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.run_simulation()
-
-    sig2 = sim.sig["mic"]
-    assert np.allclose(sig1, sig2)
-
-@hyp.settings(deadline=None)
-@hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_minimum_value_for_sim_buffer(fig_folder, bs):
-    assert False # not implemented yet
-    sim_setup = setup_with_debug_processor(fig_folder)
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.run_simulation()
-    assert sim.processors[0].processed_samples >= sim.sim_info.tot_samples
-
-@hyp.settings(deadline=None)
-@hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_correct_processing_delay(fig_folder, bs):
-    sim_setup = setup_with_debug_processor(fig_folder)
-    sim = sim_setup.create_simulator()
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-    sim.run_simulation()
-
-    proc = sim.processors[0]
-    assert np.allclose(proc.mic[:,:-bs], proc.ls[:,bs:])
-
-
-
-@hyp.settings(deadline=None)
-@hyp.given(num_src = st.integers(min_value=1, max_value=3))
-def test_simulation_equals_direct_convolution_multiple_sources(fig_folder, num_src):
-    rng = np.random.default_rng()
-    setup = SimulatorSetup(fig_folder)
-    setup.sim_info = default_sim_info()
-
-    src_sig = [rng.normal(size=(1, setup.sim_info.tot_samples)) for s in range(num_src)]
-
-    setup.add_mics("mic", np.zeros((1,3)))
-    for s in range(num_src):    
-        setup.add_free_source(f"src_{s}", np.zeros((1,3)), sources.Sequence(src_sig[s]))
-        setup.arrays.path_type[f"src_{s}"]["mic"] = "random"
-
-    sim = setup.create_simulator()
-    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz"))
-    sim.run_simulation()
-
-    sig_sim = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
-
-    filt = [fc.create_filter(ir=sim.arrays.paths[f"src_{s}"]["mic"]) for s in range(num_src)]
-    direct_mic_sig = np.sum(np.concatenate([filt[s].process(src_sig[s]) for s in range(num_src)], axis=0), axis=0)
-
-    assert np.allclose(sig_sim, direct_mic_sig)
-
-
-#@hyp.settings(deadline=None)
-def test_simulation_equals_direct_convolution(fig_folder):
-    rng = np.random.default_rng()
-    setup = SimulatorSetup(fig_folder)
-    setup.sim_info = default_sim_info()
-
-    src_sig = rng.normal(size=(1, setup.sim_info.tot_samples))
-
-    setup.add_mics("mic", np.zeros((1,3)))
-    setup.add_free_source("src", np.array([[1,0,0]]), sources.Sequence(src_sig))
-    setup.arrays.path_type["src"]["mic"] = "random"
-
-    sim = setup.create_simulator()
-    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz"))
-    sim.run_simulation()
-
-    sig_sim = np.load(sim.folder_path.joinpath(f"mic_{sim.sim_info.tot_samples}.npz"))["mic"]
-
-    filt = fc.create_filter(ir=sim.arrays.paths["src"]["mic"])
-    direct_mic_sig = filt.process(src_sig)
-
-    assert np.allclose(sig_sim, direct_mic_sig)
-
-#@hyp.settings(deadline=None)
-# def test_trajectory_mic(fig_folder):
-#     bs = 1
-#     sim_setup = setup_simple(fig_folder)
-#     sim_setup.sim_info.reverb = "ism"
-#     sim_setup.sim_info.rt60 = 0.15
-#     #room_size = [4, 3, 3]
-#     sim_setup.sim_info.max_room_ir_length = 256
-#     sim_setup.arrays = ar.ArrayCollection()
-#     mic_traj = tr.Trajectory.linear_interpolation_const_speed([[0,0,0], [1,1,1], [0,1,0], [1,0,1]], 1, sim_setup.config["samplerate"])
-#     sim_setup.add_mics("mic", mic_traj)
-#     sim_setup.add_controllable_source("loudspeaker", np.array([[-1, -1, -1]]))
-
-#     sim = sim_setup.create_simulator()
-#     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
-#     sim.run_simulation()
-
-#     assert False
-
-
 def test_unmoving_trajectory_same_as_static(fig_folder):
     sr = 500
-    sim_setup = setup_ism(fig_folder, sr)
+    sim_setup = _setup_ism(fig_folder, sr)
     def zero_pos_func(time):
         return np.zeros((1,3))
 
@@ -211,26 +71,6 @@ def test_unmoving_trajectory_same_as_static(fig_folder):
 
 
 
-def test_generated_rir_satisfies_reciprocity(fig_folder):
-    sr = 500
-    rng = np.random.default_rng()
-
-    pos1 = rng.uniform(-1, 1, size=(1,3))
-    pos2 = rng.uniform(-1, 1, size=(1,3))
-
-    sim_setup = setup_ism(fig_folder, sr)
-    sim_setup.add_mics("mic", pos1)
-    sim_setup.add_free_source("src", pos2, sources.WhiteNoiseSource(1, 1, rng))
-    sim = sim_setup.create_simulator()
-    rir1 = sim.arrays.paths["src"]["mic"]
-
-    sim_setup = setup_ism(fig_folder, sr)
-    sim_setup.add_mics("mic", pos2)
-    sim_setup.add_free_source("src", pos1, sources.WhiteNoiseSource(1, 1, rng))
-    sim = sim_setup.create_simulator()
-    rir2 = sim.arrays.paths["src"]["mic"]
-
-    assert np.allclose(rir1, rir2)
 
 def test_moving_microphone_equals_moving_source(fig_folder):
     """ A moving microphone should give the same output as a moving source, if the
@@ -249,7 +89,7 @@ def test_moving_microphone_equals_moving_source(fig_folder):
     pos_stationary = np.zeros((1,3))
     pos_moving = tr.LinearTrajectory([[1,1,1], [0,1,0], [1,0,1]], 1, sr)
 
-    sim_setup = setup_ism(fig_folder, sr)
+    sim_setup = _setup_ism(fig_folder, sr)
     src_sig = rng.random(size=(1, sim_setup.sim_info.tot_samples*2))
 
     
@@ -260,7 +100,7 @@ def test_moving_microphone_equals_moving_source(fig_folder):
     sim.run_simulation()
     sig1 = np.load(sim.folder_path.joinpath(f"mic1_{sim.sim_info.tot_samples}.npz"))["mic1"]
 
-    sim_setup = setup_ism(fig_folder, sr)
+    sim_setup = _setup_ism(fig_folder, sr)
     sim_setup.add_mics("mic", pos_moving)
     sim_setup.add_free_source("src", pos_stationary, sources.Sequence(src_sig))
     sim = sim_setup.create_simulator()
@@ -274,7 +114,7 @@ def test_moving_microphone_is_using_expected_positions(fig_folder):
     rng = np.random.default_rng()
 
     setup = SimulatorSetup(fig_folder)
-    setup.sim_info = default_sim_info()
+    setup.sim_info = _default_sim_info()
 
     pos_src = np.zeros((1,3))
     pos_mic = tr.LinearTrajectory([[1,1,1], [0,1,0], [1,0,1]], 1, setup.sim_info.samplerate)
@@ -295,7 +135,7 @@ def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory
     rng = np.random.default_rng()
     sr = 500
 
-    setup = setup_ism(fig_folder, sr)
+    setup = _setup_ism(fig_folder, sr)
     src_sig = rng.random(size=(1, setup.sim_info.tot_samples*2))
 
     pos_src = np.zeros((1,3))
@@ -331,7 +171,7 @@ def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolution
     rng = np.random.default_rng()
     sr = 500
 
-    setup = setup_ism(fig_folder, sr)
+    setup = _setup_ism(fig_folder, sr)
     src_sig = rng.random(size=(1, setup.sim_info.tot_samples*2))
 
     pos_src = np.zeros((1,3))

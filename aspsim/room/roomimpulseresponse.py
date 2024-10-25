@@ -58,7 +58,7 @@ class PathGenerator:
         self.filter_below = 20
         self.filt_ir = spsig.firwin(2*int(0.05 * sim_info.samplerate) + 1, cutoff=self.filter_below, pass_zero="highpass", fs=sim_info.samplerate)
 
-        self.truncate_at = sim_info.max_room_ir_length
+        #self.truncate_at = sim_info.max_room_ir_length
 
         self.calc_rir_parameters(self.sim_info)
 
@@ -162,7 +162,7 @@ class PathGenerator:
             for i in range(path.shape[0]):
                 for j in range(path.shape[1]):
                     path_new[i,j,:] = spsig.convolve(path[i,j,:], self.filt_ir, mode="full")
-            path = path_new
+            path = path_new[:,:,:path.shape[-1]]
 
         if return_path_info:
             return path, path_info
