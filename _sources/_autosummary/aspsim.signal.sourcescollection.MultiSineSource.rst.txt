@@ -1,0 +1,26 @@
+aspsim.signal.sourcescollection.MultiSineSource
+===============================================
+
+.. currentmodule:: aspsim.signal.sourcescollection
+
+.. autoclass:: MultiSineSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~MultiSineSource.__init__
+      ~MultiSineSource.get_samples
+   
+   
+
+   
+   
+   

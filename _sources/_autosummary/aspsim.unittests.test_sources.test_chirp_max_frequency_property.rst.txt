@@ -1,0 +1,6 @@
+aspsim.unittests.test\_sources.test\_chirp\_max\_frequency\_property
+====================================================================
+
+.. currentmodule:: aspsim.unittests.test_sources
+
+.. autofunction:: test_chirp_max_frequency_property

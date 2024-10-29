@@ -1,0 +1,6 @@
+aspsim.unittests.test\_sources.get\_freq\_of\_sine
+==================================================
+
+.. currentmodule:: aspsim.unittests.test_sources
+
+.. autofunction:: get_freq_of_sine

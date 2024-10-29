@@ -1,0 +1,27 @@
+aspsim.signal.sourcescollection.AutocorrSource
+==============================================
+
+.. currentmodule:: aspsim.signal.sourcescollection
+
+.. autoclass:: AutocorrSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~AutocorrSource.__init__
+      ~AutocorrSource.get_samples
+      ~AutocorrSource.prepare
+   
+   
+
+   
+   
+   

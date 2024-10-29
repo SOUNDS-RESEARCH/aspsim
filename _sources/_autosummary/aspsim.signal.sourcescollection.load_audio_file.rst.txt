@@ -1,0 +1,6 @@
+aspsim.signal.sourcescollection.load\_audio\_file
+=================================================
+
+.. currentmodule:: aspsim.signal.sourcescollection
+
+.. autofunction:: load_audio_file

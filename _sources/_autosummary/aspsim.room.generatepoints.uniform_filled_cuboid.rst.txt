@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.uniform\_filled\_cuboid
+==================================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: uniform_filled_cuboid

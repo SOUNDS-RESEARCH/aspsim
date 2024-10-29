@@ -1,0 +1,26 @@
+aspsim.signal.sources.Counter
+=============================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: Counter
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Counter.__init__
+      ~Counter.get_samples
+   
+   
+
+   
+   
+   

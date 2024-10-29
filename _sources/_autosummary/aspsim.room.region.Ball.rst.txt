@@ -1,0 +1,29 @@
+aspsim.room.region.Ball
+=======================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: Ball
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Ball.__init__
+      ~Ball.equally_spaced_points
+      ~Ball.is_in_region
+      ~Ball.plot
+      ~Ball.sample_points
+   
+   
+
+   
+   
+   

@@ -1,0 +1,39 @@
+aspsim.unittests.test\_sources
+==============================
+
+.. automodule:: aspsim.unittests.test_sources
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_freq_of_sine
+      test_chirp_blocks
+      test_chirp_max_frequency_fft
+      test_chirp_max_frequency_property
+      test_chirp_min_frequency_fft
+      test_chirp_min_frequency_property
+      test_gold_sequence_remembering_state
+      test_multisine_blocks
+      test_noisesrc_blocks
+      test_sine_blocks
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

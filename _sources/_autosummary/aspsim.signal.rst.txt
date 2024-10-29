@@ -1,0 +1,33 @@
+aspsim.signal
+=============
+
+.. automodule:: aspsim.signal
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :template: new-module-template.rst
+   :recursive:
+
+   sources
+   sourcescollection
+

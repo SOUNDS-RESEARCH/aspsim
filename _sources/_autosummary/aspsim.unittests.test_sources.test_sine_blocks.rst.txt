@@ -1,0 +1,6 @@
+aspsim.unittests.test\_sources.test\_sine\_blocks
+=================================================
+
+.. currentmodule:: aspsim.unittests.test_sources
+
+.. autofunction:: test_sine_blocks

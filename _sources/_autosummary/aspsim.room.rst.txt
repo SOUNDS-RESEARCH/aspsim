@@ -1,0 +1,35 @@
+aspsim.room
+===========
+
+.. automodule:: aspsim.room
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :template: new-module-template.rst
+   :recursive:
+
+   generatepoints
+   region
+   roomimpulseresponse
+   trajectory
+

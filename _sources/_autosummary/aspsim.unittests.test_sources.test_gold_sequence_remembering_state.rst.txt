@@ -1,0 +1,6 @@
+aspsim.unittests.test\_sources.test\_gold\_sequence\_remembering\_state
+=======================================================================
+
+.. currentmodule:: aspsim.unittests.test_sources
+
+.. autofunction:: test_gold_sequence_remembering_state

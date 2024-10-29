@@ -1,0 +1,6 @@
+aspsim.fileutilities.get\_highest\_numbered\_file
+=================================================
+
+.. currentmodule:: aspsim.fileutilities
+
+.. autofunction:: get_highest_numbered_file

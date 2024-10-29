@@ -1,0 +1,6 @@
+aspsim.unittests.test\_sources.test\_multisine\_blocks
+======================================================
+
+.. currentmodule:: aspsim.unittests.test_sources
+
+.. autofunction:: test_multisine_blocks

@@ -1,0 +1,6 @@
+aspsim.signal.sourcescollection.ar\_coeffs\_from\_autocorr
+==========================================================
+
+.. currentmodule:: aspsim.signal.sourcescollection
+
+.. autofunction:: ar_coeffs_from_autocorr
