@@ -19,6 +19,9 @@ Alternatively, clone the repository and install the package direct from the sour
 pip install path/to/aspsim
 ```
 
+## License
+The software is distributed under the MIT license. See the LICENSE file for more information.
+
 
 ## Usage
 A number of examples with varying complexity can be found in the examples folder. 
