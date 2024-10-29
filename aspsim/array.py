@@ -12,7 +12,33 @@ import aspsim.room.region as reg
 import aspsim.room.trajectory as tr
 
 class ArrayCollection():
+    """ A class for managing arrays of sources and microphones, as well as the paths between them
+
+    Attributes
+    ----------
+    arrays : dict of Array objects
+        The arrays that have been added to the collection
+    names_mic : list of str
+        The names of all microphone arrays
+    names_src : list of str
+        The names of all source arrays
+    names_free_src : list of str
+        The names of the free source arrays
+    paths : two-layer dict conatining ndarrays
+        each path can be accessed as paths[src_name][mic_name], which
+        is an ndarray of shape (num_src, num_mic, num_samples), representing
+        the impulse response between a source and a microphone array
+    path_type : two-layer dict containing str
+        each path type can be accessed as path_type[src_name][mic_name], which
+        is a string representing the type of propagation between a source and a microphone array
+        See create_path for more info on possible values
+    path_info : dict of dicts
+        Contains metadata about the paths, such as truncation error and reverberation time.
+        Can be accessed as path_info[f'{src_name}->{mic_name}']
+    """
     def __init__(self):
+        """Initializes an empty ArrayCollection
+        """
         self.arrays = {}
         self.names_mic = []
         self.names_src = []
@@ -21,6 +47,8 @@ class ArrayCollection():
         self.path_type = {}
 
         self.path_info = {}
+
+        self._rir_dynamic_all = [] #used to save dynamic RIRs. Temporary and for debugging only
 
     def __getitem__(self, key):
         return self.arrays[key]
@@ -32,11 +60,17 @@ class ArrayCollection():
     def __contains__(self, arrayName):
         return arrayName in self.arrays
 
-    def save_metadata(self, filepath):
-        if filepath is not None:
-            self._save_metadata_arrays(filepath)
-            self._save_metadata_paths(filepath)
-            self._save_readable_pos(filepath)
+    def save_metadata(self, folder_path):
+        """Saves all metadata to the given folder
+        
+        Parameters
+        ----------
+        filepath : pathlib.Path
+        """
+        if folder_path is not None:
+            self._save_metadata_arrays(folder_path)
+            self._save_metadata_paths(folder_path)
+            self._save_readable_pos(folder_path)
         
     def _save_metadata_arrays(self, filepath):
         array_info = {}
@@ -60,38 +94,14 @@ class ArrayCollection():
             json.dump(pos, f, indent=4)
 
 
-    @staticmethod
-    def prototype_equals(prototype, initialized):
-        """prototype and initialized are both instances of ArrayCollection
-            The prototype has positions but not necessarily all paths created. They can still be strings
-            This function checks if the initialized collection could be created from the prototype. i.e. if it 
-            would make sense to load initialized instead of calculating the final values of the prototype"""
-        #check that they have the same array names
-        if prototype.arrays.keys() != initialized.arrays.keys():
-            return False
-
-        #Check that the arrays are the same
-        for ar_name, ar in prototype.arrays.items():
-            #if ar != initialized[ar_name]:
-            #    return False
-            if type(ar) is not type(initialized[ar_name]):
-                return False
-            if ar.num != initialized[ar_name].num:
-                return False
-            if not np.allclose(ar.pos,initialized[ar_name].pos):
-                return False
-
-        #Check the paths are the same
-        for src, mic in prototype.mic_src_combos():
-            if prototype.path_type[src.name][mic.name] == "modified":
-                if not np.allclose(prototype.paths[src.name][mic.name], initialized.paths[src.name][mic.name]):
-                    return False
-            if prototype.path_type[src.name][mic.name] != initialized.path_type[src.name][mic.name]:
-                return False
-
-        return True
-
     def set_default_path_type(self, path_type):
+        """Sets the path type for all paths that were not modified by the user
+
+        Parameters
+        ----------
+        path_type : str
+            The path type to be set. See create_path for more info on possible values
+        """
         for src, mic in self.mic_src_combos():
             if not mic.name in self.path_type[src.name] and not mic.name in self.paths[src.name]:
                 self.path_type[src.name][mic.name] = path_type
@@ -99,34 +109,45 @@ class ArrayCollection():
                 self.path_type[src.name][mic.name] = "modified"
 
     def empty(self):
+        """Returns True if the collection has no arrays
+        """
         return len(self.arrays) == 0
 
     def sources(self):
-        """Iterate over all source arrays"""
+        """Iterates over all source arrays"""
         for name in self.names_src:
             yield self.arrays[name]
     
     def mics(self):
-        """Iterator over all mic arrays"""
+        """Iterates over all mic arrays"""
         for name in self.names_mic:
             yield self.arrays[name]
 
     def free_sources(self):
+        """Iterates over all free source arrays"""
         for name in self.names_free_src:
             yield self.arrays[name]
 
     def mic_src_combos(self):
-        """Iterator over the euclidian product of the mics and sources"""
+        """Iterates over the all combinations of mics and sources"""
         for src_name in self.names_src:
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name]
 
     def iter_paths(self):
+        """Iterates over all paths"""
         for src_name in self.names_src:
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name], self.paths[src_name][mic_name]
 
     def add_array(self, array):
+        """Adds an array to the collection
+        
+        Parameters
+        ----------
+        array : Array
+            The array to be added. Can be any subclass of Array
+        """
         assert array.name not in self.arrays
         self.arrays[array.name] = array
         
@@ -142,11 +163,34 @@ class ArrayCollection():
             raise ValueError("Array is neither source nor microphone")
 
     def set_prop_paths(self, paths):
+        """Sets the propagation paths between some sources and microphones
+
+        Parameters
+        ----------
+        paths : dict of dicts of ndarrays
+            paths[src_name][mic_name] is an ndarray of shape (num_src, num_mic, num_samples)
+            representing the impulse response between a source and a microphone array
+            the source and and mic array must already be in the collection
+        """
         for src_name, src_paths in paths.items():
             for mic_name, path in src_paths.items():
                 self.set_prop_path(path, src_name, mic_name)
 
     def set_prop_path(self, path, src_name, mic_name):
+        """Sets the propagation path between a source and a microphone array
+        
+        Parameters
+        ----------
+        path : ndarray of shape (num_src, num_mic, num_samples)
+            representing the impulse response between a source and a microphone array
+            The ndarray must be of the correct shape
+        src_name : str
+            name of the source array. 
+            The array must already be in the collection
+        mic_name : str
+            name of the microphone array. 
+            The array must already be in the collection
+        """
         assert src_name in self.names_src
         assert mic_name in self.names_mic
         assert isinstance(path, np.ndarray)
@@ -156,6 +200,16 @@ class ArrayCollection():
         self.paths[src_name][mic_name] = path
     
     def set_path_types(self, path_types):
+        """Sets the propagation type between some sources and microphones
+        
+        Parameters
+        ----------
+        path_types : dict of dicts of str
+            path_types[src_name][mic_name] is a string representing the type of propagation
+            between a source and a microphone array
+            The source and and mic array must already be in the collection
+            See create_path for more info on possible values
+        """
         for src_name, src_path_types in path_types.items():
             for mic_name, pt in src_path_types.items():
                 assert src_name in self.names_src
@@ -165,9 +219,19 @@ class ArrayCollection():
 
 
     def setup_ir(self, sim_info):
-        """ """
+        """Generates the impulse responses between all sources and microphones
+
+        The method uses the path_type attribute to determine the type of propagation
+        
+        Parameters
+        ----------
+        sim_info : SimInfo
+            The simulation info object
+        """
         metadata = {}
         self.sim_info = sim_info
+        self.path_generator = rir.PathGenerator(self.sim_info, self)
+
         for src, mic in self.mic_src_combos():
             self.path_info[f"{src.name}->{mic.name}"] = {}
 
@@ -179,67 +243,41 @@ class ArrayCollection():
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
             if reverb != "modified":
-                self.paths[src.name][mic.name], path_info = self.create_path(src, mic, reverb, sim_info, True, True)
+                self.paths[src.name][mic.name], path_info = self.path_generator.create_path(src, mic, reverb, sim_info, True, True)
                 for key, val in path_info.items():
                     self.path_info[f"{src.name}->{mic.name}"][key] = val
-            
-
-    def create_path (self, src, mic, reverb, sim_info, return_path_info=False, verbose=False):
-        """Generate the impulse response between a source and a microphone array
         
-        """
-        path_info = {}
-        if reverb == "none": 
-            path = np.zeros((src.num, mic.num, 1))
-        elif reverb == "identity":
-            path = np.ones((src.num,mic.num, 1))
-        elif reverb == "isolated":
-            assert src.num == mic.num
-            path = np.eye(src.num, mic.num)[...,None]
-        elif reverb == "random":
-            path = self.rng.normal(0, 1, size=(src.num, mic.num, sim_info.max_room_ir_length))
-        elif reverb == "ism":
-            if sim_info.spatial_dims == 3:
-                path = rir.ir_room_image_source_3d(
-                        src.pos, mic.pos, sim_info.room_size, sim_info.room_center, 
-                        sim_info.max_room_ir_length, sim_info.rt60, 
-                        sim_info.samplerate, sim_info.c,
-                        calculate_metadata=return_path_info,
-                        verbose = verbose)
-                if return_path_info:
-                    path, path_info["ism_info"] = path
-            else:
-                raise ValueError
-        elif reverb == "freespace":
-            if sim_info.spatial_dims == 3:
-                path = rir.ir_point_source_3d(
-                src.pos, mic.pos, sim_info.samplerate, sim_info.c)
-            elif sim_info.spatial_dims == 2:
-                path = rir.ir_point_source_2d(
-                    src.pos, mic.pos, sim_info.samplerate, sim_info.c
-                )
-            else:
-                raise ValueError
-        #elif reverb == "modified":
-        #    pass
-        else:
-            raise ValueError
-        if return_path_info:
-            return path, path_info
-        return path
 
     def update_path(self, src, mic):
+        """Updates the path between a source and a microphone array
+        
+        Parameters
+        ----------
+        src : Array
+            The source array
+        mic : Array
+            The microphone array
+        """
         reverb = self.path_type[src.name][mic.name]
         assert reverb != "modified"
-        self.paths[src.name][mic.name] = self.create_path(src, mic, reverb, self.sim_info)
+        self.paths[src.name][mic.name] = self.path_generator.create_path(src, mic, reverb, self.sim_info)
 
     def update(self, glob_idx):
-        #1. update arrays pos/properties
-        #2. get info about which arrays actually changed
-        #3. update the paths connecting the updated arrays
+        """Updates the arrays and paths that change over time
+
+        The method performs the following steps
+        1. update arrays pos/properties
+        2. get info about which arrays actually changed
+        3. update the paths connecting the updated arrays
+        
+        Parameters
+        ----------
+        glob_idx : int
+            The global time index of the current sample
+        """
+        
         if glob_idx % self.sim_info.array_update_freq != 0:
             return 
-        #print("update position")
 
         changed_arrays = []
 
@@ -255,20 +293,36 @@ class ArrayCollection():
                 for src in self.sources():
                     if not src.name in already_updated:
                         self.update_path(src, self.arrays[ar_name])
+                self._rir_dynamic_all.append(self.paths[src.name][ar_name]) # for debugging only
             elif self.arrays[ar_name].is_source:
                 for mic in self.mics():
                     if not mic.name in already_updated:
                         self.update_path(self.arrays[ar_name], mic)
             else:
                 raise ValueError("Array must be mic or source")
+            
             already_updated.append(ar_name)
 
 
 
     def plot(self, sim_info, fig_folder, print_method):
+        """Creates a plot with all arrays in the collection
+        
+        If ISM is chosen as the propagation type, the room is also plotted
+        
+        Parameters
+        ----------
+        sim_info : SimInfo
+            The simulation info object
+        fig_folder : pathlib.Path
+            The folder where the figure should be saved
+        print_method : str
+            The method used to save the figure. See aspsim.diagnostics.plot.output_plot
+            for a list of the options
+        """
         fig, ax = plt.subplots()
         for ar in self.arrays.values():
-            ar.plot(ax)
+            ar.plot(ax, sim_info)
 
         if "ism" in [self.path_type[src.name][mic.name] for src, mic in self.mic_src_combos()]:
             corner = [c - sz/2 for c, sz in zip(sim_info.room_center[:2], sim_info.room_size[:2])]
@@ -284,16 +338,70 @@ class ArrayCollection():
         ax.spines['top'].set_visible(False)
         dplot.output_plot(print_method, fig_folder, "array_pos")
 
-    def save_to_file(self, path):
-        if path is not None:
-            with open(path.joinpath("arrays.pickle"), "wb") as f:
+    def save_to_file(self, folder_path):
+        """Saves the array collection to file
+        
+        Parameters
+        ----------
+        folder_path : pathlib.Path
+            The path to the folder where the collection should be saved
+        """
+        if folder_path is not None:
+            with open(folder_path.joinpath("arrays.pickle"), "wb") as f:
                 dill.dump(self, f)
 
-def load_arrays(session_path):
-        with open(session_path.joinpath("arrays.pickle"), "rb") as f:
-            arrays = dill.load(f)
-        return arrays
+def load_arrays(folder_path):
+    """Loads the array collection from file
+    
+    Parameters
+    ----------
+    folder_path : pathlib.Path
+        The path to the folder where the collection should be loaded from
+        The file is assumed to be named arrays.pickle
+    """
+    with open(folder_path.joinpath("arrays.pickle"), "rb") as f:
+        arrays = dill.load(f)
+    return arrays
 
+
+def prototype_equals(prototype, initialized):
+    """Compares an initialized collection to a prototype collection.
+
+    This function checks if the initialized collection could be created from the prototype. i.e. if it 
+        would make sense to load initialized instead of generating the paths of the prototype
+
+    Parameters
+    ----------
+    prototype : ArrayCollection
+        Trototype collection need not have the paths initialized, but must 
+        have arrays added with positions set. 
+    initialized : ArrayCollection
+        The initialized collection.
+        """
+    #check that they have the same array names
+    if prototype.arrays.keys() != initialized.arrays.keys():
+        return False
+
+    #Check that the arrays are the same
+    for ar_name, ar in prototype.arrays.items():
+        #if ar != initialized[ar_name]:
+        #    return False
+        if type(ar) is not type(initialized[ar_name]):
+            return False
+        if ar.num != initialized[ar_name].num:
+            return False
+        if not np.allclose(ar.pos,initialized[ar_name].pos):
+            return False
+
+    #Check the paths are the same
+    for src, mic in prototype.mic_src_combos():
+        if prototype.path_type[src.name][mic.name] == "modified":
+            if not np.allclose(prototype.paths[src.name][mic.name], initialized.paths[src.name][mic.name]):
+                return False
+        if prototype.path_type[src.name][mic.name] != initialized.path_type[src.name][mic.name]:
+            return False
+
+    return True
 
 
 
@@ -305,9 +413,9 @@ class Array(ABC):
     plot_symbol = "."
 
     def __init__(self, name, pos):
-        """
-        Abstract base class for all types of arrays
-        documentation refers to objects, which means microphone, loudspeaker
+        """Abstract base class for all types of arrays
+
+        Documentation refers to objects, which means any of microphone, loudspeaker
         or source depending on array type. 
 
         Parameters
@@ -343,6 +451,8 @@ class Array(ABC):
             self.pos = self.trajectory.current_pos(0)
             self.pos_segments = [pos]
             self.dynamic = True
+            self.pos_all = []
+            self.time_all = []
         else:
             raise ValueError("Incorrect datatype for pos")
 
@@ -364,31 +474,59 @@ class Array(ABC):
     #     return NotImplemented
 
     def set_groups(self, group_idxs):
-        """group_idxs is a list of lists or a list of 1D nd.arrays
-            Each inner list is the indices of the array elements 
-            belonging to one group."""
+        """Sorts each object of the array into groups
+
+        Parameters
+        ----------
+        group_idxs : list of lists or list of 1D nd.arrays
+            Each inner list is the indices of the array elements
+            belonging to one group.
+        """
         self.num_groups = len(group_idxs)
         self.group_idxs = group_idxs
 
-    def plot(self, ax):
+    def plot(self, ax, sim_info):
         if self.dynamic:
-            self.trajectory.plot(ax, self.plot_symbol, self.name)
+            self.trajectory.plot(ax, self.plot_symbol, self.name, sim_info.tot_samples)
         else:
             ax.plot(self.pos[:,0], self.pos[:,1], self.plot_symbol, label=self.name, alpha=0.8)
 
     def update(self, glob_idx):
         if self.dynamic:
             self.pos = self.trajectory.current_pos(glob_idx)
+            self.time_all.append(glob_idx)
+            self.pos_all.append(self.pos)
             return True
         return False
 
 class MicArray(Array):
+    """Array class for microphones
+    
+    
+    """
     is_mic = True
     plot_symbol = "x"
     def __init__(self, name, pos):
         super().__init__(name, pos)
 
 class RegionArray(MicArray):
+    """Class for representing a continuous region with an microphone array
+    
+    Requires a Region object to be used as representation of the region. The Region object
+    has a equally_spaced_points method, which is used to generate the positions of the microphones
+    that are actually used in the simulation. Therefore, the signals generated will be 
+    identical to using a MicArray() with region.equally_spaced_points() as positions. 
+
+    Attributes
+    ----------
+    region : Region
+        The region object used to represent the region
+    region_segments : list of Region
+        If the region is a CombinedRegion, this attribute will contain the individual regions
+        that were combined to create the region. 
+    pos : ndarray of shape (num_mics, spatial_dim)
+        The positions of the microphones that are used in the simulation
+    """
     def __init__(self, name, region, pos=None):
         if isinstance(region, (list, tuple)):
             if len(region) > 1:
@@ -406,16 +544,29 @@ class RegionArray(MicArray):
         self.region = region
         self.metadata["region shape"] = self.region.__class__.__name__
 
-    def plot(self, ax):
+    def plot(self, ax, sim_info):
         self.region.plot(ax, self.name)
         
 class ControllableSourceArray(Array):
+    """ Array for sources controllable by a processor
+    
+    
+    """
     is_source = True
     plot_symbol="o"
     def __init__(self, name, pos):
         super().__init__(name, pos)
         
 class FreeSourceArray(Array):
+    """ Array for free sound sources, that cannot be adaptively controlled 
+    
+    Attributes
+    ----------
+    source : Source
+        The source object used to generate the signal
+        see aspsim.room.source module for more info. More sources are also available
+        in the aspsim.room.sourcescollection module
+    """
     is_source = True
     plot_symbol = "s"
     def __init__(self, name, pos, source):
@@ -428,8 +579,8 @@ class FreeSourceArray(Array):
         self.source = copy.deepcopy(self.source)
         self.source.reset()
 
-    def get_samples(self, numSamples):
-        return self.source.get_samples(numSamples)
+    def get_samples(self, num_samples):
+        return self.source.get_samples(num_samples)
 
     def set_source(self, source):
         assert source.num_channels == self.num

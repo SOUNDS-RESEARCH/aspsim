@@ -3,6 +3,7 @@ tot_samples : 2000
 sim_buffer : 2000
 sim_chunk_size : 2000
 
+start_sources_before_0 : False
 save_source_contributions : False
 array_update_freq : 1
 
@@ -11,12 +12,14 @@ samplerate : 2000
 c : 343.0
 spatial_dims : 3
 
-# reverb options: "none", "identity", "freespace", "ism", "recorded"
+# reverb options: "none", "direct", "random", "ism"
 reverb : ism
 room_size : [7, 5, 2.5]
 room_center : [-1, 0, 0]
 rt60 : 0.45
 max_room_ir_length : 500
+randomized_ism : False
+extra_delay : 0
 
 # PLOTS AND MISC
 export_frequency : 1000

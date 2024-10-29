@@ -53,7 +53,7 @@ def search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays):
             loaded_arrays = ar.load_arrays(dir_path)
 
             if configutil.equal_audio(chosen_sim_info, loaded_sim_info, chosen_arrays.path_type) and \
-                ar.ArrayCollection.prototype_equals(chosen_arrays, loaded_arrays):
+                ar.prototype_equals(chosen_arrays, loaded_arrays):
                 return dir_path
     raise MatchingSessionNotFoundError("No matching saved sessions")
 

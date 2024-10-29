@@ -1,10 +1,10 @@
 numpy
 scipy
 matplotlib
-tikzplotlib
 dill
 pyyaml
 soundfile
 pyroomacoustics
 pytest
 hypothesis
+numba

@@ -51,6 +51,7 @@ def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
     elif print_method == "tikz":
         import tikzplotlib
         if folder is not None:
+            import tikzplotlib
             nested_folder = folder.joinpath(name)
             try:
                 nested_folder.mkdir()
@@ -344,10 +345,11 @@ def create_audio_files(name, diags, time_idx, folder, preprocess, print_method=N
         signal_to_write = signal / np.max(np.abs(signal))
         
 
-        ramp_length = int(0.2*samplerate)
-        ramp = np.linspace(0,1,ramp_length)
-        signal_to_write[:,:ramp_length] *= ramp
-        signal_to_write[:,-ramp_length:] *= (1-ramp)
+        ramp_length = min(int(0.2*samplerate), int(0.1 * signal_to_write.shape[-1]))
+        if ramp_length > 0:
+            ramp = np.linspace(0,1,ramp_length)
+            signal_to_write[:,:ramp_length] *= ramp
+            signal_to_write[:,-ramp_length:] *= (1-ramp)
 
         sf.write(str(file_path), signal_to_write.T, samplerate)
 

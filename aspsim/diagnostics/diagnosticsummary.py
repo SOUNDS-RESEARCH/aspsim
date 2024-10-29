@@ -97,7 +97,7 @@ class SignalPowerRatioSummary(SummaryDiagnostic):
 
         self.plot_data["title"] = f"Ratio of power: {self.numerator_name} / {self.denom_name}. Samples: {self.save_range}"
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.num_power += np.sum(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2, axis=0)) / self.num_samples
         self.denom_power += np.sum(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0)) / self.num_samples
 
@@ -129,7 +129,7 @@ class SignalPowerSummary(SummaryDiagnostic):
 
         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         self.power += np.sum(np.mean(np.abs(processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]])**2, axis=0)) / self.num_samples
 
         #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
@@ -167,7 +167,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
 
         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
         
-    def save(self, processor, chunkInterval, globInterval):
+    def save(self, processor, sig, chunkInterval, globInterval):
         num_samples = chunkInterval[1] - chunkInterval[0]
         self.power[:,self.sample_counter:self.sample_counter+num_samples] = np.abs(processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]])**2
 

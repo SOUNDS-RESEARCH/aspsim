@@ -9,6 +9,7 @@ class SimulatorInfo:
     sim_buffer : int
     sim_chunk_size : int
 
+    start_sources_before_0 : bool
     save_source_contributions : bool
     array_update_freq : int
 
@@ -21,6 +22,8 @@ class SimulatorInfo:
     room_center : list[float]
     rt60 : float
     max_room_ir_length : int
+    randomized_ism : bool
+    extra_delay : int
 
     export_frequency : int
     plot_output : str
@@ -29,10 +32,11 @@ class SimulatorInfo:
 
 
     def __post_init__(self):
+        # Should check here that sim_buffer is large enough that it wont cause errors
         assert len(self.room_size) == self.spatial_dims
         assert len(self.room_center) == self.spatial_dims
 
-        assert self.reverb in ("none", "identity", "freespace", "ism", "recorded")
+        assert self.reverb in ("none", "direct", "ism")
 
 
     def save_to_file(self, path):
@@ -65,6 +69,8 @@ def equal_audio(info1, info2, path_types):
             info1.room_size == info2.room_size and \
             info1.room_center == info2.room_center and \
             info1.rt60 == info2.rt60 and \
-            info1.max_room_ir_length == info2.max_room_ir_length
+            info1.max_room_ir_length == info2.max_room_ir_length and \
+            info1.randomized_ism == info2.randomized_ism and \
+            info1.extra_delay == info2.extra_delay
     return same_audio
 

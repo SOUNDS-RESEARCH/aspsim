@@ -242,6 +242,53 @@ class Disc(Region):
         ax.add_patch(circ)
 
 
+
+class Ball(Region):
+    def __init__(self, radius, center, point_spacing=(1,1,1), rng=None):
+        super().__init__(rng)
+        self.radius = radius
+        self.center = np.array(center)
+        self.point_spacing = np.array(point_spacing)
+
+        self.volume = (4/3) * self.radius**3 * np.pi
+
+    def is_in_region(self, coordinates):
+        centered_coords = coordinates[:,:2] - self.center[None,:2]
+        norm_coords = np.sqrt(np.sum(np.square(centered_coords), axis=-1))
+        is_in = norm_coords <= self.radius
+        return is_in
+
+    def equally_spaced_points(self):
+        raise NotImplementedError
+
+    def sample_points(self, num_points):
+        finished = False
+        num_accepted = 0
+
+        samples = np.zeros((num_points, 3))
+        while not finished:
+            uniform_samples = self.rng.uniform(low=-self.radius, high=self.radius, size=(num_points, 3))
+
+            filtered_samples = uniform_samples[np.linalg.norm(uniform_samples, axis=-1) <= self.radius,:]
+            num_new = filtered_samples.shape[0]
+            num_to_accept = min(num_new, num_points - num_accepted)
+
+
+            samples[num_accepted:num_accepted+num_to_accept,:] = filtered_samples[:num_to_accept,:] 
+            num_accepted += num_to_accept
+
+            if num_accepted >= num_points:
+                finished = True
+
+        samples += self.center
+        return samples
+
+    def plot(self, ax, label=None):
+        circ = patches.Circle(self.center[:2], self.radius, fill=True, alpha=0.3, label=label)
+        ax.add_patch(circ)
+
+
+
 class Cylinder(Region):
     def __init__(self, radius, height, center=(0,0,0), point_spacing=(1,1,1), rng=None):
         super().__init__(rng)

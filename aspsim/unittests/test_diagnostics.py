@@ -12,57 +12,107 @@ import aspsim.processor as bse
 import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.fileutilities as fu
+import aspsim.signal.sources as sources
 
-def reset_sim_setup(setup):
-    setup.arrays = ar.ArrayCollection()
-    setup.sim_info.tot_samples = 100
-    setup.sim_info.sim_chunk_size = 10
-    setup.sim_info.sim_buffer = 10
-    setup.sim_info.export_frequency = 10
-    setup.sim_info.save_source_contributions = False
-    setup.use_preset("debug")
 
 @pytest.fixture(scope="session")
-def sim_setup(tmp_path_factory):
-    setup = SimulatorSetup(tmp_path_factory.mktemp("figs"), None)
+def fig_folder(tmp_path_factory):
+    return tmp_path_factory.mktemp("figs")
+
+def simple_setup(fig_folder):
+    setup = SimulatorSetup(fig_folder)
+    setup.sim_info.tot_samples = 20
+    setup.sim_info.sim_buffer = 20
+    setup.sim_info.export_frequency = 20
+    setup.sim_info.sim_chunk_size = 20
+
+    setup.add_free_source("src", np.array([[1,0,0]]), sources.WhiteNoiseSource(1,1))
+    setup.add_controllable_source("loudspeaker", np.array([[1,0,0]]))
+    setup.add_mics("mic", np.array([[0,0,0]]))
+
+    setup.arrays.path_type["loudspeaker"]["mic"] = "none"
+    setup.arrays.path_type["src"]["mic"] = "direct"
     return setup
 
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=10), 
+           export_freq = st.integers(min_value=1, max_value=10))
+def test_processor_sees_same_mic_samples_as_is_logged_in_record_signal(fig_folder, bs, export_freq):
+    setup = simple_setup(fig_folder)
+    setup.sim_info.export_frequency = export_freq
+
+    sim = setup.create_simulator()
+    proc = bse.DebugProcessor(sim.sim_info, sim.arrays, bs)
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, export_func="npz"))
+    sim.add_processor(proc)
+    sim.run_simulation()
+
+    final_export_idx = sim.sim_info.export_frequency * (sim.sim_info.tot_samples // sim.sim_info.export_frequency)
+    signal_log = np.load(sim.folder_path.joinpath(f"mic_{final_export_idx}.npz"))["mic"]
+    signal_true = sim.processors[0].mic
+    assert np.allclose(signal_log, signal_true[:,:final_export_idx])
 
 
-def test_signal_diagnostics_simplest(sim_setup):
-    reset_sim_setup(sim_setup)
-    bs = 2
-    sim_setup.sim_info.tot_samples = 13
+
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=10))
+def test_record_signal_is_same_with_or_without_a_processor(fig_folder, bs):
+    setup = simple_setup(fig_folder)
+    final_export_idx = setup.sim_info.export_frequency * (setup.sim_info.tot_samples // setup.sim_info.export_frequency)
+
+    sim = setup.create_simulator()
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, export_func="npz"))
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.run_simulation()
+
+    sig_with_proc = np.load(sim.folder_path.joinpath(f"mic_{final_export_idx}.npz"))["mic"]
+
+    sim = setup.create_simulator()
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, export_func="npz"))
+    sim.run_simulation()
+
+    sig_without_proc = np.load(sim.folder_path.joinpath(f"mic_{final_export_idx}.npz"))["mic"]
+
+    assert np.allclose(sig_with_proc, sig_without_proc)
+
+
+@hyp.settings(deadline=None)
+@hyp.given(bs = st.integers(min_value=1, max_value=10),
+           export_freq = st.integers(min_value=2, max_value=10),
+           tot_samples = st.integers(min_value=10, max_value=30),
+           )
+def test_signal_diagnostics_correct_files_saved(fig_folder, bs, export_freq, tot_samples):
+    sim_setup = simple_setup(fig_folder)
+    sim_setup.sim_info.tot_samples = tot_samples
+    sim_setup.sim_info.export_frequency = export_freq
     sim_setup.sim_info.sim_chunk_size = 5
-    sim_setup.sim_info.sim_buffer = 5
+    sim_setup.sim_info.sim_buffer = 20
 
     sim = sim_setup.create_simulator()
-
-    #save_at = diacore.IntervalCounter(np.arange(1,sim.sim_info.tot_samples+1))
-    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
-                diagnostics={"mic":dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")}))
-
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
+    sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, export_func="npz"))
     sim.run_simulation()
-    
-    one_file_saved = False
-    for f in sim.folder_path.iterdir():
-        if f.stem.startswith("mic"):
-            one_file_saved = True
-            idx = fu.find_index_in_name(f.stem)
-            saved_data = np.load(f)
-            for proc_name, data in saved_data.items():
-                assert np.allclose(data, np.arange(sim.sim_info.sim_buffer, 
-                            sim.sim_info.sim_buffer+idx))
-    assert one_file_saved
 
+    all_saved_files = list(sim.folder_path.iterdir())
+    num_files_to_save = sim.sim_info.tot_samples // sim_setup.sim_info.export_frequency
+    expected_files = [sim.folder_path.joinpath(f"mic_{i*sim_setup.sim_info.export_frequency}.npz") for i in range(1, num_files_to_save+1)]
+
+    # Check all expected files exist
+    for f in expected_files:
+        assert f.exists()
+
+    # Check there are no other npz files except the expected files
+    for f in all_saved_files:
+        if f.suffix == ".npz":
+            assert f in expected_files
 
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5),
             buf_size = st.integers(min_value=10, max_value=30),
             num_proc = st.integers(min_value=1, max_value=3))
-def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size, num_proc):
-    reset_sim_setup(sim_setup)
+def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_proc):
+    sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
     sim = sim_setup.create_simulator()
     for _ in range(num_proc):
@@ -86,8 +136,8 @@ def test_all_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size, num_p
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5),
             buf_size = st.integers(min_value=10, max_value=30))
-def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs, buf_size):
-    reset_sim_setup(sim_setup)
+def test_correct_intermediate_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size):
+    sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
@@ -106,8 +156,8 @@ def test_correct_intermediate_samples_saved_for_signal_diagnostics(sim_setup, bs
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_export_file_naming_interval_diagnostics(sim_setup, bs):
-    reset_sim_setup(sim_setup)
+def test_export_file_naming_interval_diagnostics(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
@@ -126,8 +176,8 @@ def test_export_file_naming_interval_diagnostics(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
-    reset_sim_setup(sim_setup)
+def test_correct_samples_saved_for_interval_diagnostics(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
     save_intervals = ((32,46), (68,69), (71, 99))
@@ -164,8 +214,8 @@ def test_correct_samples_saved_for_interval_diagnostics(sim_setup, bs):
 @hyp.given(bs = st.integers(min_value=1, max_value=5),
             buf_size = st.integers(min_value=10, max_value=30),
             num_proc = st.integers(min_value=1, max_value=3))
-def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
-    reset_sim_setup(sim_setup)
+def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc):
+    sim_setup = simple_setup(fig_folder)
     #bs = 1
     #sim_setup.sim_info.tot_samples = 13
     #sim_setup.sim_info.sim_chunk_size = 5
@@ -193,8 +243,8 @@ def test_all_samples_saved_state_diagnostics(sim_setup, bs, buf_size, num_proc):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
-    reset_sim_setup(sim_setup)
+def test_correct_samples_saved_for_instant_diagnostics(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
     #save_at = np.arange(bs, sim.sim_info.tot_samples, bs)#(bs,)
@@ -221,8 +271,8 @@ def test_correct_samples_saved_for_instant_diagnostics(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
-    reset_sim_setup(sim_setup)
+def test_correct_samples_saved_for_instant_diagnostics_savefreq(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
     save_at = bs
@@ -242,8 +292,8 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(sim_setup, bs):
 
 @hyp.settings(deadline=None)
 @hyp.given(bs = st.integers(min_value=1, max_value=5))
-def test_two_processors_with_different_diagnostics(sim_setup, bs):
-    reset_sim_setup(sim_setup)
+def test_two_processors_with_different_diagnostics(fig_folder, bs):
+    sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
     proc1 = bse.DebugProcessor(sim.sim_info, sim.arrays, bs, 
@@ -269,72 +319,3 @@ def test_two_processors_with_different_diagnostics(sim_setup, bs):
                 assert np.allclose(data[:idx+1], np.arange(sim.sim_info.sim_buffer, 
                             sim.sim_info.sim_buffer+idx+1))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def test_find_export_bug(sim_setup):
-    import aspsim.signal.sources as sources
-    import soundfieldcontrol.anc as anc
-
-    sr = 2000
-
-    sim_setup.add_mics("error", np.array([[0,0,0]]))
-    sim_setup.add_mics("ref", np.array([[0,0,0]]))
-    sim_setup.add_controllable_source("ls", np.array([[0,1,0]]))
-    sim_setup.add_free_source("source", np.array([[-2,0,0]]), sources.SineSource(1,1, 500, sr))
-
-    sim_setup.arrays.path_type["ls"]["ref"] = "none"
-    sim_setup.arrays.path_type["source"]["ref"] = "identity"
-
-    sim_setup.sim_info.tot_samples = 10*sr
-    sim_setup.sim_info.sim_chunk_size = 3000
-    sim_setup.sim_info.sim_buffer = 4000
-    sim_setup.sim_info.samplerate = sr
-    sim_setup.sim_info.reverb = "ism"
-    sim_setup.sim_info.room_size = [5, 4.8, 2]
-    sim_setup.sim_info.room_center = [0.2, 0.1, 0.1]
-    sim_setup.sim_info.rt60 =  0.35
-    sim_setup.sim_info.max_room_ir_length = sr
-
-    sim_setup.sim_info.export_frequency = 2*sr
-    sim_setup.sim_info.output_smoothing = 4000
-    sim_setup.sim_info.plot_output = "pdf"
-    sim_setup.sim_info.auto_save_load = False
-    sim_setup.sim_info.save_source_contributions = True
-
-
-    sim = sim_setup.create_simulator()
-
-    bs = 1
-    filt_len = sr
-
-    fxlms = anc.FxLMS(sim.sim_info, sim.arrays, bs, bs, filt_len, 1e-3, 1e-5, sim.arrays.paths["ls"]["error"])
-    sim.add_processor(fxlms)
-    sim.run_simulation()
-
-    a = [f for f in sim.folder_path.iterdir()]
-
-    pass
