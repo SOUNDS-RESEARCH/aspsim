@@ -8,7 +8,7 @@ import aspsim.saveloadsession as sess
 import aspsim.diagnostics.core as diacore
 import aspsim.counter as counter
 
-import aspcore.filterclasses as fc
+import aspcore.filter as fc
 
 
 class SimulatorSetup:

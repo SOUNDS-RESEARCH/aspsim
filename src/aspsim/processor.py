@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-import aspcore.filterclasses as fc
+import aspcore.filter as fc
 
 import aspsim.diagnostics.core as diacore
 import aspsim.diagnostics.diagnostics as dia

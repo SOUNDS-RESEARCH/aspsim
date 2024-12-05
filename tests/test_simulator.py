@@ -8,7 +8,7 @@ import aspsim.processor as bse
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.signal.sources as sources
 import aspsim.room.trajectory as tr
-import aspcore.filterclasses as fc
+import aspcore.filter as fc
 
 import aspsim.configutil as cu
 

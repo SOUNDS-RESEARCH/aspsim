@@ -23,7 +23,7 @@ dependencies = [
     "pyyaml",
     "soundfile",
     "pyroomacoustics",
-    "numba",
+    "aspcore",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +31,9 @@ test = [
     "pytest",
     "hypothesis",
 ]
+
+[tool.setuptools.package-data]
+aspsim = ["*.yaml"]
 
 [project.urls]
 Documentation = "https://sounds-research.github.io/aspsim/"
