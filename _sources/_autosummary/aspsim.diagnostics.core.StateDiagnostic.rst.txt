@@ -1,0 +1,38 @@
+aspsim.diagnostics.core.StateDiagnostic
+=======================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: StateDiagnostic
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~StateDiagnostic.__init__
+      ~StateDiagnostic.get_output
+      ~StateDiagnostic.get_processed_output
+      ~StateDiagnostic.next_export
+      ~StateDiagnostic.next_save
+      ~StateDiagnostic.progress_export
+      ~StateDiagnostic.progress_save
+      ~StateDiagnostic.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~StateDiagnostic.export_functions
+   
+   

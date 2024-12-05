@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.RecordFilterDifference
+=====================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: RecordFilterDifference
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RecordFilterDifference.__init__
+      ~RecordFilterDifference.get_output
+      ~RecordFilterDifference.get_processed_output
+      ~RecordFilterDifference.next_export
+      ~RecordFilterDifference.next_save
+      ~RecordFilterDifference.progress_export
+      ~RecordFilterDifference.progress_save
+      ~RecordFilterDifference.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RecordFilterDifference.export_functions
+   
+   

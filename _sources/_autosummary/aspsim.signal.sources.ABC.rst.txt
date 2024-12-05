@@ -1,0 +1,25 @@
+aspsim.signal.sources.ABC
+=========================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: ABC
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ABC.__init__
+   
+   
+
+   
+   
+   

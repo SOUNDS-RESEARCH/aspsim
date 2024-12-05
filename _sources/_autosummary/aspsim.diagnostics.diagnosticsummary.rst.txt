@@ -1,0 +1,43 @@
+aspsim.diagnostics.diagnosticsummary
+====================================
+
+.. automodule:: aspsim.diagnostics.diagnosticsummary
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      add_to_summary
+      last_value
+      mean_near_time_idx
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      SignalPowerRatioSummary
+      SignalPowerSpectrum
+      SignalPowerSummary
+      SummaryDiagnostic
+   
+   
+
+   
+   
+   
+
+
+

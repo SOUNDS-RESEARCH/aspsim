@@ -1,0 +1,6 @@
+aspsim.diagnostics.soundfieldplot.get\_num\_pixels
+==================================================
+
+.. currentmodule:: aspsim.diagnostics.soundfieldplot
+
+.. autofunction:: get_num_pixels

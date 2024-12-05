@@ -1,0 +1,29 @@
+aspsim.room.region.Cuboid
+=========================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: Cuboid
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Cuboid.__init__
+      ~Cuboid.equally_spaced_points
+      ~Cuboid.is_in_region
+      ~Cuboid.plot
+      ~Cuboid.sample_points
+   
+   
+
+   
+   
+   

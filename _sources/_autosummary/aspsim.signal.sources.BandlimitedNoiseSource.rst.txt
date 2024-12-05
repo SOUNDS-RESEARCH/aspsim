@@ -1,0 +1,27 @@
+aspsim.signal.sources.BandlimitedNoiseSource
+============================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: BandlimitedNoiseSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BandlimitedNoiseSource.__init__
+      ~BandlimitedNoiseSource.get_samples
+      ~BandlimitedNoiseSource.set_power
+   
+   
+
+   
+   
+   

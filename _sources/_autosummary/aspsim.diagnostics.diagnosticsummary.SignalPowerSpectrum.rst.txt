@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticsummary.SignalPowerSpectrum
+========================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autoclass:: SignalPowerSpectrum
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SignalPowerSpectrum.__init__
+      ~SignalPowerSpectrum.get_output
+      ~SignalPowerSpectrum.get_processed_output
+      ~SignalPowerSpectrum.next_export
+      ~SignalPowerSpectrum.next_save
+      ~SignalPowerSpectrum.progress_export
+      ~SignalPowerSpectrum.progress_save
+      ~SignalPowerSpectrum.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SignalPowerSpectrum.export_functions
+   
+   

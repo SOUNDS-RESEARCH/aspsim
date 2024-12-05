@@ -1,0 +1,26 @@
+aspsim.signal.sources.Source
+============================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: Source
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Source.__init__
+      ~Source.get_samples
+   
+   
+
+   
+   
+   

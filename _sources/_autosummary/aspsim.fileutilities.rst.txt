@@ -1,0 +1,35 @@
+﻿aspsim.fileutilities
+====================
+
+.. automodule:: aspsim.fileutilities
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      find_all_earlier_files
+      find_index_in_name
+      get_highest_numbered_file
+      get_multiple_unique_folder_names
+      get_time_string
+      get_unique_folder_name
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.legend\_without\_duplicates
+===================================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: legend_without_duplicates

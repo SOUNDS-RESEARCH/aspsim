@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.db\_power
+==========================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: db_power

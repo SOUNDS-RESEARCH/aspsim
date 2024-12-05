@@ -1,0 +1,6 @@
+aspsim.configutil.load\_default\_config
+=======================================
+
+.. currentmodule:: aspsim.configutil
+
+.. autofunction:: load_default_config

@@ -1,0 +1,29 @@
+aspsim.room.region.Disc
+=======================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: Disc
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Disc.__init__
+      ~Disc.equally_spaced_points
+      ~Disc.is_in_region
+      ~Disc.plot
+      ~Disc.sample_points
+   
+   
+
+   
+   
+   

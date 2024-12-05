@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.tikzplotlib\_fix\_ncols
+===============================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: tikzplotlib_fix_ncols
