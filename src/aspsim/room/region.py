@@ -117,12 +117,17 @@ class Cuboid(Region):
         return all_points
 
     def sample_points(self, num_points):
-        samples = [
-            self.rng.uniform(low_lim, high_lim, (num_points, 1))
-            for low_lim, high_lim in zip(self.low_lim, self.high_lim)
-        ]
+        low_lim = np.array(self.low_lim)
+        high_lim = np.array(self.high_lim)
 
-        samples = np.concatenate(samples, axis=-1)
+        samples = self.rng.uniform(low_lim[None,:], high_lim[None,:], size=(num_points, 3))
+
+        # samples = [
+        #     self.rng.uniform(low_lim, high_lim, (num_points, 1))
+        #     for low_lim, high_lim in zip(self.low_lim, self.high_lim)
+        # ]
+
+        # samples = np.concatenate(samples, axis=-1)
         return samples
 
     def plot(self, ax, label=None):
