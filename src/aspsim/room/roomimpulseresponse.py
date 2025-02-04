@@ -269,10 +269,8 @@ def ir_room_image_source_3d(
     room_size = np.array(room_size)
     pos_offset = room_size / 2 - room_center
 
-    dir_arg = _directionality_arg_to_pyroomacoustics(dir_type_mic, dir_dir_mic)
-
-    max_trunc_error = np.NINF
-    max_trunc_value = np.NINF
+    max_trunc_error = -np.inf
+    max_trunc_value = -np.inf
     max_num_ir_at_once = 500
     num_computed = 0
     while num_computed < num_to:
@@ -290,7 +288,8 @@ def ir_room_image_source_3d(
 
         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
         
-        if dir_arg is not None:
+        if dir_type_mic is not None:
+            raise NotImplementedError("Directional microphones not implemented yet")
             mics = pra.MicrophoneArray(
                 (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
                 samplerate,
@@ -390,8 +389,8 @@ def ir_room_image_source_3d_orig(
         if frac_dly_len < 20:
             print("WARNING: fractional delay length: ",frac_dly_len)
 
-    max_trunc_error = np.NINF
-    max_trunc_value = np.NINF
+    max_trunc_error = -np.inf
+    max_trunc_value = -np.inf
     max_num_ir_at_once = 500
     num_computed = 0
     while num_computed < num_to:
@@ -458,8 +457,8 @@ def ir_room_image_source_3d_orig(
 
     
 def calc_truncation_info(all_rir, trunc_len):
-    max_trunc_error = np.NINF
-    max_trunc_value = np.NINF
+    max_trunc_error = -np.inf
+    max_trunc_value = -np.inf
     for to_idx, receiver in enumerate(all_rir):
         for from_idx, single_rir in enumerate(receiver):
             ir_len = np.min((len(single_rir), trunc_len))

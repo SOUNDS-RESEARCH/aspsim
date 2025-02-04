@@ -7,8 +7,6 @@ import scipy.signal.windows as win
 
 import aspsim.signal.sources as sources
 
-#import aspcol.correlation as cr
-
 # @pytest.mark.parametrize("src", [sources.SineSource(1,100,8000)])
 # def test_source_blocks(src, ):
 

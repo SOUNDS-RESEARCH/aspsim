@@ -3,9 +3,16 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import pyroomacoustics as pra
 
+import aspcore.fouriertransform as ft
+
+import aspsim.room.region as region
+import aspsim.room.directional as directional
 from aspsim.simulator import SimulatorSetup
 import aspsim.room.roomimpulseresponse as rir
 import aspsim.room.generatepoints as gp
+
+
+import aspsim.utilities as utils
 
 def _setup_ism(fig_folder, samplerate):
     setup = SimulatorSetup(fig_folder)
@@ -316,3 +323,101 @@ def _get_default_simulator_setup(sr):
     setup.sim_info.extra_delay = 60
     setup.sim_info.plot_output = "none"
     return setup
+
+
+
+
+def test_differential_microphone_filter_gives_same_result_as_pyroomacoustics_for_approximate_plane_wave_sound_field():
+    sr = 1000
+    num_rotations = 30
+
+    pos_mic = np.zeros((1,3))
+    pos_mic_tiled = np.tile(pos_mic, (num_rotations,1))
+    mic_angle = np.linspace(0, 2*np.pi, num_rotations, endpoint=False)
+    mic_direction = utils.spherical2cart(np.ones(num_rotations), np.stack((mic_angle, np.pi/2 * np.ones(num_rotations)),axis=-1))
+
+    diff_mic_distance = 0.01
+    pos_mic_secondary = pos_mic - diff_mic_distance * mic_direction
+
+    pos_src = np.array([[0,90,0]])
+
+    setup = SimulatorSetup()
+    setup.sim_info.samplerate = sr
+
+    setup.sim_info.tot_samples = sr
+    setup.sim_info.export_frequency = setup.sim_info.tot_samples
+    setup.sim_info.reverb = "ism"
+    setup.sim_info.room_size = [200, 200, 200]
+    setup.sim_info.room_center = [0, 0, 0]
+    setup.sim_info.max_room_ir_length = 2*sr
+    setup.sim_info.array_update_freq = 1
+    setup.sim_info.randomized_ism = False
+    setup.sim_info.auto_save_load = False
+    setup.sim_info.sim_buffer = sr // 2
+    setup.sim_info.extra_delay = sr // 2
+    setup.sim_info.plot_output = "none"
+    setup.sim_info.rt60 = 0
+
+    setup.add_mics("omni", pos_mic)
+    setup.add_mics("secondary_mics", pos_mic_secondary)
+    dir_type = num_rotations*["cardioid"]
+    setup.add_mics("cardioid", pos_mic_tiled, directivity_type=dir_type, directivity_dir=mic_direction)
+    setup.add_controllable_source("src", pos_src)
+
+    sim = setup.create_simulator()
+
+    signal_main = np.tile(sim.arrays.paths["src"]["omni"][0,:,:], (num_rotations,1))
+    signal_secondary = sim.arrays.paths["src"]["secondary_mics"][0,:,:]
+    filter_below = 200
+    cardioid_signal = directional.differential_cardioid_microphone(signal_main, signal_secondary, diff_mic_distance, 500, sim.sim_info.c, sim.sim_info.samplerate, filter_below=filter_below)
+    
+    power_per_angle_pra = np.mean(np.abs(sim.arrays.paths["src"]["cardioid"][0,:,:])**2, axis=-1)
+    power_per_angle_diff = np.mean(np.abs(cardioid_signal)**2, axis=-1)
+    power_error = np.mean(np.abs(power_per_angle_pra - power_per_angle_diff))
+
+    fig, ax = plt.subplots(1,1)
+    ax.set_title(f"Mean power error: {power_error}")
+    ax.set_ylabel("Response power")
+    ax.set_xlabel("Microphone angle")
+    ax.plot(mic_angle, power_per_angle_pra, label="Pyroomacoustics")
+    ax.plot(mic_angle, power_per_angle_diff, label="Differential")
+    ax.legend()
+
+    fig, ax = plt.subplots(1,1)
+    example_idx = 5
+    mse_time_response = np.mean(np.abs(cardioid_signal - sim.arrays.paths["src"]["cardioid"][0,:,:])**2) / np.mean(np.abs(sim.arrays.paths["src"]["cardioid"][0,:,:])**2)
+    ax.set_title(f"Mean square error: {mse_time_response}")
+    ax.set_xlabel("Time (samples)")
+    ax.set_ylabel("Amplitude")
+    ax.plot(sim.arrays.paths["src"]["cardioid"][0,example_idx,:], label="Pyroomacoustics")
+    ax.plot(cardioid_signal[example_idx,:], label="Differential")
+    ax.plot(sim.arrays.paths["src"]["omni"][0,0,:], label="Pra omni")
+    ax.legend()
+
+    fig, axes = plt.subplots(3,1, sharex=True, figsize=(6,8))
+
+    axes[2].set_xlabel("Frequency")
+    axes[0].set_ylabel("Absolute")
+    axes[1].set_ylabel("Real")
+    axes[2].set_ylabel("Imag")
+    freqs = ft.get_real_freqs(cardioid_signal.shape[-1], sim.sim_info.samplerate)
+    freq_response_pra = ft.rfft(sim.arrays.paths["src"]["cardioid"][0,example_idx,:])
+    freq_response_diff = ft.rfft(cardioid_signal[example_idx,:])
+    freq_mask = freqs > filter_below
+    freq_mask[-5:] = False
+    mse = np.mean(np.abs(freq_response_pra[freq_mask] - freq_response_diff[freq_mask])**2) / np.mean(np.abs(freq_response_pra[freq_mask])**2)
+    axes[0].set_title(f"Mean square error: {mse}")
+
+    axes[0].plot(freqs, np.abs(freq_response_pra), label="Pyroomacoustics")
+    axes[0].plot(freqs, np.abs(freq_response_diff), label="Differential")
+    axes[0].plot(freqs, np.abs(ft.rfft(sim.arrays.paths["src"]["omni"][0,0,:])), label="Pra omni")
+
+    axes[1].plot(freqs, np.real(freq_response_pra), label="Pyroomacoustics")
+    axes[1].plot(freqs, np.real(freq_response_diff), label="Differential")
+    #axes[1].plot(freqs, np.real(ft.rfft(sim.arrays.paths["src"]["omni"][0,0,:])), label="Pra omni")
+
+    axes[2].plot(freqs, np.imag(freq_response_pra), label="Pyroomacoustics")
+    axes[2].plot(freqs, np.imag(freq_response_diff), label="Differential")
+    #axes[2].plot(freqs, np.imag(ft.rfft(sim.arrays.paths["src"]["omni"][0,0,:])), label="Pra omni")
+
+    plt.show()

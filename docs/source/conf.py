@@ -18,12 +18,18 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'aspsim'
-copyright = '2023, Jesper Brunnström'
-author = 'Jesper Brunnström'
+import pathlib
+import tomllib
+with open(pathlib.Path(__file__).parent.parent.parent / "pyproject.toml", "rb") as f:
+    toml = tomllib.load(f)
+pyproject = toml["project"]
+
+project = pyproject["name"]
+copyright = f"2024, {pyproject['authors'][0]['name']}"
+author = pyproject["authors"][0]["name"]
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = pyproject["version"]
 
 
 # -- General configuration ---------------------------------------------------

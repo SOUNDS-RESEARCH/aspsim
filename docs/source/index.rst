@@ -3,8 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to aspsim's documentation!
-==================================
+Audio Signal Processing Simulator (aspsim)
+==========================================
+The package simulates sound in a reverberant space. The simulator supports moving microphones and moving sources. The simulator supports adaptive processing, where the sound of the sources are determined by the sound in the room. This is useful for instance for active noise control and similar adaptive processing tasks.
+
 
 .. toctree::
    :maxdepth: 1
@@ -15,16 +17,23 @@ Welcome to aspsim's documentation!
    logger
 
 
-
 .. autosummary::
    :toctree: _autosummary
    :template: new-module-template.rst
-   :caption: Package API Reference
+   :caption: API Reference
    :recursive:
 
-   aspsim
-
-
+   aspsim.diagnostics
+   aspsim.room
+   aspsim.signal
+   aspsim.array
+   aspsim.configutil
+   aspsim.counter
+   aspsim.fileutilities
+   aspsim.processor
+   aspsim.saveloadsession
+   aspsim.simulator
+   aspsim.utilities
 
 Indices and tables
 ==================

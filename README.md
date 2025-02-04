@@ -5,48 +5,22 @@ The package simulates sound in a reverberant space. The simulator supports movin
 
 The package currently uses the image-source method implementation of [Pyroomacoustics](https://github.com/LCAV/pyroomacoustics) to generate the room impulse responses. 
 
+**[More info and complete API documentation](https://sounds-research.github.io/aspsim/)**
+
 
 ## Installation
-Requires python version that satisfies 3.8 <= version <= 3.11, as those are supported by Numba.
-### Quick installation
-Navigate into an appropriate folder and run
+The package can be installed with pip as
 ```
-git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
-pip install ./aspsim
-pip install -r aspsim/requirements.txt
+pip install aspsim
 ```
 
-### Installing the package
-The package can be installed by opening your favorite terminal and writing (changing out cd for the appropriate change-directory command, and the path to whatever you want)
+Alternatively, clone the repository and install the package direct from the source code as
 ```
-cd c:/folder/parent_folder_to_code
-git clone https://github.com/SOUNDS-RESEARCH/aspsim.git
-pip install ./aspsim
+pip install path/to/aspsim
 ```
 
-If you intend to work on the development, it might be preferable to get the develop branch directly instead, and to use an editable install. Use the commands
-```
-cd c:/folder/parent_folder_to_code
-git clone --branch develop https://github.com/SOUNDS-RESEARCH/aspsim.git
-pip install -e ./aspsim
-```
-
-### Dependencies
-To install all dependencies use the command
-```
-pip install -r requirements.txt
-```
-The collections modules, namely diagnostics/diagnosticscollection.py and signal/sourcescollection.py, are allowed to depend on the package [aspcol](https://github.com/SOUNDS-RESEARCH/aspcol). It is only required if you make use of classes or functions from a collections module. 
-
-
-## Documentation
-Once the repository is public, the documentation will be hosted on github and more easily accessible. Until then, it can be built from the source code locally. The docs are built using sphinx. To build the docs, navigate to the aspsim folder and run
-```
-cd ./docs
-pip install -r requirements.txt
-sphinx-build -M html ./source ./build
-```
-The docs can then be read by opening aspsim/docs/build/html/index.html
+## License
+The software is distributed under the MIT license. See the LICENSE file for more information.
 
 
 ## Usage

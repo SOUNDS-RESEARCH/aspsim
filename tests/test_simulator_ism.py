@@ -4,7 +4,7 @@ import pytest
 from aspsim.simulator import SimulatorSetup
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.signal.sources as sources
-import aspsim.signal.filterclasses as fc
+import aspcore.filter as fc
 
 @pytest.fixture(scope="session")
 def fig_folder(tmp_path_factory):

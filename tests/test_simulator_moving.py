@@ -7,7 +7,6 @@ from aspsim.simulator import SimulatorSetup
 import aspsim.diagnostics.diagnostics as dia
 import aspsim.signal.sources as sources
 import aspsim.room.trajectory as tr
-
 import aspsim.configutil as cu
 
 def _default_sim_info():

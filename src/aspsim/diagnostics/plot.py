@@ -49,6 +49,7 @@ def output_plot(print_method, folder, name="", keep_only_latest_tikz=False):
     if print_method == "show":
         plt.show()
     elif print_method == "tikz":
+        import tikzplotlib
         if folder is not None:
             import tikzplotlib
             nested_folder = folder.joinpath(name)
@@ -105,7 +106,7 @@ def output_plot(print_method, folder, name="", keep_only_latest_tikz=False):
     elif print_method == "none":
         pass
     else:
-        raise ValueError
+        raise ValueError("plot save method not recognized")
     plt.close("all")
 
 
