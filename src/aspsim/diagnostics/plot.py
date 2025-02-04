@@ -106,7 +106,7 @@ def output_plot(print_method, folder, name="", keep_only_latest_tikz=True):
     elif print_method == "none":
         pass
     else:
-        raise ValueError
+        raise ValueError("plot save method not recognized")
     plt.close("all")
 
 
