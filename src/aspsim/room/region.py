@@ -10,7 +10,6 @@ class Region(ABC):
         else:
             self.rng = np.random.default_rng()
         
-
     @abstractmethod
     def is_in_region(self, coordinate):
         pass
@@ -31,7 +30,7 @@ class CombinedRegion(Region):
     def __init__(self, regions, rng=None):
         super().__init__(rng)
         self.regions = regions
-        assert not self._overlaps()
+        assert not self._overlaps(), "Not implemented for overlapping regions"
 
         self.volumes = np.array([reg.volume for reg in self.regions])
         self.volume = np.sum(self.volumes)
@@ -259,17 +258,19 @@ class Ball(Region):
         self.volume = (4/3) * self.radius**3 * np.pi
 
     def is_in_region(self, coordinates):
-        centered_coords = coordinates[:,:2] - self.center[None,:2]
-        norm_coords = np.sqrt(np.sum(np.square(centered_coords), axis=-1))
-        is_in = norm_coords <= self.radius
+        centered_coords = coordinates - self.center[None,:]
+        is_in = np.linalg.norm(centered_coords, axis=-1) <= self.radius
+        #is_in = norm_coords <= self.radius
         return is_in
 
     def equally_spaced_points(self):
         cuboid = Cuboid((2*self.radius, 2*self.radius, 2*self.radius), point_spacing=self.point_spacing)
         grid_points = cuboid.equally_spaced_points()
-        inside_ball = np.linalg.norm(grid_points, axis=-1) <= self.radius
-        grid_points = grid_points[inside_ball,:]
+
         grid_points += self.center[None,:]
+        #inside_ball = np.linalg.norm(grid_points, axis=-1) <= self.radius
+        grid_points = grid_points[self.is_in_region(grid_points),:]
+        #grid_points += self.center[None,:]
         return grid_points
 
     def sample_points(self, num_points):
@@ -301,16 +302,58 @@ class Ball(Region):
 
 class Cylinder(Region):
     def __init__(self, radius, height, center=(0,0,0), point_spacing=(1,1,1), rng=None):
+        """Constructs a cylinder region
+        
+        Parameters
+        ----------
+        radius : float
+            Radius of the cylinder.
+        height : float
+            Height of the cylinder.
+        center : array_like of shape (3,), optional
+            Center of the cylinder. The default is (0,0,0).
+        point_spacing : array_like of shape (3,), optional
+            Spacing between points in each direction, affects the selection of points
+            for the equally_spaced_points method. The default is (1,1,1).
+        rng : np.random.Generator, optional
+            Random number generator. The default is None, in which case a new generator
+            with a random seed will be created. 
+            The generator affects the sampling of points in the sample_points method, and so 
+            should be supplied for a reproducible result.
+
+        Returns
+        -------
+        cylinder : Cylinder
+        """
         super().__init__(rng)
         self.radius = radius
         self.height = height
         self.center = np.array(center)
         self.point_spacing = np.array(point_spacing)
-        #self.num_points_circle = num_points_circle
-        #self.num_points_height = num_points_height
         self.volume = self.radius**2 * np.pi * self.height
 
     def is_in_region(self, coordinates):
+        """Checks whether the coordinate is within the cylinder or not. 
+        
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Shape (N,3) where N is the number of coordinates to check. 
+            Each row is a coordinate in 3D space.
+            If only one coordinate is to be checked, it can be supplied as
+            a (3,) array        
+
+        Returns
+        -------
+        is_in : boolan np.ndarray of shape (N,)
+            True if the coordinate is within the cylinder, False otherwise.
+        """
+
+        if coordinates.ndim == 1:
+            coordinates = coordinates[None,:]
+        assert coordinates.ndim == 2
+        assert coordinates.shape[1] == 3
+
         centered_coords = coordinates - self.center[None,:]
         norm_coords = np.sqrt(np.sum(np.square(centered_coords[:,:2]), axis=-1))
         is_in_disc = norm_coords <= self.radius
@@ -320,11 +363,21 @@ class Cylinder(Region):
         return is_in
 
     def equally_spaced_points(self):
+        """Returns a grid of points within the cylinder
+        
+        Returns
+        -------
+        all_points : np.ndarray of shape (num_points, 3)
+            The number of points returned is determined by the radius, height and point_spacing.
+            Each row is a coordinate in 3D space.
+        """
         point_dist = self.point_spacing
         block_dims = np.array([self.radius*2, self.radius*2, self.height])
         num_points = np.ceil(block_dims / point_dist)
         single_axes = [np.arange(num_p) * p_dist for num_p, p_dist in zip(num_points, point_dist)]
-        all_points = np.concatenate(np.meshgrid(*single_axes), axis=-1).reshape(-1,3)
+        
+        all_points = np.stack(np.meshgrid(*single_axes, indexing="ij"),axis=-1)
+        all_points = all_points.reshape(-1,3)
 
         shift = (num_points-1)*point_dist / 2
         all_points -= shift[None,:]
@@ -336,6 +389,18 @@ class Cylinder(Region):
         return all_points
 
     def sample_points(self, num_points):
+        """Returns a set of points sampled uniformly within the cylinder
+        
+        Parameters
+        ----------
+        num_points : int
+            Number of points to sample.
+
+        Returns
+        -------
+        points : np.ndarray of shape (num_points, 3)
+            Each row is a coordinate in 3D space.
+        """
         r = self.radius * np.sqrt(self.rng.uniform(0,1,num_points))
         angle = 2 * np.pi * self.rng.uniform(0,1,num_points)
         x = r * np.cos(angle) + self.center[0]
