@@ -136,6 +136,40 @@ class Cuboid(Region):
 
 class Rectangle(Region):
     def __init__(self, side_lengths, center, point_spacing=(1,1), spatial_dim=3, rng=None):
+        """Constructs a two-dimensional rectangle
+
+        The rectangle can be placed in 3D space by setting a 3-dimensional center
+        
+        Parameters
+        ----------
+        side_lengths : array_like of shape (2,)
+            Lengths of the sides of the rectangle.
+        center : array_like of shape (2,) or (3,)
+            Center of the cylinder. The length of the array determines the spatial dimension.
+            If the array has length 3, the rectangle is placed in 3D space with the z-coordinate
+            fixed at the value of the third element.
+        point_spacing : array_like of shape (2,), optional
+            Spacing between points in each direction, affects the selection of points
+            for the equally_spaced_points method. The default is (1,1,1).
+        spatial_dim : int, optional
+            Spatial dimension of the rectangle. The default is 3. Must correspond to the length
+            of the center array. 
+        rng : np.random.Generator, optional
+            Random number generator. The default is None, in which case a new generator
+            with a random seed will be created. 
+            The generator affects the sampling of points in the sample_points method, and so 
+            should be supplied for a reproducible result.
+
+        Returns
+        -------
+        rectangle : Rectangle
+
+        Notes
+        -----
+        Although there are many more rectangles in 3D, here only rectangles with a fixed
+        z-coordinate is considered. A rotation could in principle be applied to the rectangle
+        for other orientations.
+        """
         super().__init__(rng)
         assert spatial_dim in (2,3)
         assert len(center) == spatial_dim
@@ -149,6 +183,23 @@ class Rectangle(Region):
         self.volume = np.prod(side_lengths)
         
     def is_in_region(self, coordinates, padding=[[0,0]]):
+        """Checks whether the coordinate is within the region or not. 
+        
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Shape (N,3) or (N, 2) where N is the number of coordinates to check. 
+            Each row is a coordinate in 3D space.      
+        padding : array_like of shape (2,), optional
+            Padding to add to the region. The default is [[0,0]]. This can 
+            be used to check whether a point is near the region, rather than strictly 
+            inside it.
+            
+        Returns
+        -------
+        is_in : boolan np.ndarray of shape (N,)
+            True if the coordinate is within the region, False otherwise.
+        """
         if self.spatial_dim == 3:
             if not np.allclose(coordinates[:,2], self.center[2]):
                 return False
@@ -159,6 +210,14 @@ class Rectangle(Region):
         return is_in
 
     def equally_spaced_points(self):
+        """Returns a grid of points within the region
+        
+        Returns
+        -------
+        all_points : np.ndarray of shape (num_points, 3) or (num_points, 2)
+            The number of points returned is determined by the radius, height and point_spacing.
+            Each row is a coordinate in 3D or 2D space.
+        """
         num_points = np.floor(self.side_lengths / self.point_spacing)
         assert min(num_points) >= 1
 
@@ -173,6 +232,18 @@ class Rectangle(Region):
         return all_points
 
     def sample_points(self, num_points):
+        """Returns a set of points sampled uniformly within the region
+        
+        Parameters
+        ----------
+        num_points : int
+            Number of points to sample.
+
+        Returns
+        -------
+        points : np.ndarray of shape (num_points, 3) or (num_points, 2)
+            Each row is a coordinate in 3D or 2D space.
+        """
         x = self.rng.uniform(self.low_lim[0], self.high_lim[0], num_points)
         y = self.rng.uniform(self.low_lim[1], self.high_lim[1], num_points)
         points = np.stack((x,y), axis=1)
@@ -249,6 +320,27 @@ class Disc(Region):
 
 class Ball(Region):
     def __init__(self, radius, center, point_spacing=(1,1,1), rng=None):
+        """Constructs a ball region
+        
+        Parameters
+        ----------
+        radius : float
+            Radius of the ball.
+        center : array_like of shape (3,), optional
+            Center of the cylinder. The default is (0,0,0).
+        point_spacing : array_like of shape (3,), optional
+            Spacing between points in each direction, affects the selection of points
+            for the equally_spaced_points method. The default is (1,1,1).
+        rng : np.random.Generator, optional
+            Random number generator. The default is None, in which case a new generator
+            with a random seed will be created. 
+            The generator affects the sampling of points in the sample_points method, and so 
+            should be supplied for a reproducible result.
+
+        Returns
+        -------
+        ball : Ball
+        """
         super().__init__(rng)
         self.radius = radius
         self.center = np.array(center)
@@ -348,7 +440,6 @@ class Cylinder(Region):
         is_in : boolan np.ndarray of shape (N,)
             True if the coordinate is within the cylinder, False otherwise.
         """
-
         if coordinates.ndim == 1:
             coordinates = coordinates[None,:]
         assert coordinates.ndim == 2
