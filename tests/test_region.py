@@ -29,6 +29,16 @@ def _random_ball(rng=None):
     ball = region.Ball(radius, center, point_spacing, rng=rng)
     return ball
 
+
+def _random_rectangle(rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    side_lengths = rng.uniform(0.5, 2, size=2)
+    center = rng.uniform(-1, 1, size=3)
+    point_spacing = rng.uniform(0.1, 0.5, size=2)
+    rect = region.Rectangle(side_lengths, center, point_spacing, rng=rng)
+    return rect
+
 def test_cylinder_equally_spaced_points_returns_points_within_region():
     cyl = _random_cylinder()
     points = cyl.equally_spaced_points()
@@ -131,3 +141,41 @@ def test_ball_a_random_point_is_always_close_to_equally_spaced_point():
         diff = points - points_random[i:i+1,:]
         min_distance = np.min(np.abs(diff), axis=0)
         assert np.all(min_distance < ball.point_spacing)
+
+
+
+
+def test_rectangle_equally_spaced_points_returns_points_within_region():
+    rect = _random_rectangle()
+    points = rect.equally_spaced_points()
+
+    for i in range(points.shape[0]):
+        point = points[i,:]
+        side_len_3d = np.concatenate((rect.side_lengths, [0]))
+        assert np.all(rect.center - side_len_3d / 2 <= point)
+        assert np.all(point <= rect.center + side_len_3d / 2)
+        assert rect.is_in_region(point[None,:])
+
+def test_rectangle_sample_points_returns_points_within_region():
+    rect = _random_rectangle()
+    num_to_sample = 1000
+    points = rect.sample_points(num_to_sample)
+
+    for i in range(points.shape[0]):
+        point = points[i,:]
+        side_len_3d = np.concatenate((rect.side_lengths, [0]))
+        assert np.all(rect.center - side_len_3d / 2 <= point)
+        assert np.all(point <= rect.center + side_len_3d / 2)
+        assert rect.is_in_region(point[None,:])
+
+def test_rectangle_a_random_point_is_always_close_to_equally_spaced_point():
+    rect = _random_rectangle()
+    points = rect.equally_spaced_points()
+
+    num_to_sample = 1000
+    points_random = rect.sample_points(num_to_sample)
+
+    for i in range(points_random.shape[0]):
+        diff = points - points_random[i:i+1,:]
+        min_distance = np.min(np.abs(diff), axis=0)
+        assert np.all(min_distance[:2] < rect.point_spacing)
