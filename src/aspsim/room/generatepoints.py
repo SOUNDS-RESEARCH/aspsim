@@ -49,57 +49,50 @@ def spherical2cart(r, angle):
     return cart_coord
 
 def cart2pol(x, y):
+    """Transforms the provided cartesian coordinates to polar coordinates
+
+    Parameters
+    ----------
+    x : ndarray of shape (num_points,)
+        x-coordinate of each point
+    y : ndarray of shape (num_points,)
+        y-coordinate of each point
+
+    Returns
+    -------
+    r : ndarray of shape (num_points,)
+        radius of each point
+    angle : ndarray of shape (num_points,)
+        the angles in radians
+    """
     r = np.hypot(x, y)
     angle = np.arctan2(y, x)
     return (r, angle)
 
 def pol2cart(r, angle):
+    """Transforms the provided polar coordinates to cartesian coordinates
+
+    Parameters
+    ----------
+    r : ndarray of shape (num_points,)
+        radius of each point
+    angle : ndarray of shape (num_points,)
+        the angles in radians
+
+    Returns
+    -------
+    x : ndarray of shape (num_points,)
+        x-coordinate of each point
+    y : ndarray of shape (num_points,)
+        y-coordinate of each point
+    """
     x = r * np.cos(angle)
     y = r * np.sin(angle)
     return (x, y)
 
 
-
-def concentrical_circles(
-    num_points, num_circles, radius, z_distance=None, angle_offset="distribute"
-):
-    a = num_circles // 2
-    if z_distance is not None:
-        zValues = [i * z_distance for i in range(-a, -a + num_circles)]
-        if num_circles % 2 == 0:
-            zValues = [zVal + z_distance / 2 for zVal in zValues]
-    else:
-        zValues = [None for i in range(num_circles)]
-
-    pointsPerCircle = [num_points // num_circles for _ in range(num_circles)]
-    for i in range(num_points - num_circles * (num_points // num_circles)):
-        pointsPerCircle[i] += 1
-
-    if angle_offset == "random":
-        startAngles = np.random.rand(num_circles) * np.pi * 2
-    elif angle_offset == "same":
-        startAngles = np.zeros(num_circles)
-    elif angle_offset == "almostSame":
-        angleSection = 2 * np.pi / pointsPerCircle[0]
-        startAngles = np.random.rand(num_circles) * (angleSection / 10)
-    elif angle_offset == "distribute":
-        angleSection = 2 * np.pi / pointsPerCircle[0]
-        startAngles = np.arange(num_circles) * angleSection / num_circles
-
-    coords = [
-        equiangular_circle(circlePoints, radius, angle, zVal)
-        for i, (circlePoints, angle, zVal) in enumerate(
-            zip(pointsPerCircle, startAngles, zValues)
-        )
-    ]
-
-    coords = np.concatenate(coords)
-    return coords
-
-
 def equiangular_circle(num_points, radius, start_angle=0, z=None, rng=None):
-    """
-    Generates equiangularly spaced points on a circle
+    """Generates equiangularly spaced points on a circle
 
     Parameters
     ----------
@@ -145,6 +138,135 @@ def equiangular_circle(num_points, radius, start_angle=0, z=None, rng=None):
         pos = np.zeros((num_points, 2))
     pos[:, 0:2] = np.stack((x, y)).T
     return pos
+
+
+
+def equidistant_rectangle(num_points, side_lengths, extra_side_lengths = 0, offset= 0.5, z = None): 
+    """Points are spaced evenly along the edge of a rectangle
+    
+    Parameters
+    ----------
+    num_points : int
+        the number of total points to be returned. These will be distributed as 
+        evenly as possible
+    side_lengths : array_like of shape (2,)
+        the side lengths in x and y coordinates. The corners of the rectangle will be at
+        (-sl[0]/2, -sl[1]/2), (-sl[0]/2, sl[1]/2), (sl[0]/2, -sl[1]/2), (sl[0]/2, sl[1]/2)
+        where sl is shorthand for side_lengths
+    extra_side_lengths : float larger or equal to 0, or a 2-tuple of such values
+        if set to a non-zero value, every other point will be placed further away from the center
+        as if the points are placed on two rectangles, the larger with side lengths of
+        (side_lengths[0] + extra_side_lengths[0], side_lengths[1] + extra_side_lengths[1])
+    offset : float within [0,1]
+        The offset from the first corner to the first microphones. If offset is 0, the first
+        microphone is placed in the corner. If offset is 0.5, the first microphone is placed
+        as close to the middle of its 'segment' as possible
+    z : float
+        The z coordinate, which will be the same for all points in the rectangle. If not provided, 
+        a 2D shape will be returned
+
+    Returns
+    -------
+    rectangle_points : ndarray of shape (num_points, 3) or (num_points, 2)
+        The coordinates of the points in the rectangle
+        the shape is (num_points, 3) if z is provided, and (num_points, 2) otherwise. 
+    """
+    side_lengths = np.array(side_lengths)
+    assert side_lengths.shape == (2,)
+    assert np.all(side_lengths > 0)
+    if not isinstance(extra_side_lengths, (list, tuple, np.ndarray)):
+        extra_side_lengths = [extra_side_lengths, extra_side_lengths]
+    assert 0 <= offset <= 1
+
+    circumference = 2 * np.sum(side_lengths)
+    pos_on_circumference = np.linspace(0, circumference, num_points, endpoint = False)
+    mic_distance = circumference / num_points
+    pos_on_circumference += offset * mic_distance
+
+    x_extent = np.array([-side_lengths[0], side_lengths[0]]) / 2
+    y_extent = np.array([-side_lengths[1], side_lengths[1]]) / 2
+    fixed_side = [y_extent[1], x_extent[1], y_extent[0], x_extent[0]] #side with index i has a fixed coordinate for x or y. this is that coordinate
+
+    points = np.zeros((num_points, 2))
+    breakpoints = np.cumsum(np.array([0, side_lengths[0], side_lengths[1], side_lengths[0], side_lengths[1]]))
+    idxs = [np.logical_and(breakpoints[i] <= pos_on_circumference, pos_on_circumference < breakpoints[i+1]) for i in range(4)]
+    
+    points = []
+    pos_side = pos_on_circumference[idxs[0]] - breakpoints[0] - x_extent[1]
+    pos_fixed = np.full(num_points, fixed_side[0])
+    pos_fixed[np.arange(num_points) % 2 == 1] += extra_side_lengths[1] / 2
+    pos_fixed = pos_fixed[idxs[0]]
+    points.append(np.stack([pos_side, pos_fixed], axis=-1))
+
+    pos_side = pos_on_circumference[idxs[1]] - breakpoints[1] - y_extent[1]
+    pos_side = -pos_side
+    pos_fixed = np.full(num_points, fixed_side[1])
+    pos_fixed[np.arange(num_points) % 2 == 1] += extra_side_lengths[0] / 2
+    pos_fixed = pos_fixed[idxs[1]]
+    points.append(np.stack([pos_fixed, pos_side], axis=-1))
+
+    pos_side = np.flip(pos_on_circumference[idxs[2]]) - breakpoints[2] - x_extent[1]
+    pos_side = -pos_side
+    pos_fixed = np.full(num_points, fixed_side[2])
+    pos_fixed[np.arange(num_points) % 2 == 1] -= extra_side_lengths[1] / 2
+    pos_fixed = pos_fixed[idxs[2]]
+    points.append(np.stack([pos_side, pos_fixed], axis=-1))
+
+    pos_side = pos_on_circumference[idxs[3]] - breakpoints[3] - y_extent[1]
+    pos_fixed = np.full(num_points, fixed_side[3])
+    pos_fixed[np.arange(num_points) % 2 == 1] -= extra_side_lengths[0] / 2
+    pos_fixed = pos_fixed[idxs[3]]
+    points.append(np.stack([pos_fixed, pos_side], axis=-1))
+
+    points = np.concatenate(points, axis=0)
+    if z is not None:
+        points = np.concatenate((points, np.full((points.shape[0], 1), z)), axis=-1)
+    return points
+
+
+
+
+
+
+
+def concentrical_circles(
+    num_points, num_circles, radius, z_distance=None, angle_offset="distribute"
+):
+    a = num_circles // 2
+    if z_distance is not None:
+        zValues = [i * z_distance for i in range(-a, -a + num_circles)]
+        if num_circles % 2 == 0:
+            zValues = [zVal + z_distance / 2 for zVal in zValues]
+    else:
+        zValues = [None for i in range(num_circles)]
+
+    pointsPerCircle = [num_points // num_circles for _ in range(num_circles)]
+    for i in range(num_points - num_circles * (num_points // num_circles)):
+        pointsPerCircle[i] += 1
+
+    if angle_offset == "random":
+        startAngles = np.random.rand(num_circles) * np.pi * 2
+    elif angle_offset == "same":
+        startAngles = np.zeros(num_circles)
+    elif angle_offset == "almostSame":
+        angleSection = 2 * np.pi / pointsPerCircle[0]
+        startAngles = np.random.rand(num_circles) * (angleSection / 10)
+    elif angle_offset == "distribute":
+        angleSection = 2 * np.pi / pointsPerCircle[0]
+        startAngles = np.arange(num_circles) * angleSection / num_circles
+
+    coords = [
+        equiangular_circle(circlePoints, radius, angle, zVal)
+        for i, (circlePoints, angle, zVal) in enumerate(
+            zip(pointsPerCircle, startAngles, zValues)
+        )
+    ]
+
+    coords = np.concatenate(coords)
+    return coords
+
+
+
 
 
 def uniform_cylinder(num_points, radius, height):
@@ -300,7 +422,7 @@ def stacked_equidistant_rectangles(
     return points
 
 
-def equidistant_rectangle(num_points, dims, offset=0.5, z=None):
+def equidistant_rectangle_old(num_points, dims, offset=0.5, z=None):
     if num_points == 0:
         if z is None:
             return np.zeros((0, 2))
