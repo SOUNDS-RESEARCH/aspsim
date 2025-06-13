@@ -146,7 +146,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         
     def save(self, processor, sig, chunkInterval, globInterval):
         num_samples = chunkInterval[1] - chunkInterval[0]
-        self.signal[:,self.sample_counter:self.sample_counter+num_samples] = processor.sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]]
+        self.signal[:,self.sample_counter:self.sample_counter+num_samples] = sig[self.sig_name][self.sig_channels, chunkInterval[0]:chunkInterval[1]]
 
         self.sample_counter += num_samples
         #self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
@@ -179,39 +179,9 @@ class SignalSummary(SummaryDiagnostic):
         
     def save(self, processor, sig, chunkInterval, globInterval):
         if self.summary_func is None:
-            self.mean += np.sum(processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
+            self.mean += np.sum(sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
         else:
-            self.mean += self.summary_func(processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
+            self.mean += self.summary_func(sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]) / self.num_samples
 
     def get_output(self):
         return self.mean
-    
-# class SignalComparisonSummary(SummaryDiagnostic):
-#     def __init__(self, 
-#         sig_name,
-#         sig_name2,
-#         sim_info, 
-#         block_size, 
-#         save_range,
-#         comparison_func,
-#         **kwargs
-#         ):
-#         self.save_range = save_range
-#         self.num_samples = save_range[1] - save_range[0]
-#         #save_at = diacore.IntervalCounter((save_range,))
-#         super().__init__(sim_info, block_size, save_at=save_range, export_func = "text", **kwargs)
-#         self.sig_name = sig_name
-#         self.sig_name2 = sig_name2
-#         self.comparison_func = comparison_func
-
-#         self.mean = 0
-
-#         #self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
-        
-#     def save(self, processor, chunkInterval, globInterval):
-#         sig1 = processor.sig[self.sig_name][:, chunkInterval[0]:chunkInterval[1]]
-#         sig2 = processor.sig[self.sig_name2][:, chunkInterval[0]:chunkInterval[1]]
-#         self.mean += self.comparison_func() / self.num_samples
-
-#     def get_output(self):
-#         return self.mean

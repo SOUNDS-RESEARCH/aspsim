@@ -167,7 +167,7 @@ class SignalPower(diacore.SignalDiagnostic):
     
     def save(self, processor, sig, chunkInterval, globInterval):
         self.power[globInterval[0]:globInterval[1]] = np.mean(np.abs(
-            processor.sig[self.sig_name][self.sig_channels,chunkInterval[0]:chunkInterval[1]])**2, axis=0)
+            sig[self.sig_name][self.sig_channels,chunkInterval[0]:chunkInterval[1]])**2, axis=0)
 
     def get_output(self):
         return self.power
@@ -195,8 +195,8 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         smoother_num = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
         smoother_denom = fc.create_filter(ir=np.ones((1,1,self.sim_info.output_smoothing)) / self.sim_info.output_smoothing)
 
-        num = smoother_num.process(np.mean(np.abs(processor.sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
-        denom = smoother_denom.process(np.mean(np.abs(processor.sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
+        num = smoother_num.process(np.mean(np.abs(sig[self.numerator_name][self.numerator_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
+        denom = smoother_denom.process(np.mean(np.abs(sig[self.denom_name][self.denom_channels, chunkInterval[0]:chunkInterval[1]])**2,axis=0, keepdims=True))
 
         self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 

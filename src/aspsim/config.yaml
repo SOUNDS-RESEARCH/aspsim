@@ -20,6 +20,7 @@ rt60 : 0.45
 max_room_ir_length : 500
 randomized_ism : False
 extra_delay : 0
+highpass_cutoff : 0.0
 
 # PLOTS AND MISC
 export_frequency : 1000

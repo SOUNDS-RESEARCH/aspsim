@@ -55,8 +55,8 @@ class PathGenerator:
         self.sim_info = sim_info
         self.arrays = arrays
 
-        self.filter_below = 20
-        self.filt_ir = spsig.firwin(2*int(0.05 * sim_info.samplerate) + 1, cutoff=self.filter_below, pass_zero="highpass", fs=sim_info.samplerate)
+        #self.filter_below = 50
+        #self.filt_ir = spsig.firwin(2*int(0.05 * sim_info.samplerate) + 1, cutoff=self.filter_below, pass_zero="highpass", fs=sim_info.samplerate)
 
         #self.truncate_at = sim_info.max_room_ir_length
 
@@ -156,18 +156,28 @@ class PathGenerator:
             raise ValueError
         
         # ADD POST PROCESSING HERE
-        if self.filter_below > 0:
-            tot_len = path.shape[2] + self.filt_ir.shape[-1] - 1
-            path_new = np.zeros((path.shape[0], path.shape[1], tot_len))
-            for i in range(path.shape[0]):
-                for j in range(path.shape[1]):
-                    path_new[i,j,:] = spsig.convolve(path[i,j,:], self.filt_ir, mode="full")
-            path = path_new[:,:,:path.shape[-1]]
+        if sim_info.highpass_cutoff > 0:
+            path = filter_rirs(path, sim_info.samplerate, sim_info.highpass_cutoff)
+        # if self.filter_below > 0:
+        #     tot_len = path.shape[2] + self.filt_ir.shape[-1] - 1
+        #     path_new = np.zeros((path.shape[0], path.shape[1], tot_len))
+        #     for i in range(path.shape[0]):
+        #         for j in range(path.shape[1]):
+        #             path_new[i,j,:] = spsig.convolve(path[i,j,:], self.filt_ir, mode="full")
+        #     path = path_new[:,:,:path.shape[-1]]
 
         if return_path_info:
             return path, path_info
         return path
 
+
+def filter_rirs(rir, sr, cutoff):
+    sos = spsig.butter(2, cutoff, 'highpass', fs=sr, output='sos')
+    pad = sr
+    rir_padded = np.concatenate((np.zeros((*rir.shape[:-1], pad)), rir, np.zeros((*rir.shape[:-1], pad))), axis=-1)
+    filtered_rir = spsig.sosfiltfilt(sos, rir_padded, axis=-1)
+    filtered_rir = filtered_rir[...,pad:-pad]
+    return filtered_rir
 
 def _cardoid_to_pyroomacoustics(dir_dir):
     assert dir_dir.ndim == 2
@@ -214,7 +224,7 @@ def ir_room_image_source_3d(
     min_dly,
     dir_type_mic = None,
     dir_dir_mic = None,
-    randomized_ism = True,
+    randomized_ism = False,
     calculate_metadata=False,
     verbose=False,
     #extra_delay = 0, # this is multiplied by two since frac_dly must be even
@@ -288,7 +298,7 @@ def ir_room_image_source_3d(
 
         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
         
-        if dir_type_mic is not None:
+        if any([dir_type != "omni" for dir_type in dir_type_mic]):
             raise NotImplementedError("Directional microphones not implemented yet")
             mics = pra.MicrophoneArray(
                 (pos_mic[num_computed : num_computed + block_size, :] + pos_offset[None, :]).T,
