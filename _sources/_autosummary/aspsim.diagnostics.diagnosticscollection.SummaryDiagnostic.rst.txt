@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticscollection.SummaryDiagnostic
+==========================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticscollection
+
+.. autoclass:: SummaryDiagnostic
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SummaryDiagnostic.__init__
+      ~SummaryDiagnostic.get_output
+      ~SummaryDiagnostic.get_processed_output
+      ~SummaryDiagnostic.next_export
+      ~SummaryDiagnostic.next_save
+      ~SummaryDiagnostic.progress_export
+      ~SummaryDiagnostic.progress_save
+      ~SummaryDiagnostic.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SummaryDiagnostic.export_functions
+   
+   

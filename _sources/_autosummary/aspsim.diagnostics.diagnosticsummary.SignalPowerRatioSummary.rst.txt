@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticsummary.SignalPowerRatioSummary
+============================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autoclass:: SignalPowerRatioSummary
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SignalPowerRatioSummary.__init__
+      ~SignalPowerRatioSummary.get_output
+      ~SignalPowerRatioSummary.get_processed_output
+      ~SignalPowerRatioSummary.next_export
+      ~SignalPowerRatioSummary.next_save
+      ~SignalPowerRatioSummary.progress_export
+      ~SignalPowerRatioSummary.progress_save
+      ~SignalPowerRatioSummary.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SignalPowerRatioSummary.export_functions
+   
+   

@@ -1,0 +1,6 @@
+aspsim.fileutilities.find\_index\_in\_name
+==========================================
+
+.. currentmodule:: aspsim.fileutilities
+
+.. autofunction:: find_index_in_name

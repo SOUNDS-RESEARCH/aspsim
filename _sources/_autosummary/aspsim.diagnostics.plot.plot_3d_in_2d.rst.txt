@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.plot\_3d\_in\_2d
+========================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: plot_3d_in_2d

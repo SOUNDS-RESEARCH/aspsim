@@ -1,0 +1,38 @@
+aspsim.diagnostics.core.InstantDiagnostic
+=========================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: InstantDiagnostic
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~InstantDiagnostic.__init__
+      ~InstantDiagnostic.get_output
+      ~InstantDiagnostic.get_processed_output
+      ~InstantDiagnostic.next_export
+      ~InstantDiagnostic.next_save
+      ~InstantDiagnostic.progress_export
+      ~InstantDiagnostic.progress_save
+      ~InstantDiagnostic.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~InstantDiagnostic.export_functions
+   
+   

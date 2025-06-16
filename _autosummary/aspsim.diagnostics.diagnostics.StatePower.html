@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aspsim.diagnostics.diagnostics.StatePower &mdash; aspsim 0.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=e3a6060d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="aspsim.diagnostics.diagnostics.StateSummary" href="aspsim.diagnostics.diagnostics.StateSummary.html" />
+    <link rel="prev" title="aspsim.diagnostics.diagnostics.StateComparison" href="aspsim.diagnostics.diagnostics.StateComparison.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            aspsim
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../output_files.html">Output files from simulator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../moving_mics_and_sources.html">Moving microphones and sources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../logger.html">Logging and recording desired signals from the simulator</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="aspsim.diagnostics.html">aspsim.diagnostics</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.core.html">aspsim.diagnostics.core</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="aspsim.diagnostics.diagnostics.html">aspsim.diagnostics.diagnostics</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.power_of_all_signals.html">aspsim.diagnostics.diagnostics.power_of_all_signals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.RecordFilter.html">aspsim.diagnostics.diagnostics.RecordFilter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.RecordFilterDifference.html">aspsim.diagnostics.diagnostics.RecordFilterDifference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.RecordSignal.html">aspsim.diagnostics.diagnostics.RecordSignal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.RecordState.html">aspsim.diagnostics.diagnostics.RecordState</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.SignalPower.html">aspsim.diagnostics.diagnostics.SignalPower</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.SignalPowerRatio.html">aspsim.diagnostics.diagnostics.SignalPowerRatio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.SoundfieldPower.html">aspsim.diagnostics.diagnostics.SoundfieldPower</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.StateComparison.html">aspsim.diagnostics.diagnostics.StateComparison</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">aspsim.diagnostics.diagnostics.StatePower</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aspsim.diagnostics.diagnostics.StatePower"><code class="docutils literal notranslate"><span class="pre">StatePower</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.diagnostics.diagnostics.StateSummary.html">aspsim.diagnostics.diagnostics.StateSummary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.diagnosticscollection.html">aspsim.diagnostics.diagnosticscollection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.diagnosticsummary.html">aspsim.diagnostics.diagnosticsummary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.plot.html">aspsim.diagnostics.plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.preprocessing.html">aspsim.diagnostics.preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.diagnostics.soundfieldplot.html">aspsim.diagnostics.soundfieldplot</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.room.html">aspsim.room</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.signal.html">aspsim.signal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.configutil.html">aspsim.configutil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.counter.html">aspsim.counter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.fileutilities.html">aspsim.fileutilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.utilities.html">aspsim.utilities</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">aspsim</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="aspsim.diagnostics.html">aspsim.diagnostics</a></li>
+          <li class="breadcrumb-item"><a href="aspsim.diagnostics.diagnostics.html">aspsim.diagnostics.diagnostics</a></li>
+      <li class="breadcrumb-item active">aspsim.diagnostics.diagnostics.StatePower</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/aspsim.diagnostics.diagnostics.StatePower.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="aspsim-diagnostics-diagnostics-statepower">
+<h1>aspsim.diagnostics.diagnostics.StatePower<a class="headerlink" href="#aspsim-diagnostics-diagnostics-statepower" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="aspsim.diagnostics.diagnostics.StatePower">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aspsim.diagnostics.diagnostics.</span></span><span class="sig-name descname"><span class="pre">StatePower</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prop_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim_info</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_at</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aspsim.diagnostics.diagnostics.StatePower" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="aspsim.diagnostics.core.StateDiagnostic.html#aspsim.diagnostics.core.StateDiagnostic" title="aspsim.diagnostics.core.StateDiagnostic"><code class="xref py py-class docutils literal notranslate"><span class="pre">StateDiagnostic</span></code></a></p>
+<dl class="simple">
+<dt>save_at_idx is an iterable which gives all indices for which to save data.</dt><dd><p>Must be an integer multiple of the block size. (maybe change to
+must be equal or larger than the block size)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="aspsim.diagnostics.diagnostics.StatePower.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prop_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim_info</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_at</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aspsim.diagnostics.diagnostics.StatePower.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>save_at_idx is an iterable which gives all indices for which to save data.</dt><dd><p>Must be an integer multiple of the block size. (maybe change to
+must be equal or larger than the block size)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#aspsim.diagnostics.diagnostics.StatePower.__init__" title="aspsim.diagnostics.diagnostics.StatePower.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(prop_name, sim_info[, export_at, ...])</p></td>
+<td><p>save_at_idx is an iterable which gives all indices for which to save data.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_output</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#aspsim.diagnostics.diagnostics.StatePower.get_processed_output" title="aspsim.diagnostics.diagnostics.StatePower.get_processed_output"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_processed_output</span></code></a>(time_idx, preprocess)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">next_export</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">next_save</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">progress_export</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">progress_save</span></code>(progress_until)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code>(processor, sig, chunkInterval, globInterval)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_functions</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="aspsim.diagnostics.diagnostics.StatePower.get_processed_output">
+<span class="sig-name descname"><span class="pre">get_processed_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preprocess</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aspsim.diagnostics.diagnostics.StatePower.get_processed_output" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aspsim.diagnostics.diagnostics.StateComparison.html" class="btn btn-neutral float-left" title="aspsim.diagnostics.diagnostics.StateComparison" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aspsim.diagnostics.diagnostics.StateSummary.html" class="btn btn-neutral float-right" title="aspsim.diagnostics.diagnostics.StateSummary" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Jesper Brunnström.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

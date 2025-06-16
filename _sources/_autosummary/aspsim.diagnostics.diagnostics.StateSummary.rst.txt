@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.StateSummary
+===========================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: StateSummary
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~StateSummary.__init__
+      ~StateSummary.get_output
+      ~StateSummary.get_processed_output
+      ~StateSummary.next_export
+      ~StateSummary.next_save
+      ~StateSummary.progress_export
+      ~StateSummary.progress_save
+      ~StateSummary.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~StateSummary.export_functions
+   
+   

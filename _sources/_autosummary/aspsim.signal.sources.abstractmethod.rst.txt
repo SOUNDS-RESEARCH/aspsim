@@ -1,0 +1,6 @@
+aspsim.signal.sources.abstractmethod
+====================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autofunction:: abstractmethod

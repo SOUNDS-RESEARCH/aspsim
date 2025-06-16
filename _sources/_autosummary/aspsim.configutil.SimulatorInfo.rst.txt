@@ -1,0 +1,52 @@
+aspsim.configutil.SimulatorInfo
+===============================
+
+.. currentmodule:: aspsim.configutil
+
+.. autoclass:: SimulatorInfo
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SimulatorInfo.__init__
+      ~SimulatorInfo.save_to_file
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SimulatorInfo.tot_samples
+      ~SimulatorInfo.sim_buffer
+      ~SimulatorInfo.sim_chunk_size
+      ~SimulatorInfo.start_sources_before_0
+      ~SimulatorInfo.save_source_contributions
+      ~SimulatorInfo.array_update_freq
+      ~SimulatorInfo.samplerate
+      ~SimulatorInfo.c
+      ~SimulatorInfo.spatial_dims
+      ~SimulatorInfo.reverb
+      ~SimulatorInfo.room_size
+      ~SimulatorInfo.room_center
+      ~SimulatorInfo.rt60
+      ~SimulatorInfo.max_room_ir_length
+      ~SimulatorInfo.randomized_ism
+      ~SimulatorInfo.extra_delay
+      ~SimulatorInfo.highpass_cutoff
+      ~SimulatorInfo.export_frequency
+      ~SimulatorInfo.plot_output
+      ~SimulatorInfo.output_smoothing
+      ~SimulatorInfo.auto_save_load
+   
+   

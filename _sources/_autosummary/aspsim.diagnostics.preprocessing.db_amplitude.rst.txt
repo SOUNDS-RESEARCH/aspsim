@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.db\_amplitude
+==============================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: db_amplitude

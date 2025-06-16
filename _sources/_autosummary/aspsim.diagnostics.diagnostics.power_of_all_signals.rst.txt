@@ -1,0 +1,6 @@
+aspsim.diagnostics.diagnostics.power\_of\_all\_signals
+======================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autofunction:: power_of_all_signals

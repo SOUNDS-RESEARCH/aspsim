@@ -1,0 +1,6 @@
+aspsim.diagnostics.core.attritemgetter
+======================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autofunction:: attritemgetter

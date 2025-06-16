@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.output\_plot
+====================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: output_plot

@@ -1,0 +1,199 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aspsim.room.generatepoints &mdash; aspsim 0.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=e3a6060d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="aspsim.room.generatepoints.cart2pol" href="aspsim.room.generatepoints.cart2pol.html" />
+    <link rel="prev" title="aspsim.room.directional.differential_cardioid_microphone" href="aspsim.room.directional.differential_cardioid_microphone.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            aspsim
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../output_files.html">Output files from simulator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../moving_mics_and_sources.html">Moving microphones and sources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../logger.html">Logging and recording desired signals from the simulator</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="aspsim.diagnostics.html">aspsim.diagnostics</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="aspsim.room.html">aspsim.room</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="aspsim.room.directional.html">aspsim.room.directional</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">aspsim.room.generatepoints</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.cart2pol.html">aspsim.room.generatepoints.cart2pol</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.cart2spherical.html">aspsim.room.generatepoints.cart2spherical</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.concentrical_circles.html">aspsim.room.generatepoints.concentrical_circles</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.equiangular_circle.html">aspsim.room.generatepoints.equiangular_circle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle.html">aspsim.room.generatepoints.equidistant_rectangle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle_for_fewer.html">aspsim.room.generatepoints.equidistant_rectangle_for_fewer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle_old.html">aspsim.room.generatepoints.equidistant_rectangle_old</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.four_equidistant_rectangles.html">aspsim.room.generatepoints.four_equidistant_rectangles</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.pol2cart.html">aspsim.room.generatepoints.pol2cart</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.spherical2cart.html">aspsim.room.generatepoints.spherical2cart</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.stacked_equidistant_rectangles.html">aspsim.room.generatepoints.stacked_equidistant_rectangles</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.sunflower_pattern.html">aspsim.room.generatepoints.sunflower_pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.uniform_cylinder.html">aspsim.room.generatepoints.uniform_cylinder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.uniform_disc.html">aspsim.room.generatepoints.uniform_disc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.uniform_filled_cuboid.html">aspsim.room.generatepoints.uniform_filled_cuboid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aspsim.room.generatepoints.uniform_filled_rectangle.html">aspsim.room.generatepoints.uniform_filled_rectangle</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.room.region.html">aspsim.room.region</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aspsim.room.trajectory.html">aspsim.room.trajectory</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.signal.html">aspsim.signal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.configutil.html">aspsim.configutil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.counter.html">aspsim.counter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.fileutilities.html">aspsim.fileutilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aspsim.utilities.html">aspsim.utilities</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">aspsim</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="aspsim.room.html">aspsim.room</a></li>
+      <li class="breadcrumb-item active">aspsim.room.generatepoints</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/_autosummary/aspsim.room.generatepoints.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-aspsim.room.generatepoints">
+<span id="aspsim-room-generatepoints"></span><h1>aspsim.room.generatepoints<a class="headerlink" href="#module-aspsim.room.generatepoints" title="Link to this heading"></a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.cart2pol.html#aspsim.room.generatepoints.cart2pol" title="aspsim.room.generatepoints.cart2pol"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cart2pol</span></code></a>(x, y)</p></td>
+<td><p>Transforms the provided cartesian coordinates to polar coordinates</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.cart2spherical.html#aspsim.room.generatepoints.cart2spherical" title="aspsim.room.generatepoints.cart2spherical"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cart2spherical</span></code></a>(cart_coord)</p></td>
+<td><p>Transforms the provided cartesian coordinates to spherical coordinates</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.concentrical_circles.html#aspsim.room.generatepoints.concentrical_circles" title="aspsim.room.generatepoints.concentrical_circles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">concentrical_circles</span></code></a>(num_points, ...[, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.equiangular_circle.html#aspsim.room.generatepoints.equiangular_circle" title="aspsim.room.generatepoints.equiangular_circle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">equiangular_circle</span></code></a>(num_points, radius[, ...])</p></td>
+<td><p>Generates equiangularly spaced points on a circle</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle.html#aspsim.room.generatepoints.equidistant_rectangle" title="aspsim.room.generatepoints.equidistant_rectangle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">equidistant_rectangle</span></code></a>(num_points, side_lengths)</p></td>
+<td><p>Points are spaced evenly along the edge of a rectangle</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle_for_fewer.html#aspsim.room.generatepoints.equidistant_rectangle_for_fewer" title="aspsim.room.generatepoints.equidistant_rectangle_for_fewer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">equidistant_rectangle_for_fewer</span></code></a>(num_points, dims)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.equidistant_rectangle_old.html#aspsim.room.generatepoints.equidistant_rectangle_old" title="aspsim.room.generatepoints.equidistant_rectangle_old"><code class="xref py py-obj docutils literal notranslate"><span class="pre">equidistant_rectangle_old</span></code></a>(num_points, dims)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.four_equidistant_rectangles.html#aspsim.room.generatepoints.four_equidistant_rectangles" title="aspsim.room.generatepoints.four_equidistant_rectangles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">four_equidistant_rectangles</span></code></a>(num_points, ...)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.pol2cart.html#aspsim.room.generatepoints.pol2cart" title="aspsim.room.generatepoints.pol2cart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pol2cart</span></code></a>(r, angle)</p></td>
+<td><p>Transforms the provided polar coordinates to cartesian coordinates</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.spherical2cart.html#aspsim.room.generatepoints.spherical2cart" title="aspsim.room.generatepoints.spherical2cart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">spherical2cart</span></code></a>(r, angle)</p></td>
+<td><p>Transforms the provided spherical coordinates to cartesian coordinates</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.stacked_equidistant_rectangles.html#aspsim.room.generatepoints.stacked_equidistant_rectangles" title="aspsim.room.generatepoints.stacked_equidistant_rectangles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stacked_equidistant_rectangles</span></code></a>(num_points, ...)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.sunflower_pattern.html#aspsim.room.generatepoints.sunflower_pattern" title="aspsim.room.generatepoints.sunflower_pattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sunflower_pattern</span></code></a>(N, radius[, offset_angle])</p></td>
+<td><p>translated from user3717023's MATLAB code from stackoverflow could be updated using the method in this paper 'A better way to construct the sunflower head'</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.uniform_cylinder.html#aspsim.room.generatepoints.uniform_cylinder" title="aspsim.room.generatepoints.uniform_cylinder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">uniform_cylinder</span></code></a>(num_points, radius, height)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.uniform_disc.html#aspsim.room.generatepoints.uniform_disc" title="aspsim.room.generatepoints.uniform_disc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">uniform_disc</span></code></a>(point_distance, radius[, z_axis])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="aspsim.room.generatepoints.uniform_filled_cuboid.html#aspsim.room.generatepoints.uniform_filled_cuboid" title="aspsim.room.generatepoints.uniform_filled_cuboid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">uniform_filled_cuboid</span></code></a>(num_points, dims[, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="aspsim.room.generatepoints.uniform_filled_rectangle.html#aspsim.room.generatepoints.uniform_filled_rectangle" title="aspsim.room.generatepoints.uniform_filled_rectangle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">uniform_filled_rectangle</span></code></a>(num_points[, lim, ...])</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aspsim.room.directional.differential_cardioid_microphone.html" class="btn btn-neutral float-left" title="aspsim.room.directional.differential_cardioid_microphone" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aspsim.room.generatepoints.cart2pol.html" class="btn btn-neutral float-right" title="aspsim.room.generatepoints.cart2pol" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Jesper Brunnström.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

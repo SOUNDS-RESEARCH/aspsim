@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.create\_audio\_files
+============================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: create_audio_files

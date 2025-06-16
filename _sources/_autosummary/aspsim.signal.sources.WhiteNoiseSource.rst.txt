@@ -1,0 +1,27 @@
+aspsim.signal.sources.WhiteNoiseSource
+======================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: WhiteNoiseSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~WhiteNoiseSource.__init__
+      ~WhiteNoiseSource.get_samples
+      ~WhiteNoiseSource.set_power
+   
+   
+
+   
+   
+   

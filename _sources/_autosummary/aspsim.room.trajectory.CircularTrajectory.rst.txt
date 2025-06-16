@@ -1,0 +1,27 @@
+aspsim.room.trajectory.CircularTrajectory
+=========================================
+
+.. currentmodule:: aspsim.room.trajectory
+
+.. autoclass:: CircularTrajectory
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CircularTrajectory.__init__
+      ~CircularTrajectory.current_pos
+      ~CircularTrajectory.plot
+   
+   
+
+   
+   
+   

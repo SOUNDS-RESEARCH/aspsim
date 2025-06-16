@@ -1,0 +1,6 @@
+aspsim.diagnostics.core.get\_values\_up\_to\_idx
+================================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autofunction:: get_values_up_to_idx

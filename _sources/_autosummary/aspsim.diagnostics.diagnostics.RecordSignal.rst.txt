@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.RecordSignal
+===========================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: RecordSignal
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RecordSignal.__init__
+      ~RecordSignal.get_output
+      ~RecordSignal.get_processed_output
+      ~RecordSignal.next_export
+      ~RecordSignal.next_save
+      ~RecordSignal.progress_export
+      ~RecordSignal.progress_save
+      ~RecordSignal.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RecordSignal.export_functions
+   
+   
