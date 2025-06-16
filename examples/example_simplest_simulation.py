@@ -7,7 +7,7 @@ import aspsim.diagnostics.diagnostics as dg
 # Choose where figures should be saved and create a SimulatorSetup object
 fig_path = pathlib.Path(__file__).parent.joinpath("figs")
 fig_path.mkdir(exist_ok=True)
-setup = SimulatorSetup()
+setup = SimulatorSetup(fig_path)
 
 # Setup sources and microphones
 setup.add_free_source("source", np.array([[1,0,0]]), src.WhiteNoiseSource(1,1))
