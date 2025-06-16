@@ -253,7 +253,7 @@ class Simulator:
 
     def _prepare_simulation(self):
         if len(self.processors) > 1:
-            raise NotImplementedError
+            raise NotImplementedError("Multiple processors are not yet supported in the simulator.")
         
         set_unique_processor_names(self.processors)
         sess.write_processor_metadata(self.processors, self.folder_path)
@@ -264,6 +264,11 @@ class Simulator:
         #)
 
         self.sig = Signals(self.sim_info, self.arrays)
+        local_signals = [sig_name for sig_name in self.processors[0].sig.keys() if sig_name not in self.sig]
+        for sig_name in local_signals:
+            self.sig.create_signal(sig_name, self.processors[0].sig[sig_name].shape[:-1])
+
+
         self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
 
         self.diag.prepare()
@@ -304,8 +309,12 @@ class Simulator:
         print(self.n_tot)
 
     def diag_moved_from_propagate(self, max_block_size):
+        #Temporary, especially the function name
         last_block = self.last_block_on_buffer(max_block_size)
-        self.diag.save_data(self.processors, self.sig, self.sig.idx, self.n_tot, last_block)
+
+        if len(self.processors) > 1:
+            raise NotImplementedError("Multiple processors are not yet supported in the simulator.")
+        self.diag.save_data(self.processors[0], self.sig, self.sig.idx, self.n_tot, last_block)
         if last_block:
             self.sig._reset_signals()
 
@@ -350,13 +359,13 @@ class Signals():
         return key in self.signals
 
     def items(self):
-        yield self.signals.items()
+        return self.signals.items()
     
     def values(self):
-        yield self.signals.values()
+        return self.signals.values()
 
     def keys(self):
-        yield self.signals.keys()
+        return self.signals.keys()
 
     def create_signal(self, name, dim):
         """
