@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.soundfield
+==================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: soundfield

@@ -1,0 +1,41 @@
+﻿aspsim.configutil
+=================
+
+.. automodule:: aspsim.configutil
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      equal_audio
+      load_default_config
+      load_from_file
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      Path
+      SimulatorInfo
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,45 @@
+aspsim.diagnostics.plot
+=======================
+
+.. automodule:: aspsim.diagnostics.plot
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      create_audio_files
+      delete_earlier_tikz_plot
+      function_of_time_plot
+      legend_without_duplicates
+      matshow
+      output_plot
+      plot_3d_in_2d
+      plot_ir
+      plot_multiple_channels
+      remove_axes_and_labels
+      savenpz
+      set_basic_plot_look
+      soundfield
+      spectrum_plot
+      tikzplotlib_fix_ncols
+      txt
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

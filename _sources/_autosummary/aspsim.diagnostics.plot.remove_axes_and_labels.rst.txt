@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.remove\_axes\_and\_labels
+=================================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: remove_axes_and_labels

@@ -1,0 +1,29 @@
+aspsim.room.region.Rectangle
+============================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: Rectangle
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Rectangle.__init__
+      ~Rectangle.equally_spaced_points
+      ~Rectangle.is_in_region
+      ~Rectangle.plot
+      ~Rectangle.sample_points
+   
+   
+
+   
+   
+   

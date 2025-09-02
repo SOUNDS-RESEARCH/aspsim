@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.delete\_earlier\_tikz\_plot
+===================================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: delete_earlier_tikz_plot

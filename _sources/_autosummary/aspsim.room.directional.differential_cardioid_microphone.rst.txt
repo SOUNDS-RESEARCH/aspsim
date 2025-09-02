@@ -1,0 +1,6 @@
+aspsim.room.directional.differential\_cardioid\_microphone
+==========================================================
+
+.. currentmodule:: aspsim.room.directional
+
+.. autofunction:: differential_cardioid_microphone

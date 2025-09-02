@@ -1,0 +1,38 @@
+﻿aspsim.diagnostics
+==================
+
+.. automodule:: aspsim.diagnostics
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :template: new-module-template.rst
+   :recursive:
+
+   core
+   diagnostics
+   diagnosticscollection
+   diagnosticsummary
+   plot
+   preprocessing
+   soundfieldplot
+

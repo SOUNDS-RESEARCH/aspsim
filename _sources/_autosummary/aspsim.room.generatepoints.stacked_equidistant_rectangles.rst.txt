@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.stacked\_equidistant\_rectangles
+===========================================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: stacked_equidistant_rectangles

@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.RecordState
+==========================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: RecordState
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RecordState.__init__
+      ~RecordState.get_output
+      ~RecordState.get_processed_output
+      ~RecordState.next_export
+      ~RecordState.next_save
+      ~RecordState.progress_export
+      ~RecordState.progress_save
+      ~RecordState.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RecordState.export_functions
+   
+   

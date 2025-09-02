@@ -1,0 +1,47 @@
+aspsim.diagnostics.diagnostics
+==============================
+
+.. automodule:: aspsim.diagnostics.diagnostics
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      power_of_all_signals
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      RecordFilter
+      RecordFilterDifference
+      RecordSignal
+      RecordState
+      SignalPower
+      SignalPowerRatio
+      SoundfieldPower
+      StateComparison
+      StatePower
+      StateSummary
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+aspsim.diagnostics.core.get\_values\_from\_selection
+====================================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autofunction:: get_values_from_selection

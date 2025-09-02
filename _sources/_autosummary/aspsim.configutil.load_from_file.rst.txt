@@ -1,0 +1,6 @@
+aspsim.configutil.load\_from\_file
+==================================
+
+.. currentmodule:: aspsim.configutil
+
+.. autofunction:: load_from_file

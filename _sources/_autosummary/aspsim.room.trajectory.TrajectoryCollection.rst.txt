@@ -1,0 +1,27 @@
+aspsim.room.trajectory.TrajectoryCollection
+===========================================
+
+.. currentmodule:: aspsim.room.trajectory
+
+.. autoclass:: TrajectoryCollection
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TrajectoryCollection.__init__
+      ~TrajectoryCollection.current_pos
+      ~TrajectoryCollection.plot
+   
+   
+
+   
+   
+   

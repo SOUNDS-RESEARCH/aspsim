@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.spectrum\_plot
+======================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: spectrum_plot

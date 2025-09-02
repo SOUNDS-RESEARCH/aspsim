@@ -1,0 +1,30 @@
+aspsim.room.directional
+=======================
+
+.. automodule:: aspsim.room.directional
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      differential_cardioid_microphone
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticscollection.Eigenvalues
+====================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticscollection
+
+.. autoclass:: Eigenvalues
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Eigenvalues.__init__
+      ~Eigenvalues.get_output
+      ~Eigenvalues.get_processed_output
+      ~Eigenvalues.next_export
+      ~Eigenvalues.next_save
+      ~Eigenvalues.progress_export
+      ~Eigenvalues.progress_save
+      ~Eigenvalues.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Eigenvalues.export_functions
+   
+   

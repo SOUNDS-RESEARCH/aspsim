@@ -1,0 +1,35 @@
+aspsim.diagnostics.core.Logger
+==============================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: Logger
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Logger.__init__
+      ~Logger.add_diagnostic
+      ~Logger.dispatch
+      ~Logger.export_single_diag
+      ~Logger.export_this_idx
+      ~Logger.items
+      ~Logger.next_export
+      ~Logger.prepare
+      ~Logger.save_data
+      ~Logger.update_next_export
+      ~Logger.verify_same_export_settings
+   
+   
+
+   
+   
+   

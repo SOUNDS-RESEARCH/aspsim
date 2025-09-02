@@ -1,0 +1,38 @@
+aspsim.diagnostics.core.SignalDiagnostic
+========================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: SignalDiagnostic
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SignalDiagnostic.__init__
+      ~SignalDiagnostic.get_output
+      ~SignalDiagnostic.get_processed_output
+      ~SignalDiagnostic.next_export
+      ~SignalDiagnostic.next_save
+      ~SignalDiagnostic.progress_export
+      ~SignalDiagnostic.progress_save
+      ~SignalDiagnostic.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SignalDiagnostic.export_functions
+   
+   

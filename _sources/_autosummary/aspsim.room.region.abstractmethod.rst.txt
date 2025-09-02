@@ -1,0 +1,6 @@
+aspsim.room.region.abstractmethod
+=================================
+
+.. currentmodule:: aspsim.room.region
+
+.. autofunction:: abstractmethod

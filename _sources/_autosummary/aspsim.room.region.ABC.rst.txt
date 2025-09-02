@@ -1,0 +1,25 @@
+aspsim.room.region.ABC
+======================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: ABC
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ABC.__init__
+   
+   
+
+   
+   
+   

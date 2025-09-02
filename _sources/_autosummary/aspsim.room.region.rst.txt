@@ -1,0 +1,45 @@
+aspsim.room.region
+==================
+
+.. automodule:: aspsim.room.region
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      abstractmethod
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      ABC
+      Ball
+      CombinedRegion
+      Cuboid
+      Cylinder
+      Disc
+      Rectangle
+      Region
+   
+   
+
+   
+   
+   
+
+
+

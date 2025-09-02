@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.function\_of\_time\_plot
+================================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: function_of_time_plot

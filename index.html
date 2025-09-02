@@ -1,0 +1,161 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Signal Processing Simulator (aspsim) &mdash; aspsim 0.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e3a6060d"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Output files from simulator" href="output_files.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            aspsim
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="output_files.html">Output files from simulator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="moving_mics_and_sources.html">Moving microphones and sources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logger.html">Logging and recording desired signals from the simulator</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.diagnostics.html">aspsim.diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.room.html">aspsim.room</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.signal.html">aspsim.signal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.configutil.html">aspsim.configutil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.counter.html">aspsim.counter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.fileutilities.html">aspsim.fileutilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/aspsim.utilities.html">aspsim.utilities</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">aspsim</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Audio Signal Processing Simulator (aspsim)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="audio-signal-processing-simulator-aspsim">
+<h1>Audio Signal Processing Simulator (aspsim)<a class="headerlink" href="#audio-signal-processing-simulator-aspsim" title="Link to this heading"></a></h1>
+<p>The package simulates sound in a reverberant space. The simulator supports moving microphones and moving sources. The simulator supports adaptive processing, where the sound of the sources are determined by the sound in the room. This is useful for instance for active noise control and similar adaptive processing tasks.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="output_files.html">Output files from simulator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="moving_mics_and_sources.html">Moving microphones and sources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logger.html">Logging and recording desired signals from the simulator</a></li>
+</ul>
+</div>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/aspsim.diagnostics.html#module-aspsim.diagnostics" title="aspsim.diagnostics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.diagnostics</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/aspsim.room.html#module-aspsim.room" title="aspsim.room"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.room</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/aspsim.signal.html#module-aspsim.signal" title="aspsim.signal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.signal</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/aspsim.configutil.html#module-aspsim.configutil" title="aspsim.configutil"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.configutil</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/aspsim.counter.html#module-aspsim.counter" title="aspsim.counter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.counter</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/aspsim.fileutilities.html#module-aspsim.fileutilities" title="aspsim.fileutilities"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.fileutilities</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/aspsim.utilities.html#module-aspsim.utilities" title="aspsim.utilities"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aspsim.utilities</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="output_files.html" class="btn btn-neutral float-right" title="Output files from simulator" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Jesper Brunnström.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+aspsim.diagnostics.soundfieldplot.sort\_for\_imshow
+===================================================
+
+.. currentmodule:: aspsim.diagnostics.soundfieldplot
+
+.. autofunction:: sort_for_imshow

@@ -1,0 +1,6 @@
+aspsim.diagnostics.diagnosticsummary.last\_value
+================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autofunction:: last_value

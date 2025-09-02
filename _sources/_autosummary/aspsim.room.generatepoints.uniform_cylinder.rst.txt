@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.uniform\_cylinder
+============================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: uniform_cylinder

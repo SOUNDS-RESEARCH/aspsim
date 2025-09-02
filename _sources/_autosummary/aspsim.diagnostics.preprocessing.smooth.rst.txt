@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.smooth
+=======================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: smooth

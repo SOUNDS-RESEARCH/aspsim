@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.StateComparison
+==============================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: StateComparison
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~StateComparison.__init__
+      ~StateComparison.get_output
+      ~StateComparison.get_processed_output
+      ~StateComparison.next_export
+      ~StateComparison.next_save
+      ~StateComparison.progress_export
+      ~StateComparison.progress_save
+      ~StateComparison.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~StateComparison.export_functions
+   
+   

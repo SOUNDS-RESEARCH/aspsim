@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.concentrical\_circles
+================================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: concentrical_circles

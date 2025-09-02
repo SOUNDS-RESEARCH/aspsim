@@ -1,0 +1,30 @@
+﻿aspsim.utilities
+================
+
+.. automodule:: aspsim.utilities
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      calc_block_sizes
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

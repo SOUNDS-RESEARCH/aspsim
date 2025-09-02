@@ -1,0 +1,6 @@
+aspsim.fileutilities.find\_all\_earlier\_files
+==============================================
+
+.. currentmodule:: aspsim.fileutilities
+
+.. autofunction:: find_all_earlier_files

@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.RecordFilter
+===========================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: RecordFilter
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RecordFilter.__init__
+      ~RecordFilter.get_output
+      ~RecordFilter.get_processed_output
+      ~RecordFilter.next_export
+      ~RecordFilter.next_save
+      ~RecordFilter.progress_export
+      ~RecordFilter.progress_save
+      ~RecordFilter.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RecordFilter.export_functions
+   
+   

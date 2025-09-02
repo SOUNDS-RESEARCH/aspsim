@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.StatePower
+=========================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: StatePower
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~StatePower.__init__
+      ~StatePower.get_output
+      ~StatePower.get_processed_output
+      ~StatePower.next_export
+      ~StatePower.next_save
+      ~StatePower.progress_export
+      ~StatePower.progress_save
+      ~StatePower.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~StatePower.export_functions
+   
+   

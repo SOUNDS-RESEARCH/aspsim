@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.savenpz
+===============================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: savenpz

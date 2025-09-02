@@ -1,0 +1,54 @@
+aspsim.signal.sources
+=====================
+
+.. automodule:: aspsim.signal.sources
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      abstractmethod
+      ar_coeffs_from_autocorr
+      ar_coeffs_to_transfer_function
+      load_audio_file
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      ABC
+      AutocorrSource
+      BandlimitedNoiseSource
+      Counter
+      GoldSequenceSource
+      LinearChirpSource
+      MLS
+      MultiSineSource
+      PulseTrain
+      Sequence
+      SineSource
+      Source
+      SourceArray
+      WhiteNoiseSource
+   
+   
+
+   
+   
+   
+
+
+

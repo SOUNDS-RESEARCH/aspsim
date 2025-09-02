@@ -1,0 +1,6 @@
+aspsim.diagnostics.soundfieldplot.compare\_soundfields
+======================================================
+
+.. currentmodule:: aspsim.diagnostics.soundfieldplot
+
+.. autofunction:: compare_soundfields

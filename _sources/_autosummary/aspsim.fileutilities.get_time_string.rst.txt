@@ -1,0 +1,6 @@
+aspsim.fileutilities.get\_time\_string
+======================================
+
+.. currentmodule:: aspsim.fileutilities
+
+.. autofunction:: get_time_string

@@ -1,0 +1,6 @@
+aspsim.utilities.calc\_block\_sizes
+===================================
+
+.. currentmodule:: aspsim.utilities
+
+.. autofunction:: calc_block_sizes
