@@ -340,13 +340,20 @@ def ir_room_image_source_3d(
         metadata["Max Normalized Truncated Value (dB)"] = max_trunc_value
         if max_order > 0:
             try:
-                metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
-                metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
+                measured_rt60 = room.measure_rt60()
+                metadata["Measured RT60 (min)"] = np.min(measured_rt60)
+                metadata["Measured RT60 (median)"] = np.median(measured_rt60)
+                metadata["Measured RT60 (mean)"] = np.mean(measured_rt60)
+                metadata["Measured RT60 (max)"] = np.max(measured_rt60)
             except ValueError:
                 metadata["Measured RT60 (min)"] = "failed"
+                metadata["Measured RT60 (median)"] = "failed"
+                metadata["Measured RT60 (mean)"] = "failed"
                 metadata["Measured RT60 (max)"] = "failed"
         else:
             metadata["Measured RT60 (min)"] = 0
+            metadata["Measured RT60 (median)"] = 0
+            metadata["Measured RT60 (mean)"] = 0
             metadata["Measured RT60 (max)"] = 0
         metadata["Max ISM order"] = max_order
         metadata["Energy Absorption"] = e_absorbtion

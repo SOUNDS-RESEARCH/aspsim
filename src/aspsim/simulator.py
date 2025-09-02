@@ -264,9 +264,12 @@ class Simulator:
         #)
 
         self.sig = Signals(self.sim_info, self.arrays)
-        local_signals = [sig_name for sig_name in self.processors[0].sig.keys() if sig_name not in self.sig]
-        for sig_name in local_signals:
-            self.sig.create_signal(sig_name, self.processors[0].sig[sig_name].shape[:-1])
+
+        # These lines are in case a processor creates signals in its constructor, in which case it should be copied over
+        if self.processors:
+            local_signals = [sig_name for sig_name in self.processors[0].sig.keys() if sig_name not in self.sig]
+            for sig_name in local_signals:
+                self.sig.create_signal(sig_name, self.processors[0].sig[sig_name].shape[:-1])
 
 
         self.propagator = Propagator(self.sim_info, self.arrays, self.sig)
@@ -312,9 +315,14 @@ class Simulator:
         #Temporary, especially the function name
         last_block = self.last_block_on_buffer(max_block_size)
 
-        if len(self.processors) > 1:
+        if len(self.processors) == 0:
+            proc = None
+        elif len(self.processors) == 1:
+            proc = self.processors[0]
+        else:
             raise NotImplementedError("Multiple processors are not yet supported in the simulator.")
-        self.diag.save_data(self.processors[0], self.sig, self.sig.idx, self.n_tot, last_block)
+        
+        self.diag.save_data(proc, self.sig, self.sig.idx, self.n_tot, last_block)
         if last_block:
             self.sig._reset_signals()
 
