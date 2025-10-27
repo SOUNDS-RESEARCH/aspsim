@@ -90,16 +90,27 @@ class PathGenerator:
         shortest_distance = np.inf
         for src, mic in self.arrays.mic_src_combos():
             shortest_distance = np.min((shortest_distance, np.min(distfuncs.cdist(src.pos, mic.pos))))
+
+        shortest_delay_s = shortest_distance / sim_info.c
+        shortest_delay_samples = int(np.ceil(shortest_delay_s * sim_info.samplerate))
+
+        if sim_info.remove_common_delay:
+            self.num_samples_to_safely_remove = shortest_delay_samples
+        else:
+            self.num_samples_to_safely_remove = 0
+
        # shortest_distance = np.min(distfuncs.cdist(pos_from, pos_to))
         #min_dly = int(np.ceil(shortest_distance * samplerate / c))
         self.min_dly = 0
-        frac_dly_len = 2*(self.min_dly + sim_info.extra_delay) + 1
-        pra.constants.set("frac_delay_length",frac_dly_len)
+        frac_dly_len = 2*(shortest_delay_samples + sim_info.extra_delay) + 1
+        pra.constants.set("frac_delay_length", frac_dly_len)
         #if verbose:
         if frac_dly_len < 20:
             print("WARNING: fractional delay length: ",frac_dly_len)
+        if frac_dly_len <= 1:
+            raise ValueError("pyroomacoustics will not work with frac_delay_length <= 1. Set sim_info.extra_delay to a non-zero value.")
 
-
+        print(f"RIR generation parameters: e_absorbtion={self.e_absorbtion}, max_order={self.max_order}, num_samples_to_safely_remove={self.num_samples_to_safely_remove}, frac_delay_length={frac_dly_len}")
 
     def create_path (self, src, mic, reverb, sim_info, return_path_info=False, verbose=False):
         """Generate the impulse response between a source and a microphone array
@@ -140,7 +151,7 @@ class PathGenerator:
                         sim_info.samplerate, 
                         self.e_absorbtion, 
                         self.max_order, 
-                        self.min_dly,
+                        self.num_samples_to_safely_remove,
                         mic.directivity_type,
                         mic.directivity_dir,
                         randomized_ism = sim_info.randomized_ism,
@@ -221,7 +232,7 @@ def ir_room_image_source_3d(
     samplerate,
     e_absorbtion,
     max_order,
-    min_dly,
+    num_samples_to_remove,
     dir_type_mic = None,
     dir_dir_mic = None,
     randomized_ism = False,
@@ -250,10 +261,9 @@ def ir_room_image_source_3d(
         The energy absorption coefficient of the room
     max_order : int
         The maximum order of the image sources
-    min_dly : int
-        The smallest propagation delay between any of the sources and microphones. If this is
-        known and the value used as argument, the generated RIRs will have the correct propagation delay. 
-        Otherwise they will have an extra delay.
+    num_samples_to_remove : int
+        Number of samples to remove from the beginning of the impulse responses. If this is set to
+        the fractional delay length // 2, the generated RIRs will have the correct propagation delay.
     randomized_ism : bool, optional
         If True, it will use the randomized image-source method. The default is True.
     calculate_metadata : bool, optional
@@ -323,10 +333,12 @@ def ir_room_image_source_3d(
         room.compute_rir()
         for to_idx, receiver in enumerate(room.rir):
             for from_idx, single_rir in enumerate(receiver):
-                ir_len_to_use = np.min((len(single_rir), ir_len)) - min_dly
+                ir_len_to_use = np.min((len(single_rir), ir_len)) - num_samples_to_remove
                 ir[from_idx, num_computed + to_idx, :ir_len_to_use] = np.array(single_rir)[
-                    min_dly:ir_len_to_use+min_dly
+                    num_samples_to_remove:ir_len_to_use+num_samples_to_remove
                 ]
+                if np.sum(np.abs(np.array(single_rir)[:num_samples_to_remove])) > 0:
+                    print("Warning: samples were removed from the beginning of the RIR that were not zero.")
         num_computed += block_size
 
         if calculate_metadata:
