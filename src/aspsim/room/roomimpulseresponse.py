@@ -101,7 +101,7 @@ class PathGenerator:
 
        # shortest_distance = np.min(distfuncs.cdist(pos_from, pos_to))
         #min_dly = int(np.ceil(shortest_distance * samplerate / c))
-        self.min_dly = 0
+        #self.min_dly = 0
         frac_dly_len = 2*(shortest_delay_samples + sim_info.extra_delay) + 1
         pra.constants.set("frac_delay_length", frac_dly_len)
         #if verbose:
