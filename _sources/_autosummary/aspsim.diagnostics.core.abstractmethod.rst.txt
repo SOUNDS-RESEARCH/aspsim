@@ -1,0 +1,6 @@
+aspsim.diagnostics.core.abstractmethod
+======================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autofunction:: abstractmethod

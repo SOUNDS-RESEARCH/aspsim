@@ -1,0 +1,26 @@
+aspsim.signal.sources.PulseTrain
+================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: PulseTrain
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~PulseTrain.__init__
+      ~PulseTrain.get_samples
+   
+   
+
+   
+   
+   

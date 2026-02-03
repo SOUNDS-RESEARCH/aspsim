@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticsummary.SignalPowerSummary
+=======================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autoclass:: SignalPowerSummary
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SignalPowerSummary.__init__
+      ~SignalPowerSummary.get_output
+      ~SignalPowerSummary.get_processed_output
+      ~SignalPowerSummary.next_export
+      ~SignalPowerSummary.next_save
+      ~SignalPowerSummary.progress_export
+      ~SignalPowerSummary.progress_save
+      ~SignalPowerSummary.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SignalPowerSummary.export_functions
+   
+   

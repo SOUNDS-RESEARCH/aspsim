@@ -1,0 +1,6 @@
+aspsim.diagnostics.soundfieldplot.size\_of\_2d\_plot
+====================================================
+
+.. currentmodule:: aspsim.diagnostics.soundfieldplot
+
+.. autofunction:: size_of_2d_plot

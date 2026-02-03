@@ -1,0 +1,27 @@
+aspsim.signal.sources.LinearChirpSource
+=======================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: LinearChirpSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LinearChirpSource.__init__
+      ~LinearChirpSource.get_samples
+      ~LinearChirpSource.nextPhase
+   
+   
+
+   
+   
+   

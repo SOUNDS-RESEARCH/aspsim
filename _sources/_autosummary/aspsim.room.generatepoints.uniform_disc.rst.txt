@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.uniform\_disc
+========================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: uniform_disc

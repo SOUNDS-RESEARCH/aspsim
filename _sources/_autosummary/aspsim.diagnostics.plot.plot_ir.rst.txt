@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.plot\_ir
+================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: plot_ir

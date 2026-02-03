@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.equiangular\_circle
+==============================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: equiangular_circle

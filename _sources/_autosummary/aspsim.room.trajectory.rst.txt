@@ -1,0 +1,34 @@
+aspsim.room.trajectory
+======================
+
+.. automodule:: aspsim.room.trajectory
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: new-class-template.rst
+   
+      CircularTrajectory
+      LinearTrajectory
+      Trajectory
+      TrajectoryCollection
+   
+   
+
+   
+   
+   
+
+
+

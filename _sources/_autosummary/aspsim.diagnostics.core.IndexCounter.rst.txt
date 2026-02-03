@@ -1,0 +1,28 @@
+aspsim.diagnostics.core.IndexCounter
+====================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: IndexCounter
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~IndexCounter.__init__
+      ~IndexCounter.num_idx_until
+      ~IndexCounter.progress
+      ~IndexCounter.upcoming
+   
+   
+
+   
+   
+   

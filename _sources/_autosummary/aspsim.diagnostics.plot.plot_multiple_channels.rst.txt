@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.plot\_multiple\_channels
+================================================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: plot_multiple_channels

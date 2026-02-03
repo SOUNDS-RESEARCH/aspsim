@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.natural\_log
+=============================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: natural_log

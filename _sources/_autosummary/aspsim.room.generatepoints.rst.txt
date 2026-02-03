@@ -1,0 +1,45 @@
+aspsim.room.generatepoints
+==========================
+
+.. automodule:: aspsim.room.generatepoints
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      cart2pol
+      cart2spherical
+      concentrical_circles
+      equiangular_circle
+      equidistant_rectangle
+      equidistant_rectangle_for_fewer
+      equidistant_rectangle_old
+      four_equidistant_rectangles
+      pol2cart
+      spherical2cart
+      stacked_equidistant_rectangles
+      sunflower_pattern
+      uniform_cylinder
+      uniform_disc
+      uniform_filled_cuboid
+      uniform_filled_rectangle
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

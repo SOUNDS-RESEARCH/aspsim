@@ -1,0 +1,29 @@
+aspsim.room.region.CombinedRegion
+=================================
+
+.. currentmodule:: aspsim.room.region
+
+.. autoclass:: CombinedRegion
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CombinedRegion.__init__
+      ~CombinedRegion.equally_spaced_points
+      ~CombinedRegion.is_in_region
+      ~CombinedRegion.plot
+      ~CombinedRegion.sample_points
+   
+   
+
+   
+   
+   

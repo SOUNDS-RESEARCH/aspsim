@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.linear
+=======================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: linear

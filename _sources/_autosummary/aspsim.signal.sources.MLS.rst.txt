@@ -1,0 +1,26 @@
+aspsim.signal.sources.MLS
+=========================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: MLS
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~MLS.__init__
+      ~MLS.get_samples
+   
+   
+
+   
+   
+   

@@ -1,0 +1,38 @@
+aspsim.diagnostics.core.Diagnostic
+==================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: Diagnostic
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Diagnostic.__init__
+      ~Diagnostic.get_output
+      ~Diagnostic.get_processed_output
+      ~Diagnostic.next_export
+      ~Diagnostic.next_save
+      ~Diagnostic.progress_export
+      ~Diagnostic.progress_save
+      ~Diagnostic.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Diagnostic.export_functions
+   
+   

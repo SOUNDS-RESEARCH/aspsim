@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.equidistant\_rectangle\_for\_fewer
+=============================================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: equidistant_rectangle_for_fewer

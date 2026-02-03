@@ -1,0 +1,28 @@
+aspsim.diagnostics.core.IntervalCounter
+=======================================
+
+.. currentmodule:: aspsim.diagnostics.core
+
+.. autoclass:: IntervalCounter
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~IntervalCounter.__init__
+      ~IntervalCounter.from_frequency
+      ~IntervalCounter.progress
+      ~IntervalCounter.upcoming
+   
+   
+
+   
+   
+   

@@ -1,0 +1,6 @@
+aspsim.diagnostics.preprocessing.clip
+=====================================
+
+.. currentmodule:: aspsim.diagnostics.preprocessing
+
+.. autofunction:: clip

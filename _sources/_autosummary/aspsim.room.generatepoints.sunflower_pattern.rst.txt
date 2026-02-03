@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.sunflower\_pattern
+=============================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: sunflower_pattern

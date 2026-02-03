@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnostics.SoundfieldPower
+==============================================
+
+.. currentmodule:: aspsim.diagnostics.diagnostics
+
+.. autoclass:: SoundfieldPower
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SoundfieldPower.__init__
+      ~SoundfieldPower.get_output
+      ~SoundfieldPower.get_processed_output
+      ~SoundfieldPower.next_export
+      ~SoundfieldPower.next_save
+      ~SoundfieldPower.progress_export
+      ~SoundfieldPower.progress_save
+      ~SoundfieldPower.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SoundfieldPower.export_functions
+   
+   

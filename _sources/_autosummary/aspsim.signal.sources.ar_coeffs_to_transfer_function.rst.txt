@@ -1,0 +1,6 @@
+aspsim.signal.sources.ar\_coeffs\_to\_transfer\_function
+========================================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autofunction:: ar_coeffs_to_transfer_function

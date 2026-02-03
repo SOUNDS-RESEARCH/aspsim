@@ -1,0 +1,6 @@
+aspsim.diagnostics.diagnosticsummary.mean\_near\_time\_idx
+==========================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autofunction:: mean_near_time_idx

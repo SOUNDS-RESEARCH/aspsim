@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.matshow
+===============================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: matshow

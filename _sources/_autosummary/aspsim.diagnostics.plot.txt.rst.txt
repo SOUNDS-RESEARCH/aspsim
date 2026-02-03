@@ -1,0 +1,6 @@
+aspsim.diagnostics.plot.txt
+===========================
+
+.. currentmodule:: aspsim.diagnostics.plot
+
+.. autofunction:: txt

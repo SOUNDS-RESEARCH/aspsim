@@ -1,0 +1,27 @@
+aspsim.room.trajectory.LinearTrajectory
+=======================================
+
+.. currentmodule:: aspsim.room.trajectory
+
+.. autoclass:: LinearTrajectory
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LinearTrajectory.__init__
+      ~LinearTrajectory.current_pos
+      ~LinearTrajectory.plot
+   
+   
+
+   
+   
+   

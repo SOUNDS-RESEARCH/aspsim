@@ -1,0 +1,38 @@
+aspsim.diagnostics.diagnosticscollection.EigenvaluesOverTime
+============================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticscollection
+
+.. autoclass:: EigenvaluesOverTime
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~EigenvaluesOverTime.__init__
+      ~EigenvaluesOverTime.get_output
+      ~EigenvaluesOverTime.get_processed_output
+      ~EigenvaluesOverTime.next_export
+      ~EigenvaluesOverTime.next_save
+      ~EigenvaluesOverTime.progress_export
+      ~EigenvaluesOverTime.progress_save
+      ~EigenvaluesOverTime.save
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~EigenvaluesOverTime.export_functions
+   
+   

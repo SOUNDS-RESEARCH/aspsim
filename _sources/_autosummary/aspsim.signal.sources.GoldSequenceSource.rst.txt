@@ -1,0 +1,33 @@
+aspsim.signal.sources.GoldSequenceSource
+========================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: GoldSequenceSource
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~GoldSequenceSource.__init__
+      ~GoldSequenceSource.get_samples
+      ~GoldSequenceSource.set_power
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~GoldSequenceSource.preferredSequences
+   
+   

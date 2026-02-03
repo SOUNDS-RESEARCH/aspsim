@@ -1,0 +1,6 @@
+aspsim.room.generatepoints.spherical2cart
+=========================================
+
+.. currentmodule:: aspsim.room.generatepoints
+
+.. autofunction:: spherical2cart

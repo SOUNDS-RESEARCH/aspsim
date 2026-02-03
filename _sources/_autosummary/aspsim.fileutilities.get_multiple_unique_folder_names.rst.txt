@@ -1,0 +1,6 @@
+aspsim.fileutilities.get\_multiple\_unique\_folder\_names
+=========================================================
+
+.. currentmodule:: aspsim.fileutilities
+
+.. autofunction:: get_multiple_unique_folder_names

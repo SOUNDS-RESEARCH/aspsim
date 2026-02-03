@@ -1,0 +1,6 @@
+aspsim.configutil.equal\_audio
+==============================
+
+.. currentmodule:: aspsim.configutil
+
+.. autofunction:: equal_audio

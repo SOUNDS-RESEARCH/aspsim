@@ -1,0 +1,26 @@
+aspsim.signal.sources.SourceArray
+=================================
+
+.. currentmodule:: aspsim.signal.sources
+
+.. autoclass:: SourceArray
+   :show-inheritance:
+   :inherited-members:
+   :members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SourceArray.__init__
+      ~SourceArray.get_samples
+   
+   
+
+   
+   
+   

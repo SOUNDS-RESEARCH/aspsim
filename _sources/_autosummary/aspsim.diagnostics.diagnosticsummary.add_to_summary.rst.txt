@@ -1,0 +1,6 @@
+aspsim.diagnostics.diagnosticsummary.add\_to\_summary
+=====================================================
+
+.. currentmodule:: aspsim.diagnostics.diagnosticsummary
+
+.. autofunction:: add_to_summary
