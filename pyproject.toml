@@ -14,8 +14,10 @@ requires-python = ">=3.14"
 dependencies = [
     "aspcore",
     "dill>=0.4.1",
+    "pyroomacoustics>=0.9.0",
     "pyyaml>=6.0.3",
     "soundfile>=0.13.1",
+    "tikzplotlib-patched",
 ]
 
 [build-system]
@@ -33,6 +35,7 @@ pythonpath = [
 
 [tool.uv.sources]
 aspcore = { path = "../aspcore", editable = true }
+tikzplotlib-patched = { git = "https://github.com/JasonGross/tikzplotlib" }
 
 [dependency-groups]
 dev = [

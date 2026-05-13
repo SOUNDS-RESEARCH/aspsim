@@ -1,5 +1,7 @@
-import aspsim.room.region as region
 import numpy as np
+
+import aspsim.room.region as region
+
 
 def _random_cylinder(rng=None):
     if rng is None:
@@ -11,6 +13,7 @@ def _random_cylinder(rng=None):
     cylinder = region.Cylinder(radius, height, center, point_spacing, rng=rng)
     return cylinder
 
+
 def _random_cuboid(rng=None):
     if rng is None:
         rng = np.random.default_rng()
@@ -19,6 +22,7 @@ def _random_cuboid(rng=None):
     point_spacing = rng.uniform(0.1, 0.5, size=3)
     cuboid = region.Cuboid(side_lengths, center, point_spacing, rng=rng)
     return cuboid
+
 
 def _random_ball(rng=None):
     if rng is None:
@@ -39,15 +43,21 @@ def _random_rectangle(rng=None):
     rect = region.Rectangle(side_lengths, center, point_spacing, rng=rng)
     return rect
 
+
 def test_cylinder_equally_spaced_points_returns_points_within_region():
     cyl = _random_cylinder()
     points = cyl.equally_spaced_points()
 
     for i in range(points.shape[0]):
-        point = points[i,:]
-        assert (point[0]-cyl.center[0]) ** 2 + (point[1]-cyl.center[1]) ** 2 <= cyl.radius ** 2
-        assert cyl.center[2] - cyl.height / 2 <= point[2] <= cyl.center[2] + cyl.height / 2
-        assert cyl.is_in_region(point[None,:])
+        point = points[i, :]
+        assert (point[0] - cyl.center[0]) ** 2 + (
+            point[1] - cyl.center[1]
+        ) ** 2 <= cyl.radius**2
+        assert (
+            cyl.center[2] - cyl.height / 2 <= point[2] <= cyl.center[2] + cyl.height / 2
+        )
+        assert cyl.is_in_region(point[None, :])
+
 
 def test_cylinder_sample_points_returns_points_within_region():
     cyl = _random_cylinder()
@@ -55,10 +65,14 @@ def test_cylinder_sample_points_returns_points_within_region():
     points = cyl.sample_points(num_to_sample)
 
     for i in range(points.shape[0]):
-        point = points[i,:]
-        assert (point[0]-cyl.center[0]) ** 2 + (point[1]-cyl.center[1]) ** 2 <= cyl.radius ** 2
-        assert cyl.center[2] - cyl.height / 2 <= point[2] <= cyl.center[2] + cyl.height / 2
-        assert cyl.is_in_region(point[None,:])
+        point = points[i, :]
+        assert (point[0] - cyl.center[0]) ** 2 + (
+            point[1] - cyl.center[1]
+        ) ** 2 <= cyl.radius**2
+        assert (
+            cyl.center[2] - cyl.height / 2 <= point[2] <= cyl.center[2] + cyl.height / 2
+        )
+        assert cyl.is_in_region(point[None, :])
 
 
 def test_cylinder_a_random_point_is_always_close_to_equally_spaced_point():
@@ -69,10 +83,9 @@ def test_cylinder_a_random_point_is_always_close_to_equally_spaced_point():
     points_random = cyl.sample_points(num_to_sample)
 
     for i in range(points_random.shape[0]):
-        diff = points - points_random[i:i+1,:]
+        diff = points - points_random[i : i + 1, :]
         min_distance = np.min(np.abs(diff), axis=0)
         assert np.all(min_distance < cyl.point_spacing)
-
 
 
 def test_cuboid_equally_spaced_points_returns_points_within_region():
@@ -80,10 +93,11 @@ def test_cuboid_equally_spaced_points_returns_points_within_region():
     points = cb.equally_spaced_points()
 
     for i in range(points.shape[0]):
-        point = points[i,:]
+        point = points[i, :]
         assert np.all(cb.center - cb.side_lengths / 2 <= point)
         assert np.all(point <= cb.center + cb.side_lengths / 2)
-        assert cb.is_in_region(point[None,:])
+        assert cb.is_in_region(point[None, :])
+
 
 def test_cuboid_sample_points_returns_points_within_region():
     cb = _random_cuboid()
@@ -91,10 +105,11 @@ def test_cuboid_sample_points_returns_points_within_region():
     points = cb.sample_points(num_to_sample)
 
     for i in range(points.shape[0]):
-        point = points[i,:]
+        point = points[i, :]
         assert np.all(cb.center - cb.side_lengths / 2 <= point)
         assert np.all(point <= cb.center + cb.side_lengths / 2)
-        assert cb.is_in_region(point[None,:])
+        assert cb.is_in_region(point[None, :])
+
 
 def test_cuboid_a_random_point_is_always_close_to_equally_spaced_point():
     cb = _random_cuboid()
@@ -104,11 +119,9 @@ def test_cuboid_a_random_point_is_always_close_to_equally_spaced_point():
     points_random = cb.sample_points(num_to_sample)
 
     for i in range(points_random.shape[0]):
-        diff = points - points_random[i:i+1,:]
+        diff = points - points_random[i : i + 1, :]
         min_distance = np.min(np.abs(diff), axis=0)
         assert np.all(min_distance < cb.point_spacing)
-
-
 
 
 def test_ball_equally_spaced_points_returns_points_within_region():
@@ -116,9 +129,10 @@ def test_ball_equally_spaced_points_returns_points_within_region():
     points = ball.equally_spaced_points()
 
     for i in range(points.shape[0]):
-        point = points[i,:]
-        assert np.all(np.linalg.norm(point - ball.center, axis=-1) <= ball.radius) 
-        assert ball.is_in_region(point[None,:])
+        point = points[i, :]
+        assert np.all(np.linalg.norm(point - ball.center, axis=-1) <= ball.radius)
+        assert ball.is_in_region(point[None, :])
+
 
 def test_ball_sample_points_returns_points_within_region():
     ball = _random_ball()
@@ -126,9 +140,10 @@ def test_ball_sample_points_returns_points_within_region():
     points = ball.sample_points(num_to_sample)
 
     for i in range(points.shape[0]):
-        point = points[i,:]
-        assert np.all(np.linalg.norm(point - ball.center, axis=-1) <= ball.radius) 
-        assert ball.is_in_region(point[None,:])
+        point = points[i, :]
+        assert np.all(np.linalg.norm(point - ball.center, axis=-1) <= ball.radius)
+        assert ball.is_in_region(point[None, :])
+
 
 def test_ball_a_random_point_is_always_close_to_equally_spaced_point():
     ball = _random_ball()
@@ -138,11 +153,9 @@ def test_ball_a_random_point_is_always_close_to_equally_spaced_point():
     points_random = ball.sample_points(num_to_sample)
 
     for i in range(points_random.shape[0]):
-        diff = points - points_random[i:i+1,:]
+        diff = points - points_random[i : i + 1, :]
         min_distance = np.min(np.abs(diff), axis=0)
         assert np.all(min_distance < ball.point_spacing)
-
-
 
 
 def test_rectangle_equally_spaced_points_returns_points_within_region():
@@ -150,11 +163,12 @@ def test_rectangle_equally_spaced_points_returns_points_within_region():
     points = rect.equally_spaced_points()
 
     for i in range(points.shape[0]):
-        point = points[i,:]
+        point = points[i, :]
         side_len_3d = np.concatenate((rect.side_lengths, [0]))
         assert np.all(rect.center - side_len_3d / 2 <= point)
         assert np.all(point <= rect.center + side_len_3d / 2)
-        assert rect.is_in_region(point[None,:])
+        assert rect.is_in_region(point[None, :])
+
 
 def test_rectangle_sample_points_returns_points_within_region():
     rect = _random_rectangle()
@@ -162,11 +176,12 @@ def test_rectangle_sample_points_returns_points_within_region():
     points = rect.sample_points(num_to_sample)
 
     for i in range(points.shape[0]):
-        point = points[i,:]
+        point = points[i, :]
         side_len_3d = np.concatenate((rect.side_lengths, [0]))
         assert np.all(rect.center - side_len_3d / 2 <= point)
         assert np.all(point <= rect.center + side_len_3d / 2)
-        assert rect.is_in_region(point[None,:])
+        assert rect.is_in_region(point[None, :])
+
 
 def test_rectangle_a_random_point_is_always_close_to_equally_spaced_point():
     rect = _random_rectangle()
@@ -176,6 +191,6 @@ def test_rectangle_a_random_point_is_always_close_to_equally_spaced_point():
     points_random = rect.sample_points(num_to_sample)
 
     for i in range(points_random.shape[0]):
-        diff = points - points_random[i:i+1,:]
+        diff = points - points_random[i : i + 1, :]
         min_distance = np.min(np.abs(diff), axis=0)
         assert np.all(min_distance[:2] < rect.point_spacing)

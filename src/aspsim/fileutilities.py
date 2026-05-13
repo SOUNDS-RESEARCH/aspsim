@@ -1,8 +1,6 @@
 import datetime
 
 
-
-
 def get_time_string(detailed=False):
     tm = datetime.datetime.now()
     time_str = (
@@ -58,7 +56,9 @@ def get_highest_numbered_file(folder, prefix, suffix):
     highest_file_idx = -1
     for file_path in folder.iterdir():
         if file_path.name.startswith(prefix) and file_path.name.endswith(suffix):
-            summary_idx = file_path.name[len(prefix) : len(file_path.name) - len(suffix)]
+            summary_idx = file_path.name[
+                len(prefix) : len(file_path.name) - len(suffix)
+            ]
             try:
                 summary_idx = int(summary_idx)
                 if summary_idx > highest_file_idx:
@@ -83,7 +83,7 @@ def find_all_earlier_files(
 
     earlier_files = []
     for f in folder.iterdir():
-        if f.stem.startswith(name) and f.stem[len(name):].isdigit():
+        if f.stem.startswith(name) and f.stem[len(name) :].isdigit():
             f_idx = int(f.stem[len(name) :])
             if f_idx > current_idx:
                 if error_if_future_files_exist:
