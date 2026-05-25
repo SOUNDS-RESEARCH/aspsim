@@ -1,32 +1,33 @@
 """Moving microphone example."""
 
-import numpy as np
-from pathlib import Path
 import json
+from pathlib import Path
 
-from aspsim.simulator import SimulatorSetup
-from aspsim.processor import AudioProcessor
-import aspsim.signal.sources as src
+import aspcore.pseq as pseq
+import exp_funcs_ideal_sampling as exis
+import numpy as np
+
 import aspsim.diagnostics.diagnostics as dg
+import aspsim.room.region as reg
 import aspsim.room.trajectory as traj
 import aspsim.signal.sources as sources
-import aspsim.room.region as reg
-import aspcore.pseq as pseq
-
-import exp_funcs_ideal_sampling as exis
-
+import aspsim.signal.sources as src
+from aspsim.processor import AudioProcessor
+from aspsim.simulator import SimulatorSetup
 
 RT60 = 0.2
 RIRLEN = 1000
 SAMPLERATE = 2000
+
 
 def main():
     """Run the moving microphone example."""
     rirs, sig = native_moving_mic()
     rirs_verified, sig_verified = verified_scripts()
 
-    print("MSE RIR: ", np.mean((rirs - rirs_verified)**2))
-    print("MSE signal: ", np.mean((sig - sig_verified)**2))
+    print("MSE RIR: ", np.mean((rirs - rirs_verified) ** 2))
+    print("MSE signal: ", np.mean((sig - sig_verified) ** 2))
+
 
 def native_moving_mic():
     """Generate signals using the native moving mic simulation."""
@@ -55,11 +56,16 @@ def native_moving_mic():
     setup.sim_info.save_source_contributions = True
     setup.sim_info.highpass_cutoff = 0
 
-
-    #Setup sources and microphones
-    sound_src = src.WhiteNoiseSource(1,1)
-    setup.add_free_source("ls", traj.LinearTrajectory([[1,0,0], [1,1,0], [0,1,0]], 10, setup.sim_info.samplerate), sound_src)
-    setup.add_mics("mic", np.array([[0,0,0]]))
+    # Setup sources and microphones
+    sound_src = src.WhiteNoiseSource(1, 1)
+    setup.add_free_source(
+        "ls",
+        traj.LinearTrajectory(
+            [[1, 0, 0], [1, 1, 0], [0, 1, 0]], 10, setup.sim_info.samplerate
+        ),
+        sound_src,
+    )
+    setup.add_mics("mic", np.array([[0, 0, 0]]))
     sim = setup.create_simulator()
 
     # Choose which signals should be saved to files
@@ -74,26 +80,26 @@ def native_moving_mic():
     rirs = sim.arrays.paths["ls"]["mic"]
     return rirs, sig["ls"]
 
+
 def verified_scripts():
     """Generate signals using verified scripts."""
     fig_folder = exis.generate_signals_3d()
-    sig, sim_info, arrays, pos_dyn, seq_len, extra_params = exis.load_session(fig_folder)
+    sig, sim_info, arrays, pos_dyn, seq_len, extra_params = exis.load_session(
+        fig_folder
+    )
 
-    return arrays.paths["src"]["mic_dynamic"], sig["mic_dynamic"][0,...]
-
-
-
+    return arrays.paths["src"]["mic_dynamic"], sig["mic_dynamic"][0, ...]
 
 
 def generate_signals_3d():
     """Generate signals for a 3D moving mic setup."""
-    side_len = 1 #0.75
+    side_len = 1  # 0.75
     height = 0.25
     seq_len = RIRLEN
 
-    center = np.zeros((1,3))
+    center = np.zeros((1, 3))
 
-    pos_src = np.array([[2,0,0]])
+    pos_src = np.array([[2, 0, 0]])
 
     setup = SimulatorSetup()
     setup.sim_info.samplerate = SAMPLERATE
@@ -101,13 +107,21 @@ def generate_signals_3d():
     speed_factor = 0.5
     tot_trajectory_samples = 32 * seq_len
     freq_factors = np.array([[1.8, 3.8, 2.1]])
-    traj_amp = np.array([[side_len/2, side_len/2, height/2]])
-    trajectory = exis.LissajousTrajectoryConstantSpeed(traj_amp, speed_factor * freq_factors / SAMPLERATE, center, SAMPLERATE, speed_factor, tot_trajectory_samples)
-    traj_pos = np.concatenate([trajectory.current_pos(t) for t in range(tot_trajectory_samples)], axis=0)
+    traj_amp = np.array([[side_len / 2, side_len / 2, height / 2]])
+    trajectory = exis.LissajousTrajectoryConstantSpeed(
+        traj_amp,
+        speed_factor * freq_factors / SAMPLERATE,
+        center,
+        SAMPLERATE,
+        speed_factor,
+        tot_trajectory_samples,
+    )
+    traj_pos = np.concatenate(
+        [trajectory.current_pos(t) for t in range(tot_trajectory_samples)], axis=0
+    )
 
-    speed = np.linalg.norm(traj_pos[1:,:] - traj_pos[:-1,:], axis=-1) * SAMPLERATE
-    pos_mic = traj_pos[seq_len//2::seq_len,:]
-
+    speed = np.linalg.norm(traj_pos[1:, :] - traj_pos[:-1, :], axis=-1) * SAMPLERATE
+    pos_mic = traj_pos[seq_len // 2 :: seq_len, :]
 
     initial_delay = seq_len
     post_delay = 0
@@ -139,18 +153,22 @@ def generate_signals_3d():
 
     exis.run_and_save(sim)
     with open(sim.folder_path.joinpath("extra_parameters.json"), "w") as f:
-        json.dump({"seq_len" : seq_len, 
-                    "initial_delay" : initial_delay,
-                   "post_delay" : post_delay,
-                   "max_sweep_freq" : SAMPLERATE // 2,
-                    "center" : center.tolist(), 
-                    "downsampling_factor" : 1,
-                    "freq_factors" : freq_factors.tolist(),
-                    "speed_factor" : speed_factor,
-                    "speed min" : np.min(speed),
-                    "speed max" : np.max(speed),
-                    "speed mean" : np.mean(speed),
-                    } ,f)
+        json.dump(
+            {
+                "seq_len": seq_len,
+                "initial_delay": initial_delay,
+                "post_delay": post_delay,
+                "max_sweep_freq": SAMPLERATE // 2,
+                "center": center.tolist(),
+                "downsampling_factor": 1,
+                "freq_factors": freq_factors.tolist(),
+                "speed_factor": speed_factor,
+                "speed min": np.min(speed),
+                "speed max": np.max(speed),
+                "speed mean": np.mean(speed),
+            },
+            f,
+        )
     return sim.folder_path
 
 
