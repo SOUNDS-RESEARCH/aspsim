@@ -1,3 +1,5 @@
+"""Region geometry tests."""
+
 import numpy as np
 
 import aspsim.room.region as region
@@ -45,6 +47,7 @@ def _random_rectangle(rng=None):
 
 
 def test_cylinder_equally_spaced_points_returns_points_within_region():
+    """Check equally spaced cylinder points are within the region."""
     cyl = _random_cylinder()
     points = cyl.equally_spaced_points()
 
@@ -60,6 +63,7 @@ def test_cylinder_equally_spaced_points_returns_points_within_region():
 
 
 def test_cylinder_sample_points_returns_points_within_region():
+    """Check sampled cylinder points are within the region."""
     cyl = _random_cylinder()
     num_to_sample = 1000
     points = cyl.sample_points(num_to_sample)
@@ -76,6 +80,7 @@ def test_cylinder_sample_points_returns_points_within_region():
 
 
 def test_cylinder_a_random_point_is_always_close_to_equally_spaced_point():
+    """Check random cylinder points are close to evenly spaced points."""
     cyl = _random_cylinder()
     points = cyl.equally_spaced_points()
 
@@ -89,6 +94,7 @@ def test_cylinder_a_random_point_is_always_close_to_equally_spaced_point():
 
 
 def test_cuboid_equally_spaced_points_returns_points_within_region():
+    """Check equally spaced cuboid points are within the region."""
     cb = _random_cuboid()
     points = cb.equally_spaced_points()
 
@@ -100,6 +106,7 @@ def test_cuboid_equally_spaced_points_returns_points_within_region():
 
 
 def test_cuboid_sample_points_returns_points_within_region():
+    """Check sampled cuboid points are within the region."""
     cb = _random_cuboid()
     num_to_sample = 1000
     points = cb.sample_points(num_to_sample)
@@ -112,6 +119,7 @@ def test_cuboid_sample_points_returns_points_within_region():
 
 
 def test_cuboid_a_random_point_is_always_close_to_equally_spaced_point():
+    """Check random cuboid points are close to evenly spaced points."""
     cb = _random_cuboid()
     points = cb.equally_spaced_points()
 
@@ -125,6 +133,7 @@ def test_cuboid_a_random_point_is_always_close_to_equally_spaced_point():
 
 
 def test_ball_equally_spaced_points_returns_points_within_region():
+    """Check equally spaced ball points are within the region."""
     ball = _random_ball()
     points = ball.equally_spaced_points()
 
@@ -135,6 +144,7 @@ def test_ball_equally_spaced_points_returns_points_within_region():
 
 
 def test_ball_sample_points_returns_points_within_region():
+    """Check sampled ball points are within the region."""
     ball = _random_ball()
     num_to_sample = 1000
     points = ball.sample_points(num_to_sample)
@@ -146,6 +156,7 @@ def test_ball_sample_points_returns_points_within_region():
 
 
 def test_ball_a_random_point_is_always_close_to_equally_spaced_point():
+    """Check random ball points are close to evenly spaced points."""
     ball = _random_ball()
     points = ball.equally_spaced_points()
 
@@ -159,6 +170,7 @@ def test_ball_a_random_point_is_always_close_to_equally_spaced_point():
 
 
 def test_rectangle_equally_spaced_points_returns_points_within_region():
+    """Check equally spaced rectangle points are within the region."""
     rect = _random_rectangle()
     points = rect.equally_spaced_points()
 
@@ -171,6 +183,7 @@ def test_rectangle_equally_spaced_points_returns_points_within_region():
 
 
 def test_rectangle_sample_points_returns_points_within_region():
+    """Check sampled rectangle points are within the region."""
     rect = _random_rectangle()
     num_to_sample = 1000
     points = rect.sample_points(num_to_sample)
@@ -184,6 +197,7 @@ def test_rectangle_sample_points_returns_points_within_region():
 
 
 def test_rectangle_a_random_point_is_always_close_to_equally_spaced_point():
+    """Check random rectangle points are close to evenly spaced points."""
     rect = _random_rectangle()
     points = rect.equally_spaced_points()
 

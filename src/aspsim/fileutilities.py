@@ -1,7 +1,10 @@
+"""File utility helpers for naming and discovery."""
+
 import datetime
 
 
 def get_time_string(detailed=False):
+    """Return a timestamp string for filenames."""
     tm = datetime.datetime.now()
     time_str = (
         str(tm.year)
@@ -22,6 +25,7 @@ def get_time_string(detailed=False):
 
 
 def get_unique_folder_name(prefix, parent_folder, detailed_naming=False):
+    """Return a unique folder name under a parent folder."""
     file_name = prefix + get_time_string(detailed=detailed_naming)
     file_name += "_0"
     folder_name = parent_folder.joinpath(file_name)
@@ -37,6 +41,7 @@ def get_unique_folder_name(prefix, parent_folder, detailed_naming=False):
 
 
 def get_multiple_unique_folder_names(prefix, parent_folder, num_names):
+    """Return multiple unique folder names under a parent folder."""
     start_path = get_unique_folder_name(prefix, parent_folder)
     sub_folder_name = start_path.parts[-1]
     base_folder = start_path.parent
@@ -53,6 +58,7 @@ def get_multiple_unique_folder_names(prefix, parent_folder, num_names):
 
 
 def get_highest_numbered_file(folder, prefix, suffix):
+    """Return the highest-numbered file matching prefix and suffix."""
     highest_file_idx = -1
     for file_path in folder.iterdir():
         if file_path.name.startswith(prefix) and file_path.name.endswith(suffix):
@@ -76,6 +82,21 @@ def get_highest_numbered_file(folder, prefix, suffix):
 def find_all_earlier_files(
     folder, name, current_idx, name_includes_idx=True, error_if_future_files_exist=True
 ):
+    """Find earlier files with an indexed name.
+
+    Parameters
+    ----------
+    folder : pathlib.Path
+        Folder to search.
+    name : str
+        Base name prefix.
+    current_idx : int
+        Current index to compare against.
+    name_includes_idx : bool, optional
+        Whether the provided name includes the index.
+    error_if_future_files_exist : bool, optional
+        Whether to raise if future files are found.
+    """
     if name_includes_idx:
         name = name[: -len(str(current_idx))]
     else:
@@ -97,6 +118,7 @@ def find_all_earlier_files(
 
 
 def find_index_in_name(name):
+    """Extract a trailing integer index from a name."""
     idx = []
     for ch in reversed(name):
         if ch.isdigit():

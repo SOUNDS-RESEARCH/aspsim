@@ -1,3 +1,5 @@
+"""Directional microphone models."""
+
 import aspcore.filterdesign as fd
 import numpy as np
 import scipy.signal as spsig
@@ -12,7 +14,7 @@ def differential_cardioid_microphone(
     samplerate,
     filter_below=None,
 ):
-    """Constructs a cardioid microphone response from two omnidirectional microphones
+    """Construct a cardioid microphone response from two omnidirectional microphones.
 
     The two omnidirectional microphones must be separated by a distance of microphone_distance.
     The strongest response is in the direction of the main microphone from the secondary, and the null is in the opposite direction.

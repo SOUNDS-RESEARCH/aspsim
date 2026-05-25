@@ -1,3 +1,5 @@
+"""Utility function tests."""
+
 import hypothesis.strategies as st
 import numpy as np
 from hypothesis import given
@@ -7,6 +9,7 @@ import aspsim.utilities as util
 
 @given(st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100))
 def test_calc_block_sizes_totalEqualToNumSamples(numSamples, block_size):
+    """Check block sizes sum to total samples."""
     startIdx = np.random.randint(0, block_size)
     sizes = util.calc_block_sizes(numSamples, startIdx, block_size)
     assert np.sum(sizes) == numSamples
@@ -14,6 +17,7 @@ def test_calc_block_sizes_totalEqualToNumSamples(numSamples, block_size):
 
 @given(st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100))
 def test_calc_block_sizes_maxValueEqualToBlockLength(numSamples, block_size):
+    """Check block sizes do not exceed block length."""
     startIdx = np.random.randint(0, block_size)
     sizes = util.calc_block_sizes(numSamples, startIdx, block_size)
     assert np.max(sizes) <= block_size
@@ -21,6 +25,7 @@ def test_calc_block_sizes_maxValueEqualToBlockLength(numSamples, block_size):
 
 @given(st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100))
 def test_calc_block_sizes_noZeroValues(numSamples, block_size):
+    """Check block sizes are all positive."""
     startIdx = np.random.randint(0, block_size)
     sizes = util.calc_block_sizes(numSamples, startIdx, block_size)
     assert np.min(sizes) > 0
@@ -28,6 +33,7 @@ def test_calc_block_sizes_noZeroValues(numSamples, block_size):
 
 @given(st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100))
 def test_calc_block_sizes_allMiddleValuesEqualToblock_size(numSamples, block_size):
+    """Check middle block sizes equal block length."""
     startIdx = np.random.randint(0, block_size)
     sizes = util.calc_block_sizes(numSamples, startIdx, block_size)
     print(sizes)
@@ -37,6 +43,7 @@ def test_calc_block_sizes_allMiddleValuesEqualToblock_size(numSamples, block_siz
 
 @given(st.integers(min_value=1, max_value=100), st.integers(min_value=1, max_value=100))
 def test_calc_block_sizes_firstValueCorrect(numSamples, block_size):
+    """Check first block size matches expected length."""
     startIdx = np.random.randint(0, block_size)
     sizes = util.calc_block_sizes(numSamples, startIdx, block_size)
     assert sizes[0] == np.min((block_size - startIdx, numSamples))

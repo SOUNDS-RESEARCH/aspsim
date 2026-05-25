@@ -1,3 +1,5 @@
+"""Soundfield plotting helpers for diagnostics."""
+
 import aspcore.utilities as utils
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,12 +8,15 @@ import aspsim.array as ar
 
 
 def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}):
-    """single pos array of shape (numPoints, spatialDim)
+    """Compare soundfields across algorithms.
+
+    Single pos array of shape (numPoints, spatialDim)
     sig and labels are lists of the same length, numAlgos
     each entry in sig is an array of shape (numAxes, numPoints),
     so for example multiple frequencies can be plotted at the same time.
 
-    The resulting plot is multiple axes, numAlgos rows high, and numAxes columns wide"""
+    The resulting plot is multiple axes, numAlgos rows high, and numAxes columns wide
+    """
     # num_rows, num_cols = sfp.get_num_pixels(pos)
     pos, sig = sort_for_imshow(pos, sig)
     if sig.ndim == 2:
@@ -44,12 +49,15 @@ def compare_soundfields(pos, sig, algo_labels, row_labels, arrays_to_plot={}):
 
 
 def size_of_2d_plot(array_pos):
-    """array_pos is a list/tuple of ndarrays of shape(any, spatialDim)
+    """Compute the size of a 2D plot extent.
+
+    array_pos is a list/tuple of ndarrays of shape(any, spatialDim)
     describing the positions of all objects to be plotted. First axis
     can be any value for the arrays, second axis must be 2 or more. Only
     the first two are considered.
 
-    returns np.array([x_size, y_size])"""
+    returns np.array([x_size, y_size])
+    """
     array_pos = [ap[..., :2].reshape(-1, 2) for ap in array_pos]
     all_pos = np.concatenate(array_pos, axis=0)
     extent = np.max(all_pos, axis=0) - np.min(all_pos, axis=0)
@@ -57,11 +65,10 @@ def size_of_2d_plot(array_pos):
 
 
 def sf_plot(ax, pos, sig, title="", arrays_to_plot=None, vminmax=None):
-    """
-    Makes a soundfield plot using the supplied matplotlib.pyplot axis
+    """Plot a soundfield on the supplied Matplotlib axis.
 
     Parameters
-    ---------
+    ----------
     ax : axis obtained from fig, axes = plt.subplots()
     pos : ndarray of shape (num_pos, spatial_dim)
         must be sorted, use function sort_for_imshow()
@@ -79,7 +86,6 @@ def sf_plot(ax, pos, sig, title="", arrays_to_plot=None, vminmax=None):
         multiple soundfields next to each other, so that the colors mean the
         same values in the different plots
     """
-
     if vminmax is None:
         vminmax = (np.min(sig), np.max(sig))
 
@@ -116,6 +122,7 @@ def sf_plot(ax, pos, sig, title="", arrays_to_plot=None, vminmax=None):
 
 
 def get_num_pixels(pos, pos_decimals=5):
+    """Return the number of rows and columns for a grid."""
     pos_cols = np.unique(pos[:, 0].round(pos_decimals))
     pos_rows = np.unique(pos[:, 1].round(pos_decimals))
     num_rows = len(pos_rows)
@@ -124,12 +131,10 @@ def get_num_pixels(pos, pos_decimals=5):
 
 
 def sort_for_imshow(pos, sig, pos_decimals=5):
-    """
-    Sorts the position and signal values to display correctly when
-    imshow is used to plot the sound field image
+    """Sort position and signal values for imshow.
 
     Parameters
-    ---------
+    ----------
     pos : ndarray of shape (num_pos, spatial_dim)
         must represent a rectangular grid, but can be in any order.
     sig : ndarray of shape (num_pos, signal_dim)

@@ -1,3 +1,5 @@
+"""Region geometries used for room and array layouts."""
+
 from abc import ABC, abstractmethod
 
 import matplotlib.patches as patches
@@ -8,6 +10,8 @@ import aspsim.room.generatepoints as gp
 
 
 class Region(ABC):
+    """Abstract base class for spatial regions."""
+
     def __init__(self, rng=None):
         if rng is not None:
             self.rng = rng
@@ -16,22 +20,28 @@ class Region(ABC):
 
     @abstractmethod
     def is_in_region(self, coordinates: npt.ArrayLike) -> npt.NDArray[np.bool]:
+        """Return True for coordinates inside the region."""
         pass
 
     @abstractmethod
     def equally_spaced_points(self):
+        """Return an evenly spaced grid of points in the region."""
         pass
 
     @abstractmethod
     def sample_points(self, num_points):
+        """Sample points uniformly from the region."""
         pass
 
     @abstractmethod
     def plot(self, ax, label=None):
+        """Plot the region in a matplotlib axes."""
         pass
 
 
 class CombinedRegion(Region):
+    """Region composed of multiple non-overlapping regions."""
+
     def __init__(self, regions, rng=None):
         super().__init__(rng)
         self.regions = regions
@@ -61,17 +71,20 @@ class CombinedRegion(Region):
         return False
 
     def is_in_region(self, coordinates: npt.ArrayLike) -> npt.NDArray[np.bool]:
+        """Return True for coordinates inside any sub-region."""
         is_in_each_region = np.stack(
             [reg.is_in_region(coordinates) for reg in self.regions], axis=0
         )
         return np.any(is_in_each_region, axis=0)
 
     def equally_spaced_points(self):
+        """Return evenly spaced points from all sub-regions."""
         return np.concatenate(
             [reg.equally_spaced_points() for reg in self.regions], axis=0
         )
 
     def sample_points(self, num_points):
+        """Sample points proportionally across sub-regions."""
         vol_ratio = self.volumes / self.volume
         sample_limit = np.cumsum(vol_ratio)
         test_val = self.rng.uniform(0, 1, num_points)
@@ -85,11 +98,14 @@ class CombinedRegion(Region):
         return sampled_points
 
     def plot(self, ax, label=None):
+        """Plot all sub-regions."""
         for reg in self.regions:
             reg.plot(ax, label)
 
 
 class Cuboid(Region):
+    """Axis-aligned cuboid region."""
+
     def __init__(
         self, side_lengths, center=(0, 0, 0), point_spacing=(1, 1, 1), rng=None
     ):
@@ -102,6 +118,7 @@ class Cuboid(Region):
         self.point_spacing = point_spacing
 
     def is_in_region(self, coordinates, padding=[[0, 0, 0]]):
+        """Return True for coordinates inside the cuboid."""
         is_in_coord_wise = np.logical_and(
             coordinates >= self.low_lim[None, :] - padding,
             coordinates <= self.high_lim[None, :] + padding,
@@ -113,6 +130,7 @@ class Cuboid(Region):
         return is_in
 
     def equally_spaced_points(self, point_dist=None):
+        """Return evenly spaced points within the cuboid."""
         if point_dist is None:
             point_dist = self.point_spacing
         if isinstance(point_dist, (int, float)):
@@ -142,6 +160,7 @@ class Cuboid(Region):
         return all_points
 
     def sample_points(self, num_points):
+        """Sample points uniformly within the cuboid."""
         low_lim = np.array(self.low_lim)
         high_lim = np.array(self.high_lim)
 
@@ -152,6 +171,7 @@ class Cuboid(Region):
         return samples
 
     def plot(self, ax, label=None):
+        """Plot the cuboid projection as a rectangle."""
         rect = patches.Rectangle(
             self.low_lim,
             self.side_lengths[0],
@@ -164,12 +184,14 @@ class Cuboid(Region):
 
 
 class Rectangle(Region):
+    """Axis-aligned rectangle region."""
+
     def __init__(
         self, side_lengths, center, point_spacing=(1, 1), spatial_dim=3, rng=None
     ):
-        """Constructs a two-dimensional rectangle
+        """Construct a two-dimensional rectangle.
 
-        The rectangle can be placed in 3D space by setting a 3-dimensional center
+        The rectangle can be placed in 3D space by setting a 3-dimensional center.
 
         Parameters
         ----------
@@ -214,7 +236,7 @@ class Rectangle(Region):
         self.volume = np.prod(side_lengths)
 
     def is_in_region(self, coordinates, padding=[[0, 0]]):
-        """Checks whether the coordinate is within the region or not.
+        """Check whether the coordinate is within the region or not.
 
         Parameters
         ----------
@@ -243,7 +265,7 @@ class Rectangle(Region):
         return is_in
 
     def equally_spaced_points(self):
-        """Returns a grid of points within the region
+        """Return a grid of points within the region.
 
         Returns
         -------
@@ -279,7 +301,7 @@ class Rectangle(Region):
         return all_points
 
     def sample_points(self, num_points):
-        """Returns a set of points sampled uniformly within the region
+        """Return points sampled uniformly within the region.
 
         Parameters
         ----------
@@ -302,6 +324,7 @@ class Rectangle(Region):
         return points
 
     def plot(self, ax, label=None):
+        """Plot the rectangle region."""
         rect = patches.Rectangle(
             self.low_lim,
             self.side_lengths[0],
@@ -314,6 +337,8 @@ class Rectangle(Region):
 
 
 class Disc(Region):
+    """Disc region in 2D or 3D."""
+
     def __init__(self, radius, center, point_spacing=(1, 1), spatial_dim=3, rng=None):
         super().__init__(rng)
         assert spatial_dim in (2, 3)
@@ -325,6 +350,7 @@ class Disc(Region):
         self.volume = self.radius**2 * np.pi
 
     def is_in_region(self, coordinates):
+        """Return True for coordinates inside the disc."""
         if self.spatial_dim == 3:
             if not np.allclose(coordinates[:, 2], self.center[2]):
                 return False
@@ -335,6 +361,7 @@ class Disc(Region):
         return is_in
 
     def equally_spaced_points(self):
+        """Return evenly spaced points within the disc."""
         point_dist = self.point_spacing
         block_dims = np.array([self.radius * 2, self.radius * 2])
         num_points = np.ceil(block_dims / point_dist)
@@ -361,6 +388,7 @@ class Disc(Region):
         return all_points
 
     def sample_points(self, num_points):
+        """Sample points uniformly within the disc."""
         r = self.radius * np.sqrt(self.rng.uniform(0, 1, num_points))
         angle = 2 * np.pi * self.rng.uniform(0, 1, num_points)
         x = r * np.cos(angle) + self.center[0]
@@ -374,6 +402,7 @@ class Disc(Region):
         return points
 
     def plot(self, ax, label=None):
+        """Plot the disc region."""
         circ = patches.Circle(
             tuple(self.center[:2]), self.radius, fill=True, alpha=0.3, label=label
         )
@@ -381,8 +410,10 @@ class Disc(Region):
 
 
 class Ball(Region):
+    """Ball region."""
+
     def __init__(self, radius, center, point_spacing=(1, 1, 1), rng=None):
-        """Constructs a ball region
+        """Construct a ball region.
 
         Parameters
         ----------
@@ -412,12 +443,14 @@ class Ball(Region):
         self.volume = (4 / 3) * self.radius**3 * np.pi
 
     def is_in_region(self, coordinates):
+        """Return True for coordinates inside the ball."""
         centered_coords = coordinates - self.center[None, :]
         is_in = np.linalg.norm(centered_coords, axis=-1) <= self.radius
         # is_in = norm_coords <= self.radius
         return is_in
 
     def equally_spaced_points(self):
+        """Return evenly spaced points within the ball."""
         cuboid = Cuboid(
             (2 * self.radius, 2 * self.radius, 2 * self.radius),
             point_spacing=self.point_spacing,
@@ -431,6 +464,7 @@ class Ball(Region):
         return grid_points
 
     def sample_points(self, num_points):
+        """Sample points uniformly within the ball."""
         finished = False
         num_accepted = 0
 
@@ -458,6 +492,7 @@ class Ball(Region):
         return samples
 
     def plot(self, ax, label=None):
+        """Plot the ball projection as a circle."""
         circ = patches.Circle(
             tuple(self.center[:2]), self.radius, fill=True, alpha=0.3, label=label
         )
@@ -465,10 +500,12 @@ class Ball(Region):
 
 
 class Cylinder(Region):
+    """Cylinder region."""
+
     def __init__(
         self, radius, height, center=(0, 0, 0), point_spacing=(1, 1, 1), rng=None
     ):
-        """Constructs a cylinder region
+        """Construct a cylinder region.
 
         Parameters
         ----------
@@ -499,7 +536,7 @@ class Cylinder(Region):
         self.volume = self.radius**2 * np.pi * self.height
 
     def is_in_region(self, coordinates):
-        """Checks whether the coordinate is within the cylinder or not.
+        """Check whether the coordinate is within the cylinder or not.
 
         Parameters
         ----------
@@ -530,7 +567,7 @@ class Cylinder(Region):
         return is_in
 
     def equally_spaced_points(self):
-        """Returns a grid of points within the cylinder
+        """Return a grid of points within the cylinder.
 
         Returns
         -------
@@ -560,7 +597,7 @@ class Cylinder(Region):
         return all_points
 
     def sample_points(self, num_points):
-        """Returns a set of points sampled uniformly within the cylinder
+        """Return points sampled uniformly within the cylinder.
 
         Parameters
         ----------
@@ -583,6 +620,7 @@ class Cylinder(Region):
         return np.stack((x, y, h), axis=1)
 
     def plot(self, ax, label=None):
+        """Plot the cylinder projection as a circle."""
         circ = patches.Circle(
             tuple(self.center[:2]), self.radius, fill=True, alpha=0.3, label=label
         )
@@ -590,8 +628,10 @@ class Cylinder(Region):
 
 
 class Circle(Region):
+    """Circle region."""
+
     def __init__(self, radius, center=(0, 0, 0), point_spacing=1, rng=None):
-        """Constructs a Circular region
+        """Construct a circular region.
 
         Parameters
         ----------
@@ -619,7 +659,7 @@ class Circle(Region):
         self.volume = self.radius**2 * np.pi
 
     def is_in_region(self, coordinates):
-        """Checks whether the coordinate is within the bounds of the shape.
+        """Check whether the coordinate is within the bounds of the shape.
 
         Parameters
         ----------
@@ -647,7 +687,7 @@ class Circle(Region):
         return is_on_circle
 
     def equally_spaced_points(self):
-        """Returns a grid of points within the shape
+        """Return a grid of points within the shape.
 
         Returns
         -------
@@ -673,7 +713,7 @@ class Circle(Region):
         return pos
 
     def sample_points(self, num_points):
-        """Returns a set of points sampled uniformly within the shape
+        """Return points sampled uniformly within the shape.
 
         Parameters
         ----------
@@ -696,6 +736,7 @@ class Circle(Region):
         return np.stack((x, y, h), axis=1)
 
     def plot(self, ax, label=None):
+        """Plot the circle region."""
         circ = patches.Circle(
             tuple(self.center[:2]), self.radius, fill=True, alpha=0.3, label=label
         )

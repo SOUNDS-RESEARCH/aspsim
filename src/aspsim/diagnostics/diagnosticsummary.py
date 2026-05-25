@@ -54,10 +54,14 @@ class SummaryDiagnostic(diacore.Diagnostic):
         export_kwargs=None,
         preprocess=None,
     ):
-        """
-        save_at should be a tuple (start_sample, end_sample)
-            it will use the samples between start_samle (inclusive) and end_sample (exclusive)
+        """Initialize a summary diagnostic.
 
+        Will use the samples between start_sample (inclusive) and end_sample (exclusive).
+
+        Parameters
+        ----------
+        save_at : tuple
+            The range as (start_sample, end_sample).
         """
         if isinstance(save_at, diacore.IntervalCounter):
             raise NotImplementedError
@@ -77,6 +81,8 @@ class SummaryDiagnostic(diacore.Diagnostic):
 
 
 class SignalPowerRatioSummary(SummaryDiagnostic):
+    """Summarize a ratio of signal powers."""
+
     def __init__(
         self,
         numerator_name,
@@ -104,6 +110,7 @@ class SignalPowerRatioSummary(SummaryDiagnostic):
         )
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate power ratio statistics for the current chunk."""
         self.num_power += (
             np.sum(
                 np.mean(
@@ -137,10 +144,13 @@ class SignalPowerRatioSummary(SummaryDiagnostic):
         # self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 
     def get_output(self):
+        """Return the final power ratio."""
         return self.num_power / self.denom_power
 
 
 class SignalPowerSummary(SummaryDiagnostic):
+    """Summarize signal power across a range."""
+
     def __init__(
         self,
         sig_name,
@@ -150,8 +160,11 @@ class SignalPowerSummary(SummaryDiagnostic):
         sig_channels=slice(None),
         **kwargs,
     ):
-        """
-        Will output the wrong value if it is exported in the middle of the save_range
+        """Initialize power summary for a signal.
+
+        Notes
+        -----
+        Exporting in the middle of the save_range yields an incorrect value.
         """
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
@@ -164,6 +177,7 @@ class SignalPowerSummary(SummaryDiagnostic):
         # self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate power for the current chunk."""
         self.power += (
             np.sum(
                 np.mean(
@@ -182,10 +196,13 @@ class SignalPowerSummary(SummaryDiagnostic):
         # self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 
     def get_output(self):
+        """Return the accumulated power."""
         return self.power
 
 
 class SignalPowerSpectrum(SummaryDiagnostic):
+    """Summarize signal power spectrum across a range."""
+
     def __init__(
         self,
         sig_name,
@@ -196,8 +213,11 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         sig_channels=slice(None),
         **kwargs,
     ):
-        """
-        Will output the wrong value if it is exported in the middle of the save_range
+        """Initialize power spectrum summary for a signal.
+
+        Notes
+        -----
+        Exporting in the middle of the save_range yields an incorrect value.
         """
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
@@ -216,6 +236,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         # self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate spectrum data for the current chunk."""
         num_samples = chunk_interval[1] - chunk_interval[0]
         self.power[:, self.sample_counter : self.sample_counter + num_samples] = (
             np.abs(
@@ -230,6 +251,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         # self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 
     def get_output(self):
+        """Return the Welch power spectrum."""
         f, spec = spsig.welch(
             self.power, self.samplerate, nperseg=512, scaling="spectrum", axis=-1
         )

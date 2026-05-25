@@ -1,3 +1,5 @@
+"""Plotting and export helpers for diagnostics."""
+
 import json
 
 import aspcore.utilities as utils
@@ -9,23 +11,27 @@ import aspsim.diagnostics.soundfieldplot as sfplot
 import aspsim.fileutilities as fu
 
 
-def plot_3d_in_2d(ax, posData, symbol="x", name=""):
-    uniqueZValues = np.unique(posData[:, 2].round(decimals=4))
+def plot_3d_in_2d(ax, pos_data, symbol="x", name=""):
+    """Plot 3D positions projected into 2D."""
+    unique_z_values = np.unique(pos_data[:, 2].round(decimals=4))
 
     # if len(uniqueZValues) == 1:
     #     alpha = np.array([1])
     # else:
     #     alpha = np.linspace(0.4, 1, len(uniqueZValues))
 
-    for i, zVal in enumerate(uniqueZValues):
-        idx = np.where(np.around(posData[:, 2], 4) == zVal)[0]
+    for i, z_val in enumerate(unique_z_values):
+        idx = np.where(np.around(pos_data[:, 2], 4) == z_val)[0]
 
-        ax.plot(posData[idx, 0], posData[idx, 1], symbol, label=f"{name}: z = {zVal}")
+        ax.plot(
+            pos_data[idx, 0], pos_data[idx, 1], symbol, label=f"{name}: z = {z_val}"
+        )
 
 
 def function_of_time_plot(
     name, diags, time_idx, folder, preprocess, print_method="pdf"
 ):
+    """Plot diagnostic output as a function of time."""
     # fig, ax = plt.subplots(1, 1, figsize=(14, 8))
     fig, ax = plt.subplots(1, 1, figsize=(7, 4))
     fig.tight_layout(pad=4)
@@ -58,6 +64,7 @@ def function_of_time_plot(
 
 
 def plot_multiple_channels(ax, time_idx, signal, labels):
+    """Plot multiple channels on a single axis."""
     if signal.shape[-1] < 10:
         marker = "x"
     else:
@@ -74,20 +81,22 @@ def plot_multiple_channels(ax, time_idx, signal, labels):
 
 
 def legend_without_duplicates(ax, loc):
+    """Add a legend without duplicate labels."""
     handles, labels = ax.get_legend_handles_labels()
-    newLabels, newHandles = [], []
+    new_labels, new_handles = [], []
     for handle, label in zip(handles, labels):
-        if label not in newLabels:
-            newLabels.append(label.replace("_", "\_"))
-            newHandles.append(handle)
+        if label not in new_labels:
+            new_labels.append(label.replace("_", "\_"))
+            new_handles.append(handle)
 
-    ax.legend(newHandles, newLabels, loc=loc)
+    ax.legend(new_handles, new_labels, loc=loc)
 
 
 def savenpz(name, diags, time_idx, folder, preprocess, print_method="pdf"):
-    """Keeps only the latest save.
-    Assumes that the data in previous
-    saves is present in the current data"""
+    """Save the latest diagnostics to a compressed npz file.
+
+    Assumes the output of the previous saved diagnostic is not needed, as the same data is contained in the new file.
+    """
     outputs = {
         proc_name: diag.get_processed_output(time_idx, preprocess)
         for proc_name, diag in diags.items()
@@ -110,6 +119,7 @@ def savenpz(name, diags, time_idx, folder, preprocess, print_method="pdf"):
 
 
 def txt(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    """Save summary values to a JSON file."""
     outputs = {
         proc_name: diag.get_processed_output(time_idx, preprocess)
         for proc_name, diag in diags.items()
@@ -126,6 +136,7 @@ def txt(name, diags, time_idx, folder, preprocess, print_method="pdf"):
 
 
 def soundfield(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    """Plot and save a soundfield diagnostic."""
     # outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
 
     num_proc = len(diags)
@@ -158,6 +169,7 @@ def soundfield(name, diags, time_idx, folder, preprocess, print_method="pdf"):
 
 
 def plot_ir(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    """Plot impulse responses for diagnostics."""
     num_sets = 0
     for algo_name, diag in diags.items():
         for ir_set in diag.get_output():
@@ -197,6 +209,7 @@ def plot_ir(name, diags, time_idx, folder, preprocess, print_method="pdf"):
 
 
 def matshow(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    """Plot diagnostics output with matshow."""
     outputs = {
         proc_name: diag.get_processed_output(time_idx, preprocess)
         for proc_name, diag in diags.items()
@@ -217,6 +230,7 @@ def matshow(name, diags, time_idx, folder, preprocess, print_method="pdf"):
 
 
 def create_audio_files(name, diags, time_idx, folder, preprocess, print_method=None):
+    """Create audio files from diagnostics output."""
     outputs = {
         proc_name: diag.get_processed_output(time_idx, preprocess)
         for proc_name, diag in diags.items()
@@ -259,6 +273,7 @@ def create_audio_files(name, diags, time_idx, folder, preprocess, print_method=N
 
 
 def spectrum_plot(name, diags, time_idx, folder, preprocess, print_method="pdf"):
+    """Plot spectrum diagnostics output."""
     # outputs = {proc_name: diag.get_processed_output(time_idx, preprocess) for proc_name, diag in diags.items()}
     # outputs = {key: val[0] if isinstance(val, tuple) else val for key, val in outputs.items()}
 

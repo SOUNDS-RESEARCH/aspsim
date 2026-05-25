@@ -1,3 +1,5 @@
+"""ISM simulator tests."""
+
 import aspcore.filter as fc
 import numpy as np
 import pytest
@@ -9,6 +11,7 @@ from aspsim.simulator import SimulatorSetup
 
 @pytest.fixture(scope="session")
 def fig_folder(tmp_path_factory):
+    """Create a temporary folder for figures."""
     return tmp_path_factory.mktemp("figs")
 
 
@@ -32,6 +35,7 @@ def _setup_ism(fig_folder, samplerate):
 
 
 def test_generated_rirs_for_different_positions_are_not_identical(fig_folder):
+    """Check RIRs differ for different positions."""
     sr = 1000
     rng = np.random.default_rng()
 
@@ -51,6 +55,7 @@ def test_generated_rirs_for_different_positions_are_not_identical(fig_folder):
 def test_generated_rirs_for_same_position_is_consistent_with_more_than_one_simulator(
     fig_folder,
 ):
+    """Check RIRs are consistent across simulators."""
     sr = 1000
     rng = np.random.default_rng()
 
@@ -72,6 +77,7 @@ def test_generated_rirs_for_same_position_is_consistent_with_more_than_one_simul
 
 
 def test_generated_rir_satisfies_reciprocity(fig_folder):
+    """Check generated RIRs satisfy reciprocity."""
     sr = 1000
     rng = np.random.default_rng()
 
@@ -94,6 +100,7 @@ def test_generated_rir_satisfies_reciprocity(fig_folder):
 
 
 def test_simulation_equals_direct_convolution(fig_folder):
+    """Check simulation equals direct convolution for ISM."""
     rng = np.random.default_rng()
     sr = 1000
 

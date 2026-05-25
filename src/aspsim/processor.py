@@ -1,3 +1,5 @@
+"""Audio processor base classes and helpers."""
+
 from abc import ABC, abstractmethod
 
 import aspcore.filter as fc
@@ -7,6 +9,8 @@ from aspsim.simulator import Signals
 
 
 class AudioProcessor(ABC):
+    """Base class for audio processors."""
+
     def __init__(self, sim_info, arrays, block_size, diagnostics={}, rng=None):
         self.sim_info = sim_info
         self.arrays = arrays
@@ -22,12 +26,16 @@ class AudioProcessor(ABC):
             self.rng = rng
 
     def prepare(self):
+        """Prepare the processor before simulation."""
         pass
 
     @abstractmethod
     def process(self, num_samples):
-        """microphone signals up to self.idx (excluding) are available. i.e. [:,choose_start_idx:self.idx] can be used
-        To play a signal through controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
+        """Process a block of samples.
+
+        Microphone signals up to self.idx (excluding) are available. i.e.
+        [:,choose_start_idx:self.idx] can be used. To play a signal through
+        controllable loudspeakers, add the values to self.sig['name-of-loudspeaker']
         for samples self.idx and forward, i.e. [:,self.idx:self.idx+self.block_size].
         Adding samples further ahead than that will likely cause a outOfBounds error.
         """
@@ -35,6 +43,8 @@ class AudioProcessor(ABC):
 
 
 class DebugProcessor(AudioProcessor):
+    """Debug processor that mirrors microphone input to loudspeakers."""
+
     def __init__(self, sim_info, arrays, block_size, **kwargs):
         super().__init__(sim_info, arrays, block_size, **kwargs)
         self.name = "Debug Processor"
@@ -46,6 +56,7 @@ class DebugProcessor(AudioProcessor):
         self.ls = np.zeros((self.arrays["loudspeaker"].num, self.sim_info.tot_samples))
 
     def process(self, num_samples):
+        """Process a block of samples for debugging."""
         self.sig["loudspeaker"][:, self.sig.idx : self.sig.idx + num_samples] = (
             self.sig["mic"][:, self.sig.idx - num_samples : self.sig.idx]
         )
@@ -63,7 +74,10 @@ class DebugProcessor(AudioProcessor):
         self.filt.ir += num_samples
 
 
-def calc_block_sizes_with_buffer(num_samples, idx, buffer_size, chunk_size):
+def calc_block_sizes_with_buffer(
+    num_samples: int, idx: int, buffer_size: int, chunk_size: int
+):
+    """Calculate block sizes for processing a set of samples in blocks."""
     leftInBuffer = chunk_size + buffer_size - idx
     sampleCounter = 0
     block_sizes = []
@@ -78,10 +92,13 @@ def calc_block_sizes_with_buffer(num_samples, idx, buffer_size, chunk_size):
 
 
 def find_first_index_for_block(earliest_start_index, index_to_end_at, block_size):
-    """If processing in fixed size blocks, this function will give the index
-    to start at if the processing should end at a specific index.
-    Useful for preparation processing, where the exact startpoint isn't important
-    but it is important to end at the correct place."""
+    """Find the first start index for fixed-size block processing.
+
+    If processing in fixed size blocks, this function will give the index to start
+    at if the processing should end at a specific index. Useful for preparation
+    processing, where the exact startpoint isn't important but it is important to
+    end at the correct place.
+    """
     num_samples = index_to_end_at - earliest_start_index
     num_blocks = num_samples // block_size
     index_to_start_at = index_to_end_at - block_size * num_blocks
@@ -89,14 +106,17 @@ def find_first_index_for_block(earliest_start_index, index_to_end_at, block_size
 
 
 def block_process_until_index(earliest_start_index, index_to_end_at, block_size):
-    """Use as
+    """Yield block start and end indices.
+
+    Use as
     for startIdx, endIdx in blockProcessUntilIndex(earliestStart, indexToEnd, block_size):
         process(signal[...,startIdx:endIdx])
 
-    If processing in fixed size blocks, this function will give the index
-    to process for, if the processing should end at a specific index.
-    Useful for preparation processing, where the exact startpoint isn't important
-    but it is important to end at the correct place."""
+    If processing in fixed size blocks, this function will give the index to process
+    for, if the processing should end at a specific index. Useful for preparation
+    processing, where the exact startpoint isn't important but it is important to
+    end at the correct place.
+    """
     num_samples = index_to_end_at - earliest_start_index
     num_blocks = num_samples // block_size
     index_to_start_at = index_to_end_at - block_size * num_blocks

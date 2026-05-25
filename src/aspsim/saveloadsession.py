@@ -1,3 +1,5 @@
+"""Helpers for saving and loading simulation sessions."""
+
 import json
 import shutil
 
@@ -7,6 +9,21 @@ import aspsim.fileutilities as futil
 
 
 def save_session(session_folder, sim_info, arrays, sim_metadata=None, extraprefix=""):
+    """Save a simulation session to a new folder.
+
+    Parameters
+    ----------
+    session_folder : pathlib.Path
+        Folder where sessions are stored.
+    sim_info : SimulatorInfo
+        Simulation configuration to save.
+    arrays : ArrayCollection
+        Array collection to save.
+    sim_metadata : dict, optional
+        Additional metadata to add to the session.
+    extraprefix : str, optional
+        Extra prefix for the session folder name.
+    """
     session_path = futil.get_unique_folder_name(
         "session_" + extraprefix, session_folder
     )
@@ -19,9 +36,24 @@ def save_session(session_folder, sim_info, arrays, sim_metadata=None, extraprefi
 
 
 def load_session(sessions_path, new_folder_path, chosen_sim_info, chosen_arrays):
-    """sessionsPath refers to the folder where all sessions reside
-    This function will load a session matching the chosenConfig
-    and chosenArrays if it exists"""
+    """Load a session matching the chosen configuration and arrays.
+
+    Parameters
+    ----------
+    sessions_path : pathlib.Path
+        Folder where all sessions reside.
+    new_folder_path : pathlib.Path
+        Target folder for copied metadata.
+    chosen_sim_info : SimInfo
+        Requested simulation configuration.
+    chosen_arrays : ArrayCollection
+        Requested arrays.
+
+    Returns
+    -------
+    ArrayCollection
+        Loaded array collection.
+    """
     session_to_load = search_for_matching_session(
         sessions_path, chosen_sim_info, chosen_arrays
     )
@@ -35,6 +67,22 @@ def load_session(sessions_path, new_folder_path, chosen_sim_info, chosen_arrays)
 
 
 def load_from_path(session_path_to_load, new_folder_path=None):
+    """Load a session from a specific path.
+
+    Parameters
+    ----------
+    session_path_to_load : pathlib.Path
+        Path to the session folder.
+    new_folder_path : pathlib.Path, optional
+        Folder where metadata should be copied.
+
+    Returns
+    -------
+    loaded_sim_info : SimulatorInfo
+        Loaded simulation configuration.
+    loaded_arrays : ArrayCollection
+        Loaded array collection.
+    """
     loaded_arrays = ar.load_arrays(session_path_to_load)
     loaded_sim_info = configutil.load_from_file(session_path_to_load)
 
@@ -45,6 +93,15 @@ def load_from_path(session_path_to_load, new_folder_path=None):
 
 
 def copy_sim_metadata(from_folder, to_folder):
+    """Copy simulation metadata JSON between folders.
+
+    Parameters
+    ----------
+    from_folder : pathlib.Path
+        Source folder.
+    to_folder : pathlib.Path
+        Destination folder.
+    """
     shutil.copy(
         from_folder.joinpath("metadata_sim.json"),
         to_folder.joinpath("metadata_sim.json"),
@@ -52,10 +109,33 @@ def copy_sim_metadata(from_folder, to_folder):
 
 
 class MatchingSessionNotFoundError(ValueError):
+    """Raised when no matching session is found."""
+
     pass
 
 
 def search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays):
+    """Find a session matching the chosen configuration and arrays.
+
+    Parameters
+    ----------
+    sessions_path : pathlib.Path
+        Folder where all sessions reside.
+    chosen_sim_info : SimulatorInfo
+        Requested simulation configuration.
+    chosen_arrays : ArrayCollection
+        Requested arrays.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the matching session.
+
+    Raises
+    ------
+    MatchingSessionNotFoundError
+        If no matching session is found.
+    """
     for dir_path in sessions_path.iterdir():
         if dir_path.is_dir():
             loaded_sim_info = configutil.load_from_file(dir_path)
@@ -69,6 +149,15 @@ def search_for_matching_session(sessions_path, chosen_sim_info, chosen_arrays):
 
 
 def add_to_sim_metadata(folder_path, dict_to_add):
+    """Merge metadata into the simulation metadata file.
+
+    Parameters
+    ----------
+    folder_path : pathlib.Path
+        Folder containing the metadata file.
+    dict_to_add : dict
+        Metadata to add or update.
+    """
     try:
         with open(folder_path.joinpath("metadata_sim.json"), "r") as f:
             old_data = json.load(f)
@@ -80,6 +169,15 @@ def add_to_sim_metadata(folder_path, dict_to_add):
 
 
 def write_processor_metadata(processors, folder_path):
+    """Write processor metadata to disk.
+
+    Parameters
+    ----------
+    processors : iterable
+        Processors providing metadata.
+    folder_path : pathlib.Path or None
+        Target folder to write metadata into.
+    """
     if folder_path is None:
         return
 

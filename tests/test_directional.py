@@ -1,3 +1,5 @@
+"""Directional microphone tests."""
+
 import aspcore.fouriertransform as ft
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -29,7 +31,8 @@ def _setup_ism(fig_folder, samplerate):
 
 
 def test_directional_microphones_are_correct_with_regards_to_reciprocity():
-    """
+    """Check reciprocity for directional microphones.
+
     When the directional microphone is pointed towards the source or one of the two reflections, the impulse response for that particular reflection should be identical to the impulse response of the omni-directional microphone.
 
     change src_azimuth in the calculation of mic_dir to ref1_azimuth or ref2_azimuth to test the reflections.
@@ -139,6 +142,7 @@ def test_directional_microphones_are_correct_with_regards_to_reciprocity():
 
 
 def test_cardioid_microphone_facing_plane_wave_gives_same_response_as_omni_microphone():
+    """Check cardioid response matches omni for a plane wave."""
     rng = np.random.default_rng(10)
     sr = 1000
 
@@ -190,14 +194,9 @@ def test_cardioid_microphone_facing_plane_wave_gives_same_response_as_omni_micro
 
     assert mse < 1e-10
 
-    # num_freqs = setup.sim_info.max_room_ir_length
-    # fpaths, freqs = sim.arrays.get_freq_paths(num_freqs, sr)
-
-    # return sim.arrays["omni"].pos, fpaths["src"]["omni"][...,0], sim.arrays.paths["src"]["omni"], \
-    #        sim.arrays["cardioid"].pos, fpaths["src"]["cardioid"][...,0], freqs, sim.sim_info
-
 
 def test_cardioid_microphone_response_compared_to_omni_for_plane_wave_pyroomacoustics():
+    """Compare cardioid and omni plane-wave responses in pyroomacoustics."""
     samplerate = 1000
 
     # Plane wave incoming from the following direction, which is negative of propagation direction
@@ -256,6 +255,7 @@ def test_cardioid_microphone_response_compared_to_omni_for_plane_wave_pyroomacou
 
 
 def test_cardioid_microphone_response_to_plane_wave_of_different_heights_pyroomacoustics():
+    """Check cardioid response for different plane-wave heights."""
     samplerate = 1000
 
     # Plane wave incoming from the following direction, which is negative of propagation direction
@@ -392,6 +392,7 @@ def _get_default_simulator_setup(sr):
 
 
 def test_differential_microphone_filter_gives_same_result_as_pyroomacoustics_for_approximate_plane_wave_sound_field():
+    """Compare differential microphone response to pyroomacoustics."""
     sr = 1000
     num_rotations = 30
 

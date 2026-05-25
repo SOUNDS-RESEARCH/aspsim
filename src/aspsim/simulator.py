@@ -1,3 +1,8 @@
+"""The Simulator class and related functions.
+
+The user creates a SimulatorSetup object, adds arrays and other parameters to it, and then calls create_simulator() to obtain a Simulator object. The Simulator object can then be used to run the simulation.
+"""
+
 import copy
 
 import aspcore.filter as fc
@@ -11,6 +16,14 @@ import aspsim.saveloadsession as sess
 
 
 class SimulatorSetup:
+    """Use this class to set up a simulation.
+
+    Unless you really know what you are doing, you should use this
+    and not the Simulator class directly. After all parameters and arrays are
+    set, call create_simulator() to obtain a Simulator object.
+
+    """
+
     def __init__(
         self,
         base_fig_path=None,
@@ -18,11 +31,7 @@ class SimulatorSetup:
         config_path=None,
         rng=None,
     ):
-        """Use this class to set up a simulation.
-
-        Unless you really know what you are doing, you should use this
-        and not the Simulator class directly. After all parameters and arrays are
-        set, call create_simulator() to obtain a Simulator object.
+        """Create a SimulatorSetup object.
 
         Parameters
         ----------
@@ -57,7 +66,7 @@ class SimulatorSetup:
         # self.diag = diacore.DiagnosticHandler(self.sim_info)
 
     def add_arrays(self, array_collection):
-        """Adds all arrays and path types from an array collection
+        """Add all arrays and path types from an array collection.
 
         Parameters
         ----------
@@ -82,7 +91,7 @@ class SimulatorSetup:
         self.arrays.add_array(array)
 
     def add_free_source(self, name, pos, source):
-        """Adds a free source array at the given position.
+        """Add a free source array at the given position.
 
         Parameters
         ----------
@@ -99,7 +108,7 @@ class SimulatorSetup:
         self.add_array(arr)
 
     def add_controllable_source(self, name, pos):
-        """Adds a controllable source array at the given position.
+        """Add a controllable source array at the given position.
 
         Parameters
         ----------
@@ -112,7 +121,7 @@ class SimulatorSetup:
         self.add_array(arr)
 
     def add_mics(self, name, pos, **kwargs):
-        """Adds a microphone array at the given position.
+        """Add a microphone array at the given position.
 
         Parameters
         ----------
@@ -125,7 +134,7 @@ class SimulatorSetup:
         self.add_array(arr)
 
     def set_path(self, src_name, mic_name, path):
-        """Sets the path between a source and a microphone array.
+        """Set the path between a source and a microphone array.
 
         Parameters
         ----------
@@ -139,7 +148,7 @@ class SimulatorSetup:
         self.arrays.set_prop_path(path, src_name, mic_name)
 
     def set_source(self, name, source):
-        """Adds a source to a FreeSourceArray.
+        """Add a source to a FreeSourceArray.
 
         Will raise an error if the array is not a FreeSourceArray or
         is not added to the simulation yet.
@@ -154,7 +163,7 @@ class SimulatorSetup:
         self.arrays[name].set_source(source)
 
     def load_from_path(self, session_path):
-        """Loads simulator setup from a previous session in session_path.
+        """Load simulator setup from a previous session in session_path.
 
         Parameters
         ----------
@@ -164,7 +173,7 @@ class SimulatorSetup:
         self.sim_info, self.arrays = sess.load_from_path(session_path, self.folder_path)
 
     def create_simulator(self):
-        """Creates and returns a simulator object from the current setup.
+        """Create and return a simulator object from the current setup.
 
         If fig_path is set, the simulator will create a new subfolder and save
         metadata about the simulation parameters.
@@ -229,6 +238,12 @@ class SimulatorSetup:
 
 
 class Simulator:
+    """The primary class for running simulations.
+
+    It is highly recommended to use the SimulatorSetup class to create a Simulator object, rather than creating a Simulator object directly. If created directly, care must be taken to ensure all arrays and simulation parameters are properly initialized. The SimulatorSetup class provides a more user-friendly interface for setting up the simulation parameters and arrays, and it also handles loading and saving sessions.
+
+    """
+
     def __init__(
         self,
         sim_info,
@@ -298,6 +313,10 @@ class Simulator:
             proc.prepare()
 
     def run_simulation(self):
+        """Run the simulation.
+
+        Once everything is set up, call this function to run the simulation.
+        """
         self._prepare_simulation()
 
         # the else value (which happens when there is no processor) can be changed to just about anything. Could be set to 1, or
@@ -332,6 +351,10 @@ class Simulator:
         print(self.n_tot)
 
     def diag_moved_from_propagate(self, max_block_size):
+        """Save data for diagnostics and reset signals if the last block on the buffer is reached.
+
+        This function is temporary, and should be properly integrated into the rest of the code.
+        """
         # Temporary, especially the function name
         last_block = self.last_block_on_buffer(max_block_size)
 
@@ -348,7 +371,14 @@ class Simulator:
         if last_block:
             self.sig._reset_signals()
 
-    def last_block_on_buffer(self, max_block_size):
+    def last_block_on_buffer(self, max_block_size: int):
+        """Determine if the current index is in the last block of the buffer.
+
+        Parameters
+        ----------
+        max_block_size : int
+            The largest block size for each of the processors. If there are no processors, this can be set to any value that is smaller than sim_buffer.
+        """
         return (
             self.sig.idx + max_block_size
             >= self.sim_info.sim_chunk_size + self.sim_info.sim_buffer
@@ -356,6 +386,12 @@ class Simulator:
 
 
 def set_unique_processor_names(processors):
+    """Modifiy the names of processors to be unique.
+
+    Parameters
+    ----------
+    processors : list of processor objects
+    """
     names = []
     for proc in processors:
         new_name = proc.name
@@ -368,9 +404,7 @@ def set_unique_processor_names(processors):
 
 
 class Signals:
-    """
-    A simple wrapper around a dictionary to hold all signals
-    """
+    """A simple wrapper around a dictionary to hold all signals."""
 
     def __init__(self, sim_info, arrays):
         self.sim_info = sim_info
@@ -385,23 +419,27 @@ class Signals:
                 self.create_signal(src.name + "~" + mic.name, mic.num)
 
     def __getitem__(self, key):
+        """Return the signal with the given name."""
         return self.signals[key]
 
     def __contains__(self, key):
+        """Check if a signal with the given name is present."""
         return key in self.signals
 
     def items(self):
+        """Return an object providing a view on the signals and their names."""
         return self.signals.items()
 
     def values(self):
+        """Return an object providing a view on the signals."""
         return self.signals.values()
 
     def keys(self):
+        """Return an object providing a view on the signal names."""
         return self.signals.keys()
 
     def create_signal(self, name, dim):
-        """
-        Inserts a new signal of shape (*dim, simbuffer+simchunksize)
+        """Insert a new signal of shape (*dim, simbuffer+simchunksize).
 
         Parameters
         ----------
@@ -432,6 +470,8 @@ class Signals:
 
 
 class Propagator:
+    """The class to handle propagation of signals between sources and microphones."""
+
     def __init__(self, sim_info, arrays, sig):
         self.sim_info = sim_info
         self.arrays = arrays
@@ -446,7 +486,7 @@ class Propagator:
             )
 
     def prepare(self):
-        """Prepares the initial state of the signals.
+        """Prepare the initial state of the signals.
 
         If start_sources_before_0 is True, the source signals will have started sim_buffer samples before time 0. This can be
         useful if you want to have a stationary signal at time 0.
@@ -478,7 +518,7 @@ class Propagator:
         self.sig.idx = self.sim_info.sim_buffer
 
     def propagate(self, num_samples):
-        """Propagates signals from their sources to the microphones.
+        """Propagate signals from their sources to the microphones.
 
         Generates signals from the sources, updates the RIRs if the sources or microphones are dynamic, and
         then filters the source signals through the RIRs.
@@ -492,7 +532,6 @@ class Propagator:
         -----
         The mic_signals are calculated for the indices self.sig.idx (inclusive) to self.sig.idx+num_samples (exclusive)
         """
-
         i = self.sig.idx
 
         for src in self.arrays.free_sources():

@@ -1,3 +1,5 @@
+"""Room impulse response generation utilities."""
+
 import numpy as np
 import pyroomacoustics as pra
 import pyroomacoustics.directivities as pradir
@@ -36,8 +38,10 @@ import aspsim.room.generatepoints as gp
 
 
 class PathGenerator:
+    """Generate impulse responses between sources and microphones."""
+
     def __init__(self, sim_info, arrays):
-        """A class in charge of generating the impulse response between sources and microphones
+        """Generate impulse responses between sources and microphones.
 
         Parameters
         ----------
@@ -63,7 +67,7 @@ class PathGenerator:
         self.calc_rir_parameters(self.sim_info)
 
     def calc_rir_parameters(self, sim_info):
-        """Calculates the parameters used to generate the impulse response.
+        """Calculate the parameters used to generate the impulse response.
 
         These parameters should be constant over the course of a simulation, and are calculated
         once at the beginning of the simulation.
@@ -121,7 +125,7 @@ class PathGenerator:
     def create_path(
         self, src, mic, reverb, sim_info, return_path_info=False, verbose=False
     ):
-        """Generate the impulse response between a source and a microphone array
+        """Generate the impulse response between a source and a microphone array.
 
         Parameters
         ----------
@@ -194,6 +198,7 @@ class PathGenerator:
 
 
 def filter_rirs(rir, sr, cutoff):
+    """High-pass filter room impulse responses."""
     sos = spsig.butter(2, cutoff, "highpass", fs=sr, output="sos")
     pad = sr
     rir_padded = np.concatenate(
@@ -261,7 +266,7 @@ def ir_room_image_source_3d(
     verbose=False,
     # extra_delay = 0, # this is multiplied by two since frac_dly must be even
 ):
-    """Generates a room impulse response using the image-source method from the pyroomacoustics library.
+    """Generate a room impulse response using the image-source method.
 
     Parameters
     ----------
@@ -301,7 +306,6 @@ def ir_room_image_source_3d(
         A dictionary containing metadata about the impulse responses. This is only returned if
         calculate_metadata is True.
     """
-
     num_from = pos_src.shape[0]
     num_to = pos_mic.shape[0]
     ir = np.zeros((num_from, num_to, ir_len))
@@ -518,6 +522,7 @@ def ir_room_image_source_3d(
 
 
 def calc_truncation_info(all_rir, trunc_len):
+    """Return truncation error and value metrics."""
     max_trunc_error = -np.inf
     max_trunc_value = -np.inf
     for to_idx, receiver in enumerate(all_rir):
@@ -531,6 +536,7 @@ def calc_truncation_info(all_rir, trunc_len):
 
 
 def calc_truncation_error(rir, trunc_len):
+    """Return truncation error in dB."""
     tot_power = np.sum(rir**2)
     trunc_power = np.sum(rir[trunc_len:] ** 2)
     trunc_error = trunc_power / tot_power
@@ -540,6 +546,7 @@ def calc_truncation_error(rir, trunc_len):
 
 
 def calc_truncation_value(rir, trunc_len):
+    """Return truncation value in dB."""
     if len(rir) <= trunc_len:
         return -np.inf
     max_trunc_value = np.max(np.abs(rir[trunc_len:]))
@@ -548,6 +555,7 @@ def calc_truncation_value(rir, trunc_len):
 
 
 def show_rt60(multi_channel_ir):
+    """Print RT60 estimates for each channel pair."""
     for i in range(multi_channel_ir.shape[0]):
         for j in range(multi_channel_ir.shape[1]):
             single_ir = multi_channel_ir[i, j, :]

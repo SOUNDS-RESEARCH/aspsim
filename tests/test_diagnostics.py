@@ -1,3 +1,5 @@
+"""Diagnostics-related tests."""
+
 import hypothesis as hyp
 import hypothesis.strategies as st
 import numpy as np
@@ -13,10 +15,34 @@ from aspsim.simulator import SimulatorSetup
 
 @pytest.fixture(scope="session")
 def fig_folder(tmp_path_factory):
+    """Create a temporary folder for diagnostic figures.
+
+    Parameters
+    ----------
+    tmp_path_factory : pytest.TempPathFactory
+        Factory for temporary paths.
+
+    Returns
+    -------
+    pathlib.Path
+        Temporary folder path.
+    """
     return tmp_path_factory.mktemp("figs")
 
 
 def simple_setup(fig_folder):
+    """Create a minimal simulator setup for diagnostics tests.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+
+    Returns
+    -------
+    SimulatorSetup
+        Prepared simulator setup.
+    """
     setup = SimulatorSetup(fig_folder)
     setup.sim_info.tot_samples = 20
     setup.sim_info.sim_buffer = 20
@@ -40,6 +66,17 @@ def simple_setup(fig_folder):
 def test_processor_sees_same_mic_samples_as_is_logged_in_record_signal(
     fig_folder, bs, export_freq
 ):
+    """Check processor mic samples match recorded diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    export_freq : int
+        Export frequency.
+    """
     setup = simple_setup(fig_folder)
     setup.sim_info.export_frequency = export_freq
 
@@ -62,6 +99,15 @@ def test_processor_sees_same_mic_samples_as_is_logged_in_record_signal(
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=10))
 def test_record_signal_is_same_with_or_without_a_processor(fig_folder, bs):
+    """Check record signal output matches with or without a processor.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     setup = simple_setup(fig_folder)
     final_export_idx = setup.sim_info.export_frequency * (
         setup.sim_info.tot_samples // setup.sim_info.export_frequency
@@ -100,6 +146,19 @@ def test_record_signal_is_same_with_or_without_a_processor(fig_folder, bs):
 def test_signal_diagnostics_correct_files_saved(
     fig_folder, bs, export_freq, tot_samples
 ):
+    """Verify expected diagnostic files are saved.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    export_freq : int
+        Export frequency.
+    tot_samples : int
+        Total number of samples.
+    """
     sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.tot_samples = tot_samples
     sim_setup.sim_info.export_frequency = export_freq
@@ -137,6 +196,19 @@ def test_signal_diagnostics_correct_files_saved(
     num_proc=st.integers(min_value=1, max_value=1),
 )
 def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_proc):
+    """Check all samples are saved for signal diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    buf_size : int
+        Simulation buffer size.
+    num_proc : int
+        Number of processors.
+    """
     sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
     sim = sim_setup.create_simulator()
@@ -178,6 +250,17 @@ def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_
 def test_correct_intermediate_samples_saved_for_signal_diagnostics(
     fig_folder, bs, buf_size
 ):
+    """Check intermediate samples saved for signal diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    buf_size : int
+        Simulation buffer size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
     sim = sim_setup.create_simulator()
@@ -214,6 +297,15 @@ def test_correct_intermediate_samples_saved_for_signal_diagnostics(
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_export_file_naming_interval_diagnostics(fig_folder, bs):
+    """Check export file naming for interval diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
@@ -245,6 +337,15 @@ def test_export_file_naming_interval_diagnostics(fig_folder, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_interval_diagnostics(fig_folder, bs):
+    """Check saved samples for interval diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
@@ -295,6 +396,19 @@ def test_correct_samples_saved_for_interval_diagnostics(fig_folder, bs):
     num_proc=st.integers(min_value=1, max_value=3),
 )
 def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc):
+    """Check all samples saved for state diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    buf_size : int
+        Simulation buffer size.
+    num_proc : int
+        Number of processors.
+    """
     sim_setup = simple_setup(fig_folder)
     # bs = 1
     # sim_setup.sim_info.tot_samples = 13
@@ -334,6 +448,15 @@ def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc)
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics(fig_folder, bs):
+    """Check saved samples for instant diagnostics.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
@@ -372,6 +495,15 @@ def test_correct_samples_saved_for_instant_diagnostics(fig_folder, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_correct_samples_saved_for_instant_diagnostics_savefreq(fig_folder, bs):
+    """Check saved samples for instant diagnostics with save frequency.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 
@@ -401,6 +533,15 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(fig_folder, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_two_processors_with_different_diagnostics(fig_folder, bs):
+    """Check diagnostics output with two processors.
+
+    Parameters
+    ----------
+    fig_folder : pathlib.Path
+        Folder for diagnostic output.
+    bs : int
+        Block size.
+    """
     sim_setup = simple_setup(fig_folder)
     sim = sim_setup.create_simulator()
 

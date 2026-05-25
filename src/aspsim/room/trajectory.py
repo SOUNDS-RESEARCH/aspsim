@@ -1,3 +1,5 @@
+"""Trajectory definitions for moving sources and microphones."""
+
 import numpy as np
 
 import aspsim.room.generatepoints as gp
@@ -13,12 +15,13 @@ class Trajectory:
     """
 
     def __init__(self, pos_func):
-        """pos_func is a function, which takes a time_index in samples and outputs a position"""
+        """Define a position function from sample index to position."""
         self.pos_func = pos_func
         # self.pos = np.full((1,3), np.nan)
 
     def current_pos(self, time_idx):
-        """
+        """Return the position at a given time index.
+
         Parameters
         ----------
         time_idx : int
@@ -32,6 +35,7 @@ class Trajectory:
         return self.pos_func(time_idx)
 
     def plot(self, ax, symbol, name, tot_samples):
+        """Plot the trajectory if implemented."""
         pass
 
 
@@ -39,7 +43,8 @@ class TrajectoryCollection(Trajectory):
     """A class for combining multiple trajectories into one, in the case where you want to have multiple moving objects in the same array."""
 
     def __init__(self, trajectories):
-        """
+        """Create a trajectory collection.
+
         Parameters
         ----------
         trajectories : list of Trajectory objects
@@ -48,18 +53,22 @@ class TrajectoryCollection(Trajectory):
         # self.num_pos = len(self.trajectories)
 
     def current_pos(self, time_idx):
+        """Return the stacked positions at a given time index."""
         return np.concatenate(
             [traj.current_pos(time_idx) for traj in self.trajectories], axis=0
         )
 
     def plot(self, ax, symbol, name, tot_samples):
+        """Plot all trajectories in the collection."""
         for traj in self.trajectories:
             traj.plot(ax, symbol, name, tot_samples)
 
 
 class LinearTrajectory(Trajectory):
+    """Linear trajectory through anchor points."""
+
     def __init__(self, points, period, samplerate, mode="constant_speed"):
-        """A trajectory that moves through a series of points in straight lines.
+        """Move through a series of points in straight lines.
 
         Parameters
         ----------
@@ -157,6 +166,7 @@ class LinearTrajectory(Trajectory):
         return pos_func
 
     def plot(self, ax, symbol, name, tot_samples=None):
+        """Plot the trajectory path."""
         if tot_samples is None:
             points = self.anchor_points
         else:
@@ -211,6 +221,8 @@ class LinearTrajectory(Trajectory):
 
 
 class CircularTrajectory(Trajectory):
+    """Circular trajectory with radial modulation."""
+
     def __init__(
         self,
         radius: tuple[float, float],
@@ -220,7 +232,7 @@ class CircularTrajectory(Trajectory):
         samplerate: int,
         start_angle: float = 0,
     ):
-        """A trajectory that moves around a circle.
+        """Move around a circle.
 
         Moves around a circle in one angle_period, while it moves from the outer radius
         to the inner radius and back again in one radial_period
@@ -275,6 +287,7 @@ class CircularTrajectory(Trajectory):
         super().__init__(pos_func)
 
     def plot(self, ax, symbol="o", name="", tot_samples=None):
+        """Plot the circular trajectory path."""
         # if tot_samples is not None:
         #    max_samples =
         #    raise NotImplementedError

@@ -1,22 +1,23 @@
-"""This module contains functions for generating points of different geometries, that can be used for microphone or loudspeaker arrays. For uniformly filled or randomly sampled shapes, see the aspsim.room.region module instead."""
+"""Functions for generating points of different geometries, that can be used for microphone or loudspeaker arrays. For uniformly filled or randomly sampled shapes, see the aspsim.room.region module instead."""
 
 import numpy as np
 
 
 def cart2spherical(cart_coord):
-    """Transforms the provided cartesian coordinates to spherical coordinates
+    """Transform cartesian coordinates to spherical coordinates.
 
     Parameters
     ----------
     cart_coord : ndarray of shape (num_points, 3)
+        Cartesian coordinates.
 
     Returns
     -------
-    r : ndarray of shape (num_points, 1)
-        radius of each point
+    r : ndarray of shape (num_points,)
+        Radius of each point.
     angle : ndarray of shape (num_points, 2)
-        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction
-        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction
+        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction.
+        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction.
     """
     r = np.linalg.norm(cart_coord, axis=1)
     r_xy = np.linalg.norm(cart_coord[:, :2], axis=1)
@@ -28,21 +29,21 @@ def cart2spherical(cart_coord):
 
 
 def spherical2cart(r, angle):
-    """Transforms the provided spherical coordinates to cartesian coordinates
+    """Transform spherical coordinates to cartesian coordinates.
 
     Parameters
     ----------
     r : ndarray of shape (num_points, 1) or (num_points,)
-        radius of each point
+        Radius of each point.
     angle : ndarray of shape (num_points, 2)
-        the angles in radians
-        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction
-        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction
+        The angles in radians.
+        angle[:,0] is theta, the angle in the xy plane, where 0 is x direction, pi/2 is y direction.
+        angle[:,1] is phi, the zenith angle, where 0 is z direction, pi is negative z direction.
 
     Returns
     -------
     cart_coord : ndarray of shape (num_points, 3)
-        the cartesian coordinates
+        The cartesian coordinates.
     """
     num_points = r.shape[0]
     cart_coord = np.zeros((num_points, 3))
@@ -53,21 +54,21 @@ def spherical2cart(r, angle):
 
 
 def cart2pol(x, y):
-    """Transforms the provided cartesian coordinates to polar coordinates
+    """Transform cartesian coordinates to polar coordinates.
 
     Parameters
     ----------
     x : ndarray of shape (num_points,)
-        x-coordinate of each point
+        X-coordinate of each point.
     y : ndarray of shape (num_points,)
-        y-coordinate of each point
+        Y-coordinate of each point.
 
     Returns
     -------
     r : ndarray of shape (num_points,)
-        radius of each point
+        Radius of each point.
     angle : ndarray of shape (num_points,)
-        the angles in radians
+        The angles in radians.
     """
     r = np.hypot(x, y)
     angle = np.arctan2(y, x)
@@ -75,21 +76,21 @@ def cart2pol(x, y):
 
 
 def pol2cart(r, angle):
-    """Transforms the provided polar coordinates to cartesian coordinates
+    """Transform polar coordinates to cartesian coordinates.
 
     Parameters
     ----------
     r : ndarray of shape (num_points,)
-        radius of each point
+        Radius of each point.
     angle : ndarray of shape (num_points,)
-        the angles in radians
+        The angles in radians.
 
     Returns
     -------
     x : ndarray of shape (num_points,)
-        x-coordinate of each point
+        X-coordinate of each point.
     y : ndarray of shape (num_points,)
-        y-coordinate of each point
+        Y-coordinate of each point.
     """
     x = r * np.cos(angle)
     y = r * np.sin(angle)
@@ -99,33 +100,33 @@ def pol2cart(r, angle):
 def equidistant_rectangle(
     num_points, side_lengths, extra_side_lengths=0, offset=0.5, z=None
 ):
-    """Points are spaced evenly along the edge of a rectangle
+    """Return points spaced evenly along the edge of a rectangle.
 
     Parameters
     ----------
     num_points : int
-        the number of total points to be returned. These will be distributed as
-        evenly as possible
+        The number of total points to be returned. These will be distributed as
+        evenly as possible.
     side_lengths : array_like of shape (2,)
-        the side lengths in x and y coordinates. The corners of the rectangle will be at
+        The side lengths in x and y coordinates. The corners of the rectangle will be at
         (-sl[0]/2, -sl[1]/2), (-sl[0]/2, sl[1]/2), (sl[0]/2, -sl[1]/2), (sl[0]/2, sl[1]/2)
-        where sl is shorthand for side_lengths
+        where sl is shorthand for side_lengths.
     extra_side_lengths : float larger or equal to 0, or a 2-tuple of such values
-        if set to a non-zero value, every other point will be placed further away from the center
+        If set to a non-zero value, every other point will be placed further away from the center
         as if the points are placed on two rectangles, the larger with side lengths of
-        (side_lengths[0] + extra_side_lengths[0], side_lengths[1] + extra_side_lengths[1])
+        (side_lengths[0] + extra_side_lengths[0], side_lengths[1] + extra_side_lengths[1]).
     offset : float within [0,1]
         The offset from the first corner to the first microphones. If offset is 0, the first
         microphone is placed in the corner. If offset is 0.5, the first microphone is placed
-        as close to the middle of its 'segment' as possible
+        as close to the middle of its 'segment' as possible.
     z : float
         The z coordinate, which will be the same for all points in the rectangle. If not provided,
-        a 2D shape will be returned
+        a 2D shape will be returned.
 
     Returns
     -------
     rectangle_points : ndarray of shape (num_points, 3) or (num_points, 2)
-        The coordinates of the points in the rectangle
+        The coordinates of the points in the rectangle.
         the shape is (num_points, 3) if z is provided, and (num_points, 2) otherwise.
     """
     side_lengths = np.array(side_lengths)
@@ -234,6 +235,22 @@ def equidistant_rectangle(
 
 
 def uniform_cylinder(num_points, radius, height):
+    """Return evenly distributed points inside a cylinder.
+
+    Parameters
+    ----------
+    num_points : int
+        Number of points to generate.
+    radius : float
+        Cylinder radius.
+    height : float
+        Cylinder height.
+
+    Returns
+    -------
+    points : ndarray of shape (num_points, 3)
+        The generated points.
+    """
     numPlanes = 4
     zVals = np.linspace(-height / 2, height / 2, numPlanes + 2)
     zVals = zVals[1:-1]
@@ -251,9 +268,12 @@ def uniform_cylinder(num_points, radius, height):
 
 
 def sunflower_pattern(N, radius, offset_angle=0):
-    """translated from user3717023's MATLAB code from stackoverflow
+    """Generate a sunflower pattern of points.
+
+    This is translated from user3717023's MATLAB code from Stack Overflow and
     could be updated using the method in this paper
-    'A better way to construct the sunflower head'"""
+    'A better way to construct the sunflower head'
+    """
     phisq = np.square((np.sqrt(5) + 1) / 2)
     # golden ratio
     k = np.arange(1, N + 1)
@@ -266,6 +286,28 @@ def sunflower_pattern(N, radius, offset_angle=0):
 def four_equidistant_rectangles(
     num_points, side_length, side_offset, z_low, z_high, offset="distributed"
 ):
+    """Return points on four stacked rectangles.
+
+    Parameters
+    ----------
+    num_points : int
+        Number of points to generate.
+    side_length : float
+        Side length for each rectangle.
+    side_offset : float
+        Offset applied to every other point on each side.
+    z_low : float
+        Z coordinate for the lower rectangle.
+    z_high : float
+        Z coordinate for the upper rectangle.
+    offset : str, optional
+        Offset strategy for placing points.
+
+    Returns
+    -------
+    points : ndarray of shape (num_points, 3)
+        The generated points.
+    """
     if offset != "distributed":
         raise NotImplementedError
     points = np.zeros((num_points, 3))
@@ -294,6 +336,26 @@ def four_equidistant_rectangles(
 def stacked_equidistant_rectangles(
     num_points, num_rect, dims, z_distance, offset="distributed"
 ):
+    """Return points on stacked equidistant rectangles.
+
+    Parameters
+    ----------
+    num_points : int
+        Number of points to generate.
+    num_rect : int
+        Number of rectangles to stack.
+    dims : array_like of shape (2,)
+        Rectangle dimensions in x and y.
+    z_distance : float
+        Distance between rectangles along z.
+    offset : str, optional
+        Offset strategy for placing points.
+
+    Returns
+    -------
+    points : ndarray of shape (num_points, 3)
+        The generated points.
+    """
     a = num_rect // 2
     zValues = [i * z_distance for i in range(-a, -a + num_rect)]
     if num_rect % 2 == 0:
@@ -317,6 +379,20 @@ def stacked_equidistant_rectangles(
 
 
 def equidistant_rectangle_for_fewer(num_points, dims):
+    """Return equidistant rectangle points for small counts.
+
+    Parameters
+    ----------
+    num_points : int
+        Number of points to generate.
+    dims : array_like of shape (2,)
+        Rectangle dimensions in x and y.
+
+    Returns
+    -------
+    points : ndarray of shape (num_points, 2)
+        The generated points.
+    """
     totalLength = 2 * (dims[0] + dims[1])
     pointDist = totalLength / num_points
 

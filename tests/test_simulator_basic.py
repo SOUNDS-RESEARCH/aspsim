@@ -1,3 +1,5 @@
+"""Basic simulator tests."""
+
 import aspcore.filter as fc
 import hypothesis as hyp
 import hypothesis.strategies as st
@@ -26,6 +28,7 @@ def _default_sim_info():
 
 @pytest.fixture(scope="session")
 def fig_folder(tmp_path_factory):
+    """Create a temporary folder for figures."""
     return tmp_path_factory.mktemp("figs")
 
 
@@ -54,6 +57,7 @@ def _sim_setup(tmp_path_factory):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_minimum_of_tot_samples_are_processed(fig_folder, bs):
+    """Check minimum total samples are processed."""
     sim_setup = _setup_with_debug_processor(fig_folder)
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
@@ -64,6 +68,7 @@ def test_minimum_of_tot_samples_are_processed(fig_folder, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_consecutive_simulators_give_same_values(fig_folder, bs):
+    """Check consecutive simulators produce identical results."""
     # change this to a free source instead without processors
     sim_setup = _setup_with_debug_processor(fig_folder)
     sim = sim_setup.create_simulator()
@@ -83,6 +88,7 @@ def test_consecutive_simulators_give_same_values(fig_folder, bs):
 @hyp.settings(deadline=None)
 @hyp.given(bs=st.integers(min_value=1, max_value=5))
 def test_correct_processing_delay(fig_folder, bs):
+    """Check processing delay matches expected shift."""
     sim_setup = _setup_with_debug_processor(fig_folder)
     sim = sim_setup.create_simulator()
     sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
@@ -93,6 +99,7 @@ def test_correct_processing_delay(fig_folder, bs):
 
 
 def test_simulation_equals_direct_convolution_random_rirs(fig_folder):
+    """Check simulation equals direct convolution for random RIRs."""
     rng = np.random.default_rng()
     setup = SimulatorSetup(fig_folder)
     setup.sim_info = _default_sim_info()
@@ -124,6 +131,7 @@ def test_simulation_equals_direct_convolution_random_rirs(fig_folder):
 def test_simulation_equals_direct_convolution_random_rirs_multiple_sources(
     fig_folder, num_src
 ):
+    """Check simulation equals direct convolution with multiple sources."""
     rng = np.random.default_rng()
     setup = SimulatorSetup(fig_folder)
     setup.sim_info = _default_sim_info()

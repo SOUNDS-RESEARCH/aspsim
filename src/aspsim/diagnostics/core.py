@@ -157,7 +157,7 @@ class Logger:
 
     def dispatch(self, fldr):
         """
-        processors is list of the processor objects
+        Processors is list of the processor objects
         time_idx is the global time index
         fldr is Path to figure folder
         """
@@ -172,7 +172,7 @@ class Logger:
 class IntervalCounter:
     def __init__(self, intervals, num_values=None):
         """
-        intervals is an iterable or iterator where each entry is a tuple or list
+        Intervals is an iterable or iterator where each entry is a tuple or list
         of length 2, with start (inclusive) and end (exclusive) points of each interval
         np.ndarray of shape (num_intervals, 2) is also valid
 
@@ -532,7 +532,7 @@ def attritemgetter(name):
 
 def get_values_up_to_idx(signal, max_idx):
     """
-    gives back signal values that correspond to time_values less than max_idx,
+    Gives back signal values that correspond to time_values less than max_idx,
     and signal values that are not nan
 
     max_idx is exlusive
@@ -554,7 +554,7 @@ def get_values_up_to_idx(signal, max_idx):
 
 def get_values_from_selection(signal, time_indices, max_idx):
     """
-    gives back signal values that correspond to time_values less than max_idx,
+    Gives back signal values that correspond to time_values less than max_idx,
     and signal values that are not nan
 
     max_idx is exlusive

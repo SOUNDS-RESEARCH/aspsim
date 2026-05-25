@@ -100,10 +100,14 @@ class SummaryDiagnostic(diacore.Diagnostic):
         export_kwargs=None,
         preprocess=None,
     ):
-        """
-        save_at should be a tuple (start_sample, end_sample)
-            it will use the samples between start_samle (inclusive) and end_sample (exclusive)
+        """Initialize a summary diagnostic.
 
+        Uses the samples between start_sample (inclusive) and end_sample (exclusive).
+
+        Parameters
+        ----------
+        save_at : tuple
+            The range as (start_sample, end_sample).
         """
         if isinstance(save_at, diacore.IntervalCounter):
             raise NotImplementedError
@@ -123,6 +127,8 @@ class SummaryDiagnostic(diacore.Diagnostic):
 
 
 class SignalPowerSpectrum(SummaryDiagnostic):
+    """Summarize signal power spectrum across a range."""
+
     def __init__(
         self,
         sig_name,
@@ -133,8 +139,11 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         sig_channels=slice(None),
         **kwargs,
     ):
-        """
-        Will output the wrong value if it is exported in the middle of the save_range
+        """Initialize power spectrum summary for a signal.
+
+        Notes
+        -----
+        Exporting in the middle of the save-range yields an incorrect value.
         """
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
@@ -153,6 +162,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         # self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate spectrum data for the current chunk."""
         num_samples = chunk_interval[1] - chunk_interval[0]
         self.signal[:, self.sample_counter : self.sample_counter + num_samples] = sig[
             self.sig_name
@@ -161,6 +171,7 @@ class SignalPowerSpectrum(SummaryDiagnostic):
         # self.power_ratio[globInterval[0]:globInterval[1]] = num / denom
 
     def get_output(self):
+        """Return the Welch power spectrum."""
         f, spec = spsig.welch(
             self.signal,
             self.samplerate,
@@ -173,6 +184,8 @@ class SignalPowerSpectrum(SummaryDiagnostic):
 
 
 class SignalSummary(SummaryDiagnostic):
+    """Summarize a signal using a reduction function."""
+
     def __init__(self, sig_name, sim_info, save_range, summary_func=None, **kwargs):
         self.save_range = save_range
         self.num_samples = save_range[1] - save_range[0]
@@ -186,6 +199,7 @@ class SignalSummary(SummaryDiagnostic):
         # self.plot_data["title"] = f"Power of {self.sig_name}. Samples: {self.save_range}"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate summary statistic for the current chunk."""
         if self.summary_func is None:
             self.mean += (
                 np.sum(sig[self.sig_name][:, chunk_interval[0] : chunk_interval[1]])
@@ -200,4 +214,5 @@ class SignalSummary(SummaryDiagnostic):
             )
 
     def get_output(self):
+        """Return the accumulated summary statistic."""
         return self.mean

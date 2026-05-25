@@ -1,3 +1,5 @@
+"""Signal source definitions used by simulations."""
+
 from abc import ABC, abstractmethod
 
 import aspcore.correlation as cr
@@ -12,6 +14,8 @@ import aspsim.utilities as util
 
 
 class Source(ABC):
+    """Abstract base class for signal sources."""
+
     def __init__(self, num_channels, rng=None):
         self.num_channels = num_channels
 
@@ -26,10 +30,13 @@ class Source(ABC):
 
     @abstractmethod
     def get_samples(self, num_samples):
+        """Return a block of samples."""
         return np.zeros((self.num_channels, num_samples))
 
 
 class SourceArray:
+    """Collection of multiple sources of the same type."""
+
     def __init__(self, source_type, num_sources, amplitude, *args):
         if isinstance(amplitude, (int, float)):
             amplitude = [amplitude for _ in range(num_sources)]
@@ -37,6 +44,7 @@ class SourceArray:
         self.sources = [source_type(amplitude[i], *args) for i in range(num_sources)]
 
     def get_samples(self, num_samples):
+        """Return samples from all sources."""
         output = np.concatenate(
             [src.get_samples(num_samples) for src in self.sources], axis=0
         )
@@ -44,8 +52,10 @@ class SourceArray:
 
 
 class Sequence(Source):
+    """Play a finite or repeating sequence."""
+
     def __init__(self, audio, amp_factor=1, end_mode="repeat"):
-        """Will play the supplied sequence
+        """Play the supplied sequence.
 
         Parameters
         ----------
@@ -71,6 +81,7 @@ class Sequence(Source):
         self.current_sample = 0
 
     def get_samples(self, num_samples):
+        """Return the next samples from the sequence."""
         sig = np.zeros((self.num_channels, num_samples))
         if self.end_mode == "repeat":
             block_lengths = util.calc_block_sizes(
@@ -100,6 +111,8 @@ class Sequence(Source):
 
 
 class WhiteNoiseSource(Source):
+    """Generate white noise with a specified power."""
+
     def __init__(self, num_channels, power, rng=None):
         super().__init__(num_channels, rng)
         self.set_power(power)
@@ -110,11 +123,13 @@ class WhiteNoiseSource(Source):
             self.metadata["power"] = self.power
 
     def get_samples(self, num_samples):
+        """Return white noise samples."""
         return self.rng.normal(
             loc=0, scale=self.stdDev, size=(num_samples, self.num_channels)
         ).T
 
     def set_power(self, newPower):
+        """Set the target noise power."""
         self.power = newPower
         self.stdDev = np.sqrt(newPower)
 
@@ -124,6 +139,8 @@ class WhiteNoiseSource(Source):
 
 
 class SineSource(Source):
+    """Generate a sine wave signal."""
+
     def __init__(self, num_channels, power, freq, samplerate, rng=None):
         super().__init__(num_channels, rng)
         self.power = power
@@ -146,6 +163,7 @@ class SineSource(Source):
         self.metadata["frequency"] = self.freq
 
     def get_samples(self, num_samples):
+        """Return sine wave samples."""
         noise = self.amplitude * np.cos(
             self.phase_per_sample * np.arange(num_samples)[None, :] + self.phase
         )
@@ -154,9 +172,9 @@ class SineSource(Source):
 
 
 class Counter(Source):
-    """
-    Counts from start_number and adds one per sample
-        used primarily for debugging
+    """Count upward by one per sample.
+
+    Used primarily for debugging.
     """
 
     def __init__(self, num_channels, start_number=0):
@@ -168,12 +186,15 @@ class Counter(Source):
         self.metadata["start number"] = start_number
 
     def get_samples(self, num_samples):
+        """Return a sequence of increasing integers."""
         values = np.arange(self.current_number, self.current_number + num_samples)
         self.current_number += num_samples
         return values
 
 
 class MultiSineSource(Source):
+    """Generate a sum of sine waves."""
+
     def __init__(self, num_channels, power, freq, samplerate, rng=None):
         super().__init__(num_channels, rng)
         if num_channels > 1:
@@ -198,6 +219,7 @@ class MultiSineSource(Source):
         self.metadata["frequency"] = self.freq
 
     def get_samples(self, num_samples):
+        """Return multi-sine samples."""
         noise = np.zeros((1, num_samples))
         for i in range(self.numSines):
             noise += (
@@ -213,6 +235,8 @@ class MultiSineSource(Source):
 
 
 class BandlimitedNoiseSource(Source):
+    """Generate band-limited noise."""
+
     def __init__(self, num_channels, power, freqLim, samplerate, rng=None):
         super().__init__(num_channels, rng)
         assert len(freqLim) == 2
@@ -240,11 +264,13 @@ class BandlimitedNoiseSource(Source):
         self.metadata["frequency span"] = freqLim
 
     def get_samples(self, num_samples):
+        """Return band-limited noise samples."""
         noise = self.amplitude * self.rng.normal(size=(self.num_channels, num_samples))
         filtNoise, self.zi = spsig.sosfilt(self.filtCoef, noise, zi=self.zi, axis=-1)
         return filtNoise
 
     def set_power(self, newPower):
+        """Set the target noise power."""
         self.power = newPower
         self.amplitude = np.sqrt(newPower / self.testSigPow)
 
@@ -255,6 +281,8 @@ class BandlimitedNoiseSource(Source):
 
 
 class PulseTrain(Source):
+    """Generate a periodic pulse train."""
+
     def __init__(self, num_channels, amplitude, period_len, delay=0):
         super().__init__(num_channels)
 
@@ -280,6 +308,7 @@ class PulseTrain(Source):
         self.idx -= self.delay
 
     def get_samples(self, num_samples):
+        """Return pulse train samples."""
         sig = np.zeros((self.num_channels, num_samples))
 
         for i in range(num_samples):
@@ -290,6 +319,7 @@ class PulseTrain(Source):
 
 
 def load_audio_file(file_name, desired_sr=None, num_channels=None, verbose=False):
+    """Load an audio file and optionally resample."""
     audio, audio_sr = sf.read(file_name)
     assert audio.ndim == 2
     audio = audio.T
@@ -325,8 +355,9 @@ def load_audio_file(file_name, desired_sr=None, num_channels=None, verbose=False
 
 
 def ar_coeffs_from_autocorr(autocorr):
-    """
-    returns the parameter vector a = [a_1, ..., a_p]
+    """Return the parameter vector $a = [a_1, ..., a_p]$.
+
+    This implements the AR system
         that implements the AR system
         y(n) = a_1 y(n-1) + a_2 y(n-2) + ... + a_p y(n-p) + s(n)
 
@@ -343,8 +374,9 @@ def ar_coeffs_from_autocorr(autocorr):
 
 
 def ar_coeffs_to_transfer_function(ar_coeffs):
-    """
-    Gives the rational transfer function that will give rise to
+    """Return the rational transfer function for an AR process.
+
+    This gives rise to
         the provided AR process, if a white noise is filtered
         through the returned filter.
 
@@ -352,14 +384,13 @@ def ar_coeffs_to_transfer_function(ar_coeffs):
         a_0 y(n) = b_0 x(n) + b_1 x(n-1) + ... + b_t x(n-t)
                     -a_1 y(n-1) - a_2 y(n-2) - ... - a_p y(n-p)
     """
-
     denom_coeffs = np.concatenate(([1], -ar_coeffs))
     num_coeffs = np.array([1], dtype=float)
     return num_coeffs, denom_coeffs
 
 
 class AutocorrSource(Source):
-    """Generates a signal with a specified autocorrelation function
+    """Generate a signal with a specified autocorrelation function.
 
     All channels are all independent.
     Could be extended in the future to accept autocorr of shape
@@ -369,7 +400,7 @@ class AutocorrSource(Source):
     """
 
     def __init__(self, num_channels, autocorr, rng=None):
-        """Create a source with the specified autocorrelation function
+        """Create a source with the specified autocorrelation function.
 
         Parameters
         ----------
@@ -400,6 +431,7 @@ class AutocorrSource(Source):
         self.prepare()
 
     def prepare(self):
+        """Prime filter state with initial noise."""
         for ch_idx in range(self.num_channels):
             self.filt.process(
                 self.rng.normal(
@@ -410,6 +442,7 @@ class AutocorrSource(Source):
             )
 
     def get_samples(self, num_samples):
+        """Return samples from the autocorrelation source."""
         return self.filt.process(
             self.rng.normal(
                 loc=0,
@@ -420,7 +453,7 @@ class AutocorrSource(Source):
 
 
 class MLS(Source):
-    """Generates a maximum length sequence"""
+    """Generate a maximum length sequence."""
 
     def __init__(self, num_channels, order, polynomial, state=None):
         super().__init__(num_channels, None)
@@ -435,6 +468,7 @@ class MLS(Source):
         self.metadata["start state"] = self.state
 
     def get_samples(self, num_samples):
+        """Return MLS samples."""
         seq, self.state = spsig.max_len_seq(
             self.order, state=self.state, length=num_samples, taps=self.poly
         )
@@ -442,6 +476,8 @@ class MLS(Source):
 
 
 class GoldSequenceSource(Source):
+    """Generate a Gold sequence signal."""
+
     preferred_sequences = {
         5: [[2], [1, 2, 3]],
         6: [[5], [1, 4, 5]],
@@ -490,6 +526,7 @@ class GoldSequenceSource(Source):
             )  # XOR with integer shifts
 
     def get_samples(self, num_samples):
+        """Return Gold sequence samples."""
         out_signal = np.zeros((self.num_channels, num_samples))
         block_lengths = util.calc_block_sizes(num_samples, self.idx, self.seq_length)
         out_idx = 0
@@ -502,6 +539,7 @@ class GoldSequenceSource(Source):
         return out_signal * self.amplitude
 
     def set_power(self, new_power):
+        """Set the target sequence power."""
         if isinstance(new_power, (int, float)) or new_power.ndim == 0:
             self.power = np.ones((1, 1)) * new_power
         elif new_power.ndim == 1:
@@ -515,6 +553,8 @@ class GoldSequenceSource(Source):
 
 
 class LinearChirpSource(Source):
+    """Generate a linear chirp signal."""
+
     def __init__(
         self,
         num_channels,
@@ -537,6 +577,7 @@ class LinearChirpSource(Source):
         self.phase = self.rng.uniform(low=0, high=2 * np.pi)
 
     def next_phase(self):
+        """Advance the chirp phase."""
         self.phase += (self.freq / self.samplerate) + (
             self.delta_freq / (2 * self.samplerate)
         )
@@ -544,6 +585,7 @@ class LinearChirpSource(Source):
         self.freq = self.freq + self.delta_freq
 
     def get_samples(self, num_samples):
+        """Return chirp samples."""
         noise = np.zeros((1, num_samples))
         samples_left = num_samples
         n = 0
