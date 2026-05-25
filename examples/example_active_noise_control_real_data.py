@@ -1,4 +1,4 @@
-""" Active noise control using real data as impulse responses. 
+"""Active noise control using real data as impulse responses.
 
 The IRs from the secondary sources are from the dataset, while the primary source uses the image-source method. 
 
@@ -27,6 +27,7 @@ import irutilities
 
 
 def resample_multichannel(ir, ratio):
+    """Resample a multichannel impulse response."""
     #if ir.ndim == 3:
     #    assert ir.shape[0] == 1
     #    ir = ir[0,...]
@@ -44,6 +45,7 @@ def resample_multichannel(ir, ratio):
 
 
 def main():
+    """Run the real-data active noise control example."""
     # Choose where figures should be saved and create a SimulatorSetup object
     fig_path = pathlib.Path(__file__).parent.joinpath("figs")
     fig_path.mkdir(exist_ok=True)

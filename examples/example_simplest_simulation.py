@@ -1,8 +1,12 @@
-import numpy as np
+"""Simplest simulation example."""
+
 import pathlib
-from aspsim.simulator import SimulatorSetup
-import aspsim.signal.sources as src
+
+import numpy as np
+
 import aspsim.diagnostics.diagnostics as dg
+import aspsim.signal.sources as src
+from aspsim.simulator import SimulatorSetup
 
 # Choose where figures should be saved and create a SimulatorSetup object
 fig_path = pathlib.Path(__file__).parent.joinpath("figs")
@@ -10,8 +14,8 @@ fig_path.mkdir(exist_ok=True)
 setup = SimulatorSetup(fig_path)
 
 # Setup sources and microphones
-setup.add_free_source("source", np.array([[1,0,0]]), src.WhiteNoiseSource(1,1))
-setup.add_mics("mic", np.array([[0,0,0]]))
+setup.add_free_source("source", np.array([[1, 0, 0]]), src.WhiteNoiseSource(1, 1))
+setup.add_mics("mic", np.array([[0, 0, 0]]))
 sim = setup.create_simulator()
 
 # Choose to save the microphone signal and run simulation

@@ -1,3 +1,4 @@
+"""Sphinx documentation configuration."""
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full

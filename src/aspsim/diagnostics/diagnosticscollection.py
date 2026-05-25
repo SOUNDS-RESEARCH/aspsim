@@ -1,3 +1,5 @@
+"""Diagnostic collection utilities."""
+
 import numpy as np
 import scipy.linalg as splin
 import scipy.signal as spsig
@@ -7,18 +9,22 @@ import aspsim.diagnostics.plot as dplot
 
 
 class EigenvaluesOverTime(diacore.StateDiagnostic):
-    """
-    Matrix must be square, otherwise EVD doesn't work
-    For now assumes hermitian matrix as well
+    """Track eigenvalues over time.
 
-    eigval_idx should be a tuple with the indices of the desired eigenvalues
-    ascending order, zero indexed, and top inclusive
-
-    The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
-    The seconds value is how many of the largest eigenvalues that should be recorded
+    Notes
+    -----
+    Matrices must be square and Hermitian.
     """
 
     def __init__(self, matrix_name, eigval_idx, *args, abs_value=False, **kwargs):
+        """Initialize the diagnostic.
+
+        eigval_idx should be a tuple with the indices of the desired eigenvalues
+        ascending order, zero indexed, and top inclusive
+
+        The first value of num_eigvals is how many of the lowest eigenvalues that should be recorded
+        The seconds value is how many of the largest eigenvalues that should be recorded
+        """
         super().__init__(*args, **kwargs)
         assert isinstance(eigval_idx, (list, tuple, np.ndarray))
         assert len(eigval_idx) == 2
@@ -38,6 +44,7 @@ class EigenvaluesOverTime(diacore.StateDiagnostic):
             self.plot_data["title"] = "Eigenvalues"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save eigenvalues for the current step."""
         assert glob_interval[1] - glob_interval[0] == 1
         mat = self.get_matrix(processor)
         assert np.allclose(mat, mat.T.conj())
@@ -50,10 +57,13 @@ class EigenvaluesOverTime(diacore.StateDiagnostic):
         self.diag_idx += 1
 
     def get_output(self):
+        """Return saved eigenvalues."""
         return self.eigvals
 
 
 class Eigenvalues(diacore.InstantDiagnostic):
+    """Record eigenvalues at a single instant."""
+
     def __init__(
         self,
         matrix_name,
@@ -73,6 +83,7 @@ class Eigenvalues(diacore.InstantDiagnostic):
             self.plot_data["title"] = "Eigenvalues"
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save eigenvalues for the current step."""
         mat = self.get_mat(processor)
         assert np.allclose(mat, mat.T.conj())
         self.evs = splin.eigh(mat, eigvals_only=True)[None, None, :]
@@ -81,10 +92,13 @@ class Eigenvalues(diacore.InstantDiagnostic):
             self.evs = np.abs(self.evs)
 
     def get_output(self):
+        """Return saved eigenvalues."""
         return self.evs
 
 
 class SummaryDiagnostic(diacore.Diagnostic):
+    """Base class for summary diagnostics."""
+
     export_functions = {
         "npz": dplot.savenpz,
         "text": dplot.txt,

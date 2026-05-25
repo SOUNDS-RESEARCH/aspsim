@@ -1,3 +1,5 @@
+"""Configuration utilities for simulations."""
+
 import dataclasses as dc
 from pathlib import Path
 
@@ -6,6 +8,8 @@ import yaml
 
 @dc.dataclass
 class SimulatorInfo:
+    """Container for simulator configuration."""
+
     tot_samples: int
     sim_buffer: int
     sim_chunk_size: int
@@ -34,6 +38,7 @@ class SimulatorInfo:
     auto_save_load: bool
 
     def __post_init__(self):
+        """Validate basic configuration constraints."""
         # Should check here that sim_buffer is large enough that it wont cause errors
         assert len(self.room_size) == self.spatial_dims
         assert len(self.room_center) == self.spatial_dims
@@ -41,12 +46,14 @@ class SimulatorInfo:
         assert self.reverb in ("none", "direct", "ism")
 
     def save_to_file(self, path):
+        """Save configuration to a YAML file."""
         if path is not None:
             with open(path.joinpath("config.yaml"), "w") as f:
                 yaml.dump(dc.asdict(self), f, sort_keys=False)
 
 
 def load_from_file(path):
+    """Load configuration from a YAML file or folder."""
     if path.is_dir():
         path = path.joinpath("config.yaml")
 
@@ -56,11 +63,13 @@ def load_from_file(path):
 
 
 def load_default_config():
+    """Load the default configuration file."""
     path = Path(__file__).parent.joinpath("config.yaml")
     return load_from_file(path)
 
 
 def equal_audio(info1, info2, path_types):
+    """Return True if audio-related configuration matches."""
     same_audio = (
         info1.samplerate == info2.samplerate
         and info1.c == info2.c

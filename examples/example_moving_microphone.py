@@ -1,3 +1,5 @@
+"""Moving microphone example."""
+
 import numpy as np
 from pathlib import Path
 import json
@@ -19,6 +21,7 @@ RIRLEN = 1000
 SAMPLERATE = 2000
 
 def main():
+    """Run the moving microphone example."""
     rirs, sig = native_moving_mic()
     rirs_verified, sig_verified = verified_scripts()
 
@@ -26,6 +29,7 @@ def main():
     print("MSE signal: ", np.mean((sig - sig_verified)**2))
 
 def native_moving_mic():
+    """Generate signals using the native moving mic simulation."""
     # Choose where figures should be saved and create a SimulatorSetup object
     fig_path = Path(__file__).parent.joinpath("figs")
     fig_path.mkdir(exist_ok=True)
@@ -71,6 +75,7 @@ def native_moving_mic():
     return rirs, sig["ls"]
 
 def verified_scripts():
+    """Generate signals using verified scripts."""
     fig_folder = exis.generate_signals_3d()
     sig, sim_info, arrays, pos_dyn, seq_len, extra_params = exis.load_session(fig_folder)
 
@@ -81,6 +86,7 @@ def verified_scripts():
 
 
 def generate_signals_3d():
+    """Generate signals for a 3D moving mic setup."""
     side_len = 1 #0.75
     height = 0.25
     seq_len = RIRLEN

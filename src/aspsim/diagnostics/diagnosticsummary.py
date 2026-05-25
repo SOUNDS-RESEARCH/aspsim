@@ -1,3 +1,5 @@
+"""Summary diagnostics and helpers."""
+
 import json
 
 import numpy as np
@@ -8,6 +10,7 @@ import aspsim.diagnostics.plot as dplt
 
 
 def add_to_summary(diagName, summaryValues, timeIdx, folderPath):
+    """Add summary values to a JSON file."""
     fullPath = folderPath.joinpath("summary_" + str(timeIdx) + ".json")
     try:
         with open(fullPath, "r") as f:
@@ -22,6 +25,7 @@ def add_to_summary(diagName, summaryValues, timeIdx, folderPath):
 
 
 def mean_near_time_idx(outputs, timeIdx):
+    """Compute mean values near a time index."""
     summaryValues = {}
     numToAverage = 3000
 
@@ -34,10 +38,13 @@ def mean_near_time_idx(outputs, timeIdx):
 
 
 def last_value():
+    """Raise NotImplementedError for a last-value summary function."""
     raise NotImplementedError
 
 
 class SummaryDiagnostic(diacore.Diagnostic):
+    """Base class for summary diagnostics."""
+
     export_functions = {
         "npz": dplt.savenpz,
         "text": dplt.txt,

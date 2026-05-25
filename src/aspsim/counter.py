@@ -1,3 +1,5 @@
+"""Counters for phases and events."""
+
 import numpy as np
 
 
@@ -76,6 +78,7 @@ class PhaseCounter:
         self.next_phase()
 
     def next_phase(self):
+        """Advance to the next phase."""
         if self.verbose:
             print(f"Changed phase from {self.phase}")
 
@@ -89,6 +92,7 @@ class PhaseCounter:
             print(f"to {self.phase}")
 
     def progress(self):
+        """Advance the phase counter by one step."""
         self.idx += 1
         if self.idx >= self._start_idxs[0]:
             self.next_phase()
@@ -96,11 +100,13 @@ class PhaseCounter:
             self.first_sample = False
 
     def current_phase_is(self, phase_name):
+        """Return True if the current phase matches the name."""
         return self.phase == phase_name
 
 
 class EventCounter:
-    """
+    """Track periodic events based on sample index.
+
     An index counter to keep track of events that should
     only happen every x samples
 
@@ -128,6 +134,7 @@ class EventCounter:
         self.idx = 0
 
     def add_event(self, name, freq, offset):
+        """Add a named event definition."""
         self.event_def[name] = (freq, offset)
 
     def _check_events(self):
@@ -137,5 +144,6 @@ class EventCounter:
                 self.event.append(name)
 
     def progress(self):
+        """Advance the event counter by one step."""
         self.idx += 1
         self._check_events()

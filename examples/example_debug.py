@@ -1,3 +1,5 @@
+"""Debug example for simulation setup."""
+
 import numpy as np
 from pathlib import Path
 

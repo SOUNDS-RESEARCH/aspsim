@@ -1,3 +1,5 @@
+"""Concrete diagnostics implementations."""
+
 import copy
 
 import aspcore.filter as fc
@@ -9,9 +11,11 @@ import aspsim.diagnostics.preprocessing as pp
 
 
 class RecordFilter(diacore.InstantDiagnostic):
-    """
-    Remember to include .ir in the property name
-    if the property is a filter object
+    """Record a filter property.
+
+    Notes
+    -----
+    Include .ir in the property name if the property is a filter object.
     """
 
     def __init__(
@@ -26,26 +30,31 @@ class RecordFilter(diacore.InstantDiagnostic):
         self.prop = None
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save the current filter property."""
         self.prop = copy.deepcopy(self.get_prop(processor))
 
     def get_output(self):
+        """Return the saved filter property."""
         return self.prop
 
 
 class RecordFilterDifference(RecordFilter):
-    """ """
+    """Record the difference between two filter properties."""
 
     def __init__(self, state_name, state_name_subtract, *args, **kwargs):
         super().__init__(state_name, *args, **kwargs)
         self.get_state_subtract = diacore.attritemgetter(state_name_subtract)
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save the current filter difference."""
         self.prop = copy.deepcopy(self.get_prop(processor)) - copy.deepcopy(
             self.get_state_subtract(processor)
         )
 
 
 class RecordSignal(diacore.SignalDiagnostic):
+    """Record a signal over time."""
+
     def __init__(self, sig_name, *args, num_channels=1, channel_idx=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.sig_name = sig_name
@@ -59,6 +68,7 @@ class RecordSignal(diacore.SignalDiagnostic):
         self.signal = np.full((self.num_channels, self.sim_info.tot_samples), np.nan)
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save signal samples for the current chunk."""
         assert sig[self.sig_name].ndim == 2
         # assert processor.sig[self.sig_name].shape[0] == self.num_channels
         # if processor.sig[self.sig_name].shape[0] > 1:
@@ -73,17 +83,16 @@ class RecordSignal(diacore.SignalDiagnostic):
             ]
 
     def get_output(self):
+        """Return the recorded signal."""
         return self.signal
 
 
 class RecordState(diacore.StateDiagnostic):
-    """
-    If state_dim is 1, the state is a scalar calue
-    If the number is higher, the state is a vector, and the value of each component
-        will be plotted as each line by the default plot function
+    """Record a state over time.
 
-    If state_dim is a tuple (i.e. the state is a matrix/tensor),
-    then the default plot function will have trouble
+    Notes
+    -----
+    A scalar state uses a single channel, while vectors are plotted per component.
     """
 
     def __init__(
@@ -103,6 +112,7 @@ class RecordState(diacore.StateDiagnostic):
             self.plot_data["label_suffix_channel"] = label_suffix_channel
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save the current state value."""
         assert glob_interval[1] - glob_interval[0] == 1
         self.state_values[:, self.diag_idx] = self.get_prop(processor)
         self.time_indices[self.diag_idx] = glob_interval[0]
@@ -110,10 +120,13 @@ class RecordState(diacore.StateDiagnostic):
         self.diag_idx += 1
 
     def get_output(self):
+        """Return recorded state values."""
         return self.state_values
 
 
 class SignalPower(diacore.SignalDiagnostic):
+    """Record signal power over time."""
+
     def __init__(
         self, sig_name, sim_info, export_at=None, sig_channels=slice(None), **kwargs
     ):
@@ -123,6 +136,7 @@ class SignalPower(diacore.SignalDiagnostic):
         self.power = np.full((sim_info.tot_samples), np.nan)
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save power values for the current chunk."""
         self.power[glob_interval[0] : glob_interval[1]] = np.mean(
             np.abs(
                 sig[self.sig_name][
@@ -134,10 +148,13 @@ class SignalPower(diacore.SignalDiagnostic):
         )
 
     def get_output(self):
+        """Return recorded power values."""
         return self.power
 
 
 class SignalPowerRatio(diacore.SignalDiagnostic):
+    """Record the ratio of two signal powers."""
+
     def __init__(
         self,
         numerator_name,
@@ -157,6 +174,7 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         self.denom_channels = denom_channels
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save power ratio values for the current chunk."""
         smoother_num = fc.create_filter(
             ir=np.ones((1, 1, self.sim_info.output_smoothing))
             / self.sim_info.output_smoothing
@@ -194,10 +212,13 @@ class SignalPowerRatio(diacore.SignalDiagnostic):
         self.power_ratio[glob_interval[0] : glob_interval[1]] = num / denom
 
     def get_output(self):
+        """Return recorded power ratio values."""
         return self.power_ratio
 
 
 class StatePower(diacore.StateDiagnostic):
+    """Record power of a state over time."""
+
     def __init__(
         self, prop_name, sim_info, export_at=None, save_frequency=None, **kwargs
     ):
@@ -210,6 +231,7 @@ class StatePower(diacore.StateDiagnostic):
         self.diag_idx = 0
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save state power for the current step."""
         assert glob_interval[1] - glob_interval[0] == 1
         prop_val = self.get_prop(processor)
         self.power[self.diag_idx] = np.mean(np.abs(prop_val) ** 2)
@@ -217,13 +239,16 @@ class StatePower(diacore.StateDiagnostic):
         self.diag_idx += 1
 
     def get_output(self):
+        """Return recorded state power values."""
         return self.power
 
 
 class StateComparison(diacore.StateDiagnostic):
-    """
-    compare_func should take the two states as argument, and
-    return a single value representing the comparison (distance or MSE for example)
+    """Record a comparison of two states.
+
+    Notes
+    -----
+    compare_func returns a scalar distance or error.
     """
 
     def __init__(self, compare_func, name_state1, name_state2, *args, **kwargs):
@@ -239,6 +264,7 @@ class StateComparison(diacore.StateDiagnostic):
         self.plot_data["title"] = compare_func.__name__
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save the comparison value for the current step."""
         assert glob_interval[1] - glob_interval[0] == 1
         state1 = self.get_state1(processor)
         state2 = self.get_state2(processor)
@@ -248,13 +274,16 @@ class StateComparison(diacore.StateDiagnostic):
         self.diag_idx += 1
 
     def get_output(self):
+        """Return recorded comparison values."""
         return self.compare_value
 
 
 class StateSummary(diacore.StateDiagnostic):
-    """
-    summary_func should take the state as argument and return a single scalar
-    representing the state (norm or power for example)
+    """Record a scalar summary of a state.
+
+    Notes
+    -----
+    summary_func returns a scalar such as norm or power.
     """
 
     def __init__(self, summary_func, state_name, *args, **kwargs):
@@ -269,6 +298,7 @@ class StateSummary(diacore.StateDiagnostic):
         self.plot_data["title"] = summary_func.__name__
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save the summary value for the current step."""
         assert glob_interval[1] - glob_interval[0] == 1
         state = self.get_state(processor)
 
@@ -277,12 +307,14 @@ class StateSummary(diacore.StateDiagnostic):
         self.diag_idx += 1
 
     def get_output(self):
+        """Return recorded summary values."""
         return self.summary_value
 
 
 def power_of_all_signals(processor):
-    """Must be called from processor.prepare(), not
-    processor.__init__()
+    """Register power diagnostics for all signals.
+
+    Must be called from processor.prepare(), not processor.__init__().
     """
     for sig_name in processor.sig.keys():
         processor.diag.add_diagnostic(
@@ -299,6 +331,8 @@ def power_of_all_signals(processor):
 
 
 class SoundfieldPower(diacore.Diagnostic):
+    """Compute average soundfield power over a sample range."""
+
     export_functions = {
         "image": dplot.soundfield,
         "npz": dplot.savenpz,
@@ -315,8 +349,10 @@ class SoundfieldPower(diacore.Diagnostic):
         export_kwargs=None,
         preprocess=None,
     ):
-        """
+        """Initialize soundfield power diagnostic.
 
+        Parameters
+        ----------
         use_samples : tuple[int, int]
             Uses the samples from use_samples[0] (inclusive) to use_samples[1] (exclusive)
             to compute the average soundfield power.
@@ -349,6 +385,7 @@ class SoundfieldPower(diacore.Diagnostic):
         # src_sig = {src_name : np.zeros((arrays[src_name].num)) for src_name in source_names}
 
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Accumulate power for the current chunk."""
         self.power[:] += (
             np.sum(
                 np.abs(
@@ -363,4 +400,5 @@ class SoundfieldPower(diacore.Diagnostic):
         )
 
     def get_output(self):
+        """Return the accumulated soundfield power."""
         return self.power

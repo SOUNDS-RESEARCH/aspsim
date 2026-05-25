@@ -1,27 +1,22 @@
-from abc import abstractmethod
+"""Core diagnostics infrastructure.
 
-import numpy as np
-
-import aspsim.diagnostics.plot as dplot
-
-"""
 ===== DIAGNOSTICS OVERVIEW =====
-All diagnostics should inherit from Diagnostic, but it is suggested to use the 
-intermediate SignalDiagnostic, StateDiagnostic, and Instantdiagnostic. 
+All diagnostics should inherit from Diagnostic, but it is suggested to use the
+intermediate SignalDiagnostic, StateDiagnostic, and Instantdiagnostic.
 
 ===== PROCESSOR.IDX =====
 The processor.idx should be interpreted as the next (local, in reference to the internal signal buffer)
 time index it will process. So if processor.idx == 1, then processor.sig['signame'][:,0] is a processed sample
-that can be saved to a diagnostic, but processor.sig['signame'][:,1] is not. 
+that can be saved to a diagnostic, but processor.sig['signame'][:,1] is not.
 
 The processor.idx is increased after propagating all signals. During its .process method, the processing can
-add source signals between idx:idx+block_size. These new signals are propagated to the microphones, and the 
-index is increased by block_size. Directly after that, the diagnostics are saved. 
+add source signals between idx:idx+block_size. These new signals are propagated to the microphones, and the
+index is increased by block_size. Directly after that, the diagnostics are saved.
 
 ===== GLOBAL VS LOCAL TIME INDEX =====
-At the time when data is saved to diagnostics, the global_idx == (local_idx-buffer) + K*chunk_size for some 
+At the time when data is saved to diagnostics, the global_idx == (local_idx-buffer) + K*chunk_size for some
 integer K. Meaning that the two indices are in sync, without any small offset. The very first chunk the local
-index is merely offset by the buffer_size. 
+index is merely offset by the buffer_size.
 
 
 ===== SAVE_AT AND EXPORT_AT =====
@@ -29,26 +24,34 @@ All diagnostics needs an IntervalCounter as the member save_at
 which dictates when data should be saved from the processor to the diagnostic
 
 All diagnostics needs an IndexCounter as the member export_at
-which dictates when data should be saved from the diagnostic to file. 
+which dictates when data should be saved from the diagnostic to file.
 
-Both export_at and save_at will be indexes compared to the global time index. 
+Both export_at and save_at will be indexes compared to the global time index.
 
 save_at should be/represent a sequence of non-overlapping intervals, where
 each interval is (start, end), and the relevant signal should be saved
 to the diagnostics between start:end (meaning end-exclusive).
 To save state or instant diagnostics (where a continuous signal is not available)
-the interval should be of length 1, so (start, start+1). 
+the interval should be of length 1, so (start, start+1).
 
 When specifying save frequency, or giving just a list of indices (as you would for state or instant diagnostics)
-it is interpreted as "save each X samples" or "save after X samples has passed". 
-This means that with a save frequency of 200, the first save would be after globalIdx 199 has been processed; 
-and as explained above, by the time data is saved to diagnostics, the globalIdx would then be 200.  
+it is interpreted as "save each X samples" or "save after X samples has passed".
+This means that with a save frequency of 200, the first save would be after globalIdx 199 has been processed;
+and as explained above, by the time data is saved to diagnostics, the globalIdx would then be 200.
 
 
 """
 
+from abc import abstractmethod
+
+import numpy as np
+
+import aspsim.diagnostics.plot as dplot
+
 
 class Logger:
+    """Manage diagnostics collection and export."""
+
     def __init__(self, sim_info):
         self.sim_info = sim_info
         self.diagnostics = {}
@@ -56,30 +59,38 @@ class Logger:
         self.upcoming_export = 0
 
     def __contains__(self, key):
+        """Return True if a diagnostic name exists."""
         return key in self.diagnostics
 
     def __iter__(self):
+        """Iterate over diagnostic objects."""
         for diag_obj in self.diagnostics.values():
             yield diag_obj
 
     def items(self):
+        """Iterate over diagnostic name-object pairs."""
         for diag_name, diag_obj in self.diagnostics.items():
             yield diag_name, diag_obj
 
     def __getitem__(self, key):
+        """Return a diagnostic by name."""
         return self.diagnostics[key]
 
     def __setitem__(self, name, diagnostic):
+        """Add a diagnostic under a name."""
         self.add_diagnostic(name, diagnostic)
 
     def prepare(self):
+        """Prepare diagnostics for export."""
         self.update_next_export()
 
     def add_diagnostic(self, name, diagnostic):
+        """Add a diagnostic to the logger."""
         assert name not in self.diagnostics
         self.diagnostics[name] = diagnostic
 
     def save_data(self, processors, sig, idx, global_idx, last_block_on_chunk):
+        """Save diagnostic data for the current processing state."""
         for diag_name, diag in self.diagnostics.items():
             start, end = diag.next_save()
             num_samples = end - start
@@ -98,6 +109,7 @@ class Logger:
                 diag.progress_save(global_idx)
 
     def update_next_export(self):
+        """Update the next export index across diagnostics."""
         try:
             self.upcoming_export = np.amin(
                 [dg.next_export() for dg in self.diagnostics.values()]
@@ -106,9 +118,11 @@ class Logger:
             self.upcoming_export = np.inf
 
     def next_export(self):
+        """Return the next export index."""
         return self.upcoming_export
 
     def export_this_idx(self):
+        """Return diagnostic names ready for export."""
         diag_names = []
         for dg_name, dg in self.diagnostics.items():
             if (
@@ -119,6 +133,7 @@ class Logger:
         return diag_names
 
     def verify_same_export_settings(self, diag_dict):
+        """Verify that diagnostics share export settings."""
         first_diag = diag_dict[list(diag_dict.keys())[0]]
         for dg in diag_dict.values():
             assert first_diag.export_function == dg.export_function
@@ -131,6 +146,7 @@ class Logger:
                     assert pp_func1.__name__ == pp_func2.__name__
 
     def export_single_diag(self, diag_name, fldr):
+        """Export a single diagnostic by name."""
         diag_dict = {diag_name: self.diagnostics[diag_name]}
         # diag_dict = {proc.name : proc.diag[diag_name] for proc in processors if diag_name in proc.diag}
         self.verify_same_export_settings(diag_dict)
@@ -156,11 +172,7 @@ class Logger:
             diag.progress_export()
 
     def dispatch(self, fldr):
-        """
-        Processors is list of the processor objects
-        time_idx is the global time index
-        fldr is Path to figure folder
-        """
+        """Dispatch exports for diagnostics that are due."""
         # if time_idx == self.next_export():
         if self.sim_info.plot_output != "none":
             while self.export_this_idx():
@@ -170,14 +182,23 @@ class Logger:
 
 
 class IntervalCounter:
-    def __init__(self, intervals, num_values=None):
-        """
-        Intervals is an iterable or iterator where each entry is a tuple or list
-        of length 2, with start (inclusive) and end (exclusive) points of each interval
-        np.ndarray of shape (num_intervals, 2) is also valid
+    """Track intervals for saving diagnostics."""
 
-        It is assumed that the intervals are strictly increasing, with no overlap.
-        meaning that ivs[i+1][0]>ivs[i][1] for all i.
+    def __init__(self, intervals, num_values=None):
+        """Initialize with intervals and optional count.
+
+        Parameters
+        ----------
+        intervals : iterable
+            An iterable of (start, end) pairs or a list of indices.
+            np.ndarray of shape (num_intervals, 2) is also valid
+        num_values : int, optional
+            The number of values to track, required if intervals is a list of indices.
+
+        Notes
+        -----
+        It is assumed that intervals are strictly increasing and non-overlapping.
+        Meaning that ivs[i+1][0]>ivs[i][1] for all i.
         """
         if isinstance(intervals, (list, tuple, np.ndarray)):
             if isinstance(intervals[0], (list, tuple, np.ndarray)):
@@ -196,6 +217,7 @@ class IntervalCounter:
 
     @classmethod
     def from_frequency(cls, frequency, max_value, include_zero=False):
+        """Create an interval counter from a frequency."""
         num_values = int(np.ceil(max_value / frequency))
 
         start_value = 0
@@ -219,9 +241,11 @@ class IntervalCounter:
     #     return cls(zip(range(start_value, max_value, frequency), range(start_value+1, max_value+1, frequency)), num_values)
 
     def upcoming(self):
+        """Return the current interval."""
         return self.start, self.end
 
     def progress(self, progress_until):
+        """Advance the counter to a new position."""
         self.saved_until = progress_until
         self.start = progress_until
         assert self.end >= self.start
@@ -230,11 +254,17 @@ class IntervalCounter:
 
 
 class IndexCounter:
-    def __init__(self, idx_selection, tot_samples=None):
-        """
-        idx_selection is either an iterable of indices, or a single number
-                        which is the interval between adjacent desired indices.
+    """Track selected indices for exports."""
 
+    def __init__(self, idx_selection, tot_samples=None):
+        """Initialize from explicit indices or a fixed interval.
+
+        Parameters
+        ----------
+        idx_selection : iterable or int
+             An iterable of indices to track, or a single integer representing the interval between indices.
+        tot_samples : int, optional
+            The total number of samples, required if idx_selection is an integer.
         """
         try:
             self.orig_iterable = idx_selection
@@ -250,12 +280,15 @@ class IndexCounter:
         self.upcoming_idx = next(self.idx_selection, np.inf)
 
     def progress(self):
+        """Advance to the next index."""
         self.upcoming_idx = next(self.idx_selection, np.inf)
 
     def upcoming(self):
+        """Return the upcoming index."""
         return self.upcoming_idx
 
     def num_idx_until(self, until_value):
+        """Return the number of indices until a value."""
         raise ValueError
         # TODO check that this one works as expected
         try:
@@ -267,6 +300,8 @@ class IndexCounter:
 
 
 class Diagnostic:
+    """Base class for diagnostics."""
+
     export_functions = {}
 
     def __init__(
@@ -279,7 +314,8 @@ class Diagnostic:
         export_kwargs,
         preprocess,
     ):
-        """
+        """Initialize a diagnostic with save and export policies.
+
         save_at_idx is an iterable which gives all indices for which to save data.
                     Must be an integer multiple of the block size. (maybe change to
                     must be equal or larger than the block size)
@@ -323,19 +359,24 @@ class Diagnostic:
         self.plot_data = {}
 
     def next_export(self):
+        """Return the next export index."""
         return self.export_at.upcoming()
 
     def next_save(self):
+        """Return the next save interval."""
         return self.save_at.upcoming()
 
     def progress_save(self, progress_until):
+        """Advance the save counter."""
         self.save_at.progress(progress_until)
 
     def progress_export(self):
+        """Advance the export counter."""
         self.export_at.progress()
 
     @abstractmethod
     def save(self, processor, sig, chunk_interval, glob_interval):
+        """Save diagnostic data for a chunk."""
         pass
         # self.get_property = op.attrgetter(property_name)
         # prop = self.get_property(processor)
@@ -344,10 +385,11 @@ class Diagnostic:
 
     @abstractmethod
     def get_output(self):
+        """Return the diagnostic output."""
         self.export_at.progress()
 
     def get_processed_output(self, time_idx, preprocess):
-        """ """
+        """Return output after preprocessing steps."""
         output = self.get_output()
         for pp in preprocess:
             output = pp(output)
@@ -355,6 +397,8 @@ class Diagnostic:
 
 
 class SignalDiagnostic(Diagnostic):
+    """Diagnostic for continuous signals."""
+
     export_functions = {
         "plot": dplot.function_of_time_plot,
         "npz": dplot.savenpz,
@@ -392,6 +436,7 @@ class SignalDiagnostic(Diagnostic):
         self.plot_data["title"] = ""
 
     def get_processed_output(self, time_idx, preprocess):
+        """Return processed output and matching time indices."""
         output, time_indices = get_values_up_to_idx(self.get_output(), time_idx)
         for pp in preprocess:
             output = pp(output)
@@ -399,6 +444,8 @@ class SignalDiagnostic(Diagnostic):
 
 
 class StateDiagnostic(Diagnostic):
+    """Diagnostic for state values over time."""
+
     export_functions = {
         "plot": dplot.function_of_time_plot,
         "npz": dplot.savenpz,
@@ -433,6 +480,7 @@ class StateDiagnostic(Diagnostic):
         self.plot_data["title"] = ""
 
     def get_processed_output(self, time_idx, preprocess):
+        """Return processed output and matching time indices."""
         output, time_indices = get_values_from_selection(
             self.get_output(), self.time_indices, time_idx
         )
@@ -442,6 +490,8 @@ class StateDiagnostic(Diagnostic):
 
 
 class InstantDiagnostic(Diagnostic):
+    """Diagnostic for instantaneous values."""
+
     export_functions = {
         "plot": dplot.plot_ir,
         "matshow": dplot.matshow,
@@ -502,12 +552,10 @@ class InstantDiagnostic(Diagnostic):
 
 
 def attritemgetter(name):
-    """
-    If you have a dictionary with strings, use the name "dict_obj['key']"
-    Without apostrophes, the key is assumed to be a list index, and is converted to integer.
+    """Return a getter for dotted and indexed attribute paths.
 
-    TODO: Possibly allow for objects other than integers, such as indexing arrays
-
+    If you have a dictionary with strings, use the name "dict_obj['key']".
+    Without apostrophes, the key is assumed to be a list index.
     """
     assert name[0] != "["
     attributes = name.replace("]", "")
@@ -531,11 +579,9 @@ def attritemgetter(name):
 
 
 def get_values_up_to_idx(signal, max_idx):
-    """
-    Gives back signal values that correspond to time_values less than max_idx,
-    and signal values that are not nan
+    """Return signal values up to a maximum index.
 
-    max_idx is exlusive
+    max_idx is exclusive.
     """
     signal = np.atleast_2d(signal)
     assert signal.ndim == 2
@@ -553,11 +599,9 @@ def get_values_up_to_idx(signal, max_idx):
 
 
 def get_values_from_selection(signal, time_indices, max_idx):
-    """
-    Gives back signal values that correspond to time_values less than max_idx,
-    and signal values that are not nan
+    """Return selected signal values up to a maximum index.
 
-    max_idx is exlusive
+    max_idx is exclusive.
     """
     signal = np.atleast_2d(signal)
     assert signal.ndim == 2
