@@ -37,6 +37,13 @@ pythonpath = [
 aspcore = { path = "../aspcore", editable = true }
 tikzplotlib-patched = { git = "https://github.com/JasonGross/tikzplotlib" }
 
+[tool.ruff.lint]
+select = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.151.9",

@@ -1,5 +1,8 @@
+"""In this module are Arrays and collections of arrays, which are used to represent sources and microphones."""
+
 import copy
 import json
+import pathlib
 from abc import ABC
 
 import aspcore.utilities as utils
@@ -8,13 +11,14 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
+import aspsim.configutil as cfutil
 import aspsim.room.region as reg
 import aspsim.room.roomimpulseresponse as rir
 import aspsim.room.trajectory as tr
 
 
 class ArrayCollection:
-    """A class for managing arrays of sources and microphones, as well as the paths between them
+    """A class for managing arrays of sources and microphones, as well as the paths between them.
 
     Attributes
     ----------
@@ -40,7 +44,7 @@ class ArrayCollection:
     """
 
     def __init__(self):
-        """Initializes an empty ArrayCollection"""
+        """Initialize an empty ArrayCollection."""
         self.arrays = {}
         self.names_mic = []
         self.names_src = []
@@ -53,17 +57,20 @@ class ArrayCollection:
         self._rir_dynamic_all = []  # used to save dynamic RIRs. Temporary and for debugging only
 
     def __getitem__(self, key):
+        """Get named array from the collection."""
         return self.arrays[key]
 
     def __iter__(self):
+        """Iterate over all arrays in the collection."""
         for ar in self.arrays.values():
             yield ar
 
     def __contains__(self, arrayName):
+        """Check if an array with the given name is in the collection."""
         return arrayName in self.arrays
 
     def save_metadata(self, folder_path):
-        """Saves all metadata to the given folder
+        """Save all metadata to the given folder.
 
         Parameters
         ----------
@@ -82,9 +89,6 @@ class ArrayCollection:
             json.dump(array_info, f, indent=4)
 
     def _save_metadata_paths(self, filepath):
-        # path_info = {}
-        # for src, mic in self.mic_src_combos():
-        #    path_info[f"{src.name}->{mic.name}"] = self.path_type[src.name][mic.name]
         with open(filepath.joinpath("metadata_paths.json"), "w") as f:
             json.dump(self.path_info, f, indent=4)
 
@@ -96,7 +100,7 @@ class ArrayCollection:
             json.dump(pos, f, indent=4)
 
     def set_default_path_type(self, path_type):
-        """Sets the path type for all paths that were not modified by the user
+        """Set the path type for all paths that were not modified by the user.
 
         Parameters
         ----------
@@ -113,32 +117,32 @@ class ArrayCollection:
                 self.path_type[src.name][mic.name] = "modified"
 
     def empty(self):
-        """Returns True if the collection has no arrays"""
+        """Return True if the collection has no arrays."""
         return len(self.arrays) == 0
 
     def sources(self):
-        """Iterates over all source arrays"""
+        """Iterate over all source arrays."""
         for name in self.names_src:
             yield self.arrays[name]
 
     def mics(self):
-        """Iterates over all mic arrays"""
+        """Iterate over all mic arrays."""
         for name in self.names_mic:
             yield self.arrays[name]
 
     def free_sources(self):
-        """Iterates over all free source arrays"""
+        """Iterate over all free source arrays."""
         for name in self.names_free_src:
             yield self.arrays[name]
 
     def mic_src_combos(self):
-        """Iterates over the all combinations of mics and sources"""
+        """Iterate over the all combinations of mics and sources."""
         for src_name in self.names_src:
             for mic_name in self.names_mic:
                 yield self.arrays[src_name], self.arrays[mic_name]
 
     def iter_paths(self):
-        """Iterates over all paths"""
+        """Iterate over all paths."""
         for src_name in self.names_src:
             for mic_name in self.names_mic:
                 yield (
@@ -148,7 +152,7 @@ class ArrayCollection:
                 )
 
     def add_array(self, array):
-        """Adds an array to the collection
+        """Add an array to the collection.
 
         Parameters
         ----------
@@ -170,7 +174,7 @@ class ArrayCollection:
             raise ValueError("Array is neither source nor microphone")
 
     def set_prop_paths(self, paths):
-        """Sets the propagation paths between some sources and microphones
+        """Set the propagation paths between some sources and microphones.
 
         Parameters
         ----------
@@ -184,7 +188,7 @@ class ArrayCollection:
                 self.set_prop_path(path, src_name, mic_name)
 
     def set_prop_path(self, path, src_name, mic_name):
-        """Sets the propagation path between a source and a microphone array
+        """Set the propagation path between a source and a microphone array.
 
         Parameters
         ----------
@@ -207,7 +211,7 @@ class ArrayCollection:
         self.paths[src_name][mic_name] = path
 
     def set_path_types(self, path_types):
-        """Sets the propagation type between some sources and microphones
+        """Set the propagation type between some sources and microphones.
 
         Parameters
         ----------
@@ -224,30 +228,21 @@ class ArrayCollection:
                 assert isinstance(pt, str)
                 self.path_type[src_name][mic_name] = pt
 
-    # def setup_ir(self, sim_info):
-    #     """Generates the impulse responses between all sources and microphones
-
-    #     The method uses the path_type attribute to determine the type of propagation
-
-    #     Parameters
-    #     ----------
-    #     sim_info : SimInfo
-    #         The simulation info object
-    #     """
-    #     rir.setup_ir(self, sim_info)
-
-    def setup_ir(self, sim_info):
-        """Generates the impulse responses between all sources and microphones
+    def setup_ir(self, sim_info: cfutil.SimulatorInfo):
+        """Generate the impulse responses between all sources and microphones.
 
         The method uses the path_type attribute to determine the type of propagation
 
         Parameters
         ----------
-        sim_info : SimInfo
+        sim_info : SimulatorInfo
             The simulation info object
         """
-        metadata = {}
         self.sim_info = sim_info
+
+        for array_i in self.arrays.values():
+            array_i.prepare(sim_info)
+
         self.path_generator = rir.PathGenerator(self.sim_info, self)
 
         for src, mic in self.mic_src_combos():
@@ -270,7 +265,7 @@ class ArrayCollection:
                     self.path_info[f"{src.name}->{mic.name}"][key] = val
 
     def update_path(self, src, mic):
-        """Updates the path between a source and a microphone array
+        """Update the path between a source and a microphone array.
 
         Parameters
         ----------
@@ -285,8 +280,8 @@ class ArrayCollection:
             src, mic, reverb, self.sim_info
         )
 
-    def update(self, glob_idx):
-        """Updates the arrays and paths that change over time
+    def update(self, glob_idx: int):
+        """Update the arrays and paths that change over time.
 
         The method performs the following steps
         1. update arrays pos/properties
@@ -298,7 +293,6 @@ class ArrayCollection:
         glob_idx : int
             The global time index of the current sample
         """
-
         if glob_idx % self.sim_info.array_update_freq != 0:
             return
 
@@ -328,8 +322,13 @@ class ArrayCollection:
 
             already_updated.append(ar_name)
 
-    def plot(self, sim_info, fig_folder, print_method):
-        """Creates a plot with all arrays in the collection
+    def plot(
+        self,
+        sim_info: cfutil.SimulatorInfo,
+        fig_folder: pathlib.Path,
+        print_method: str,
+    ):
+        """Create a plot with all arrays in the collection.
 
         If ISM is chosen as the propagation type, the room is also plotted
 
@@ -350,10 +349,10 @@ class ArrayCollection:
         if "ism" in [
             self.path_type[src.name][mic.name] for src, mic in self.mic_src_combos()
         ]:
-            corner = [
-                c - sz / 2
-                for c, sz in zip(sim_info.room_center[:2], sim_info.room_size[:2])
-            ]
+            corner = (
+                sim_info.room_center[0] - sim_info.room_size[0] / 2,
+                sim_info.room_center[1] - sim_info.room_size[1] / 2,
+            )
             # bottom_left_corner = sim_info.room_center[:2] - (sim_info.room_size[:2] / 2)
             width = sim_info.room_size[0]
             height = sim_info.room_size[1]
@@ -377,7 +376,7 @@ class ArrayCollection:
         utils.save_plot(print_method, fig_folder, "array_pos")
 
     def save_to_file(self, folder_path):
-        """Saves the array collection to file
+        """Save the array collection to file.
 
         Parameters
         ----------
@@ -389,7 +388,7 @@ class ArrayCollection:
                 dill.dump(self, f)
 
     def get_freq_paths(self, num_freqs, samplerate):
-        """Get the frequency domain response of the paths between all sources and microphones
+        """Get the frequency domain response of the paths between all sources and microphones.
 
         Parameters
         ----------
@@ -431,7 +430,7 @@ class ArrayCollection:
 
 
 def load_arrays(folder_path):
-    """Loads the array collection from file
+    """Load the array collection from file.
 
     Parameters
     ----------
@@ -445,7 +444,7 @@ def load_arrays(folder_path):
 
 
 def prototype_equals(prototype, initialized):
-    """Compares an initialized collection to a prototype collection.
+    """Compare an initialized collection to a prototype collection.
 
     This function checks if the initialized collection could be created from the prototype. i.e. if it
         would make sense to load initialized instead of generating the paths of the prototype
@@ -491,13 +490,17 @@ def prototype_equals(prototype, initialized):
 
 
 class Array(ABC):
+    """Abstract base class for all types of arrays.
+
+    Establishes the common attributes and methods of all array types
+    """
+
     is_mic = False
     is_source = False
     plot_symbol = "."
 
     def __init__(self, name, pos, directivity_type=None, directivity_dir=None):
-        """Abstract base class for all types of arrays. Establishes
-        the common attributes and methods of all array types
+        """Abstract base class for all types of arrays.
 
         Parameters
         ----------
@@ -516,6 +519,7 @@ class Array(ABC):
         directivity_dir : optional, ndarray of shape (num_objects, spatial_dim)
             each row is a unit vector pointing in the direction of the directivity for that object
             If supplied, directivity_type must also be supplied
+
         Notes
         -----
         Documentation refers to objects, which means any of microphone, loudspeaker
@@ -586,8 +590,20 @@ class Array(ABC):
             "dynamic": self.dynamic,
         }
 
+    def prepare(self, sim_info: cfutil.SimulatorInfo):
+        """Prepare the array for simulation.
+
+        This method is called when the user creates the Simulator from the SimulatorSetup. This means that the sim_info is fixed, and the information can be used in the Array.
+
+        Parameters
+        ----------
+        sim_info : SimulatorInfo
+            The simulation info object
+        """
+        pass
+
     def set_groups(self, group_idxs):
-        """Sorts each object of the array into groups
+        """Sort each object of the array into groups.
 
         Parameters
         ----------
@@ -599,6 +615,15 @@ class Array(ABC):
         self.group_idxs = group_idxs
 
     def plot(self, ax, sim_info):
+        """Plot the position of the array elements on the given axis.
+
+        Parameters
+        ----------
+        ax : matplotlib axis
+            The axis to plot on
+        sim_info : SimulatorInfo
+            The simulation info object, containing metadata about the simulation.
+        """
         if self.dynamic:
             self.trajectory.plot(ax, self.plot_symbol, self.name, sim_info.tot_samples)
         else:
@@ -610,7 +635,19 @@ class Array(ABC):
                 alpha=0.8,
             )
 
-    def update(self, glob_idx):
+    def update(self, glob_idx: int):
+        """Update the current position and other properties of the array if it is dynamic.
+
+        Parameters
+        ----------
+        glob_idx : int
+            The global time index of the current sample
+
+        Returns
+        -------
+        changed : bool
+            True if the array was updated, False otherwise
+        """
         if self.dynamic:
             self.pos = self.trajectory.current_pos(glob_idx)
             self.time_all.append(glob_idx)
@@ -620,7 +657,7 @@ class Array(ABC):
 
 
 class MicArray(Array):
-    """Array class for microphones
+    """Array class for microphones.
 
     Parameters
     ----------
@@ -639,7 +676,7 @@ class MicArray(Array):
 
 
 class RegionArray(MicArray):
-    """Class for representing a continuous region with an microphone array
+    """Class for representing a continuous region with an microphone array.
 
     Requires a Region object to be used as representation of the region. The Region object
     has a equally_spaced_points method, which is used to generate the positions of the microphones
@@ -675,11 +712,20 @@ class RegionArray(MicArray):
         self.metadata["region shape"] = self.region.__class__.__name__
 
     def plot(self, ax, sim_info):
+        """Plot the region and the microphone positions.
+
+        Parameters
+        ----------
+        ax : matplotlib axis
+            The axis to plot on
+        sim_info : SimulatorInfo
+            The simulation info object, containing metadata about the simulation.
+        """
         self.region.plot(ax, self.name)
 
 
 class ControllableSourceArray(Array):
-    """Array for sources controllable by a processor
+    """Array for sources controllable by a processor.
 
     Parameters
     ----------
@@ -699,7 +745,7 @@ class ControllableSourceArray(Array):
 
 
 class FreeSourceArray(Array):
-    """Array for free sound sources, that cannot be adaptively controlled
+    """Array for free sound sources, that cannot be adaptively controlled.
 
     Parameters
     ----------
@@ -724,13 +770,30 @@ class FreeSourceArray(Array):
 
         self.metadata["source info"] = self.source.metadata
 
-    def reset_state(self):
-        self.source = copy.deepcopy(self.source)
-        self.source.reset()
+    def get_samples(self, num_samples: int):
+        """Get signal samples from the source.
 
-    def get_samples(self, num_samples):
+        Parameters
+        ----------
+        num_samples : int
+            The number of samples to be generated
+
+        Returns
+        -------
+        samples : ndarray of shape (num_sources, num_samples)
+            The generated signal samples for each source in the array
+        """
         return self.source.get_samples(num_samples)
 
     def set_source(self, source):
+        """Set the source object for the array.
+
+        Parameters
+        ----------
+        source : Source
+            The source object used to generate the signal.
+            See aspsim.signal.source module for more info.
+            More sources are also available in the aspsim.room.sourcescollection module.
+        """
         assert source.num_channels == self.num
         self.source = source
