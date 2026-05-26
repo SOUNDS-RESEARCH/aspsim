@@ -11,7 +11,7 @@ from aspsim.simulator import Signals
 class AudioProcessor(ABC):
     """Base class for audio processors."""
 
-    def __init__(self, sim_info, arrays, block_size, diagnostics={}, rng=None):
+    def __init__(self, sim_info, arrays, block_size, rng=None):
         self.sim_info = sim_info
         self.arrays = arrays
         self.block_size = block_size

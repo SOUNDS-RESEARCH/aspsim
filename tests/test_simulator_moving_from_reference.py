@@ -573,66 +573,14 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
         "src"
     ]
 
-    # Check that the stationary microphones are equivalent, otherwise some simulation parameter is likely different
-    import matplotlib.pyplot as plt
-
-    # CHECK POSITIONS OF ALL ARRAYS AND RIRS OF STATIONARY MICROPHONES
-    fig, ax = plt.subplots()
-    ax.plot(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0)[0, :])
-    ax.plot(rir_eval[0, :])
-
-    fig, ax = plt.subplots()
-    ax.plot(pos["eval"][:, 0], pos["eval"][:, 1], "x", label="eval")
-    ax.plot(pos["mic_moving"][:, 0], pos["mic_moving"][:, 1], "s", label="mic moving")
-    ax.plot(pos["mic"][:, 0], pos["mic"][:, 1], "o", label="mic")
-    ax.legend()
-
-    fig, ax = plt.subplots()
-    ax.plot(
-        sim.arrays["eval"].pos[:, 0], sim.arrays["eval"].pos[:, 1], "x", label="eval"
-    )
-    ax.plot(
-        sim.arrays["mic_dynamic"].pos_all[:, 0, 0],
-        sim.arrays["mic_dynamic"].pos_all[:, 0, 1],
-        "s",
-        label="mic moving",
-    )
-    ax.plot(sim.arrays["mic"].pos[:, 0], sim.arrays["mic"].pos[:, 1], "o", label="mic")
-    ax.legend()
-
-    fig, ax = plt.subplots()
-    ax.plot(pos["mic_moving"][:, 0], label="reference implementation")
-    ax.plot(sim.arrays["mic_dynamic"].pos_all[:, 0, 0], label="simulator")
-
     # CHECK POSITION AND RIRS OF MOVING MICROPHONE
     assert np.allclose(sim.arrays["eval"].pos, pos["eval"])
     assert np.allclose(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0), rir_eval)
-
     assert np.allclose(pos["mic_moving"], sim.arrays["mic_dynamic"].pos_all[:, 0, :])
-
-    fig, ax = plt.subplots()
-    ax.plot(np.squeeze(arrays.paths["src"]["mic_dynamic"], axis=0)[100, :])
-    ax.plot(np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2))[100, :])
-
     assert np.allclose(
         np.squeeze(arrays.paths["src"]["mic_dynamic"], axis=0),
         np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2)),
     )
-
-    # signals["loudspeaker_moving"]
-    # signals["mic_moving"]
-
-    # CHECK LOUDSPEAKER SIGNAL
-    fig, ax = plt.subplots()
-    ax.plot(signals["loudspeaker_moving"], label="reference implementation")
-    ax.plot(np.squeeze(sim_sig_src, axis=0), label="simulator")
-    ax.legend()
-    ax.set_title("Loudspeaker signal comparison")
-    print(
-        f"Loudspeaker signal mean abs difference {np.mean(np.abs(signals['loudspeaker_moving'] - np.squeeze(sim_sig_src, axis=0)[:seq_len]))}"
-    )
-
-    # CHECK MOVING MICROPHONE SIGNALS
 
     # Independent ground-truth: y[n] = sum_j h_{traj_pos[n]}[j] * x[n - j],
     # built directly from the precomputed per-step RIRs and the recorded
@@ -662,3 +610,59 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     assert np.allclose(ref, gt)
     assert np.allclose(sim_sig, gt)
     assert np.allclose(sim_sig, ref)
+
+    # CHECK LOUDSPEAKER SIGNAL
+    PLOT_DATA = False
+    if PLOT_DATA:
+        # Check that the stationary microphones are equivalent, otherwise some simulation parameter is likely different
+        import matplotlib.pyplot as plt
+
+        # CHECK POSITIONS OF ALL ARRAYS AND RIRS OF STATIONARY MICROPHONES
+        fig, ax = plt.subplots()
+        ax.plot(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0)[0, :])
+        ax.plot(rir_eval[0, :])
+
+        fig, ax = plt.subplots()
+        ax.plot(pos["eval"][:, 0], pos["eval"][:, 1], "x", label="eval")
+        ax.plot(
+            pos["mic_moving"][:, 0], pos["mic_moving"][:, 1], "s", label="mic moving"
+        )
+        ax.plot(pos["mic"][:, 0], pos["mic"][:, 1], "o", label="mic")
+        ax.legend()
+
+        fig, ax = plt.subplots()
+        ax.plot(
+            sim.arrays["eval"].pos[:, 0],
+            sim.arrays["eval"].pos[:, 1],
+            "x",
+            label="eval",
+        )
+        ax.plot(
+            sim.arrays["mic_dynamic"].pos_all[:, 0, 0],
+            sim.arrays["mic_dynamic"].pos_all[:, 0, 1],
+            "s",
+            label="mic moving",
+        )
+        ax.plot(
+            sim.arrays["mic"].pos[:, 0], sim.arrays["mic"].pos[:, 1], "o", label="mic"
+        )
+        ax.legend()
+
+        fig, ax = plt.subplots()
+        ax.plot(pos["mic_moving"][:, 0], label="reference implementation")
+        ax.plot(sim.arrays["mic_dynamic"].pos_all[:, 0, 0], label="simulator")
+
+        fig, ax = plt.subplots()
+        ax.plot(np.squeeze(arrays.paths["src"]["mic_dynamic"], axis=0)[100, :])
+        ax.plot(
+            np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2))[100, :]
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot(signals["loudspeaker_moving"], label="reference implementation")
+        ax.plot(np.squeeze(sim_sig_src, axis=0), label="simulator")
+        ax.legend()
+        ax.set_title("Loudspeaker signal comparison")
+        print(
+            f"Loudspeaker signal mean abs difference {np.mean(np.abs(signals['loudspeaker_moving'] - np.squeeze(sim_sig_src, axis=0)[:seq_len]))}"
+        )

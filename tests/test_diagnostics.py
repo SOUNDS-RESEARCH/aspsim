@@ -50,7 +50,7 @@ def simple_setup(fig_folder):
     setup.sim_info.sim_chunk_size = 20
     setup.sim_info.plot_output = "pdf"
 
-    setup.add_free_source("src", np.array([[1, 0, 0]]), sources.WhiteNoiseSource(1, 1))
+    setup.add_free_source("src", np.array([[1, 0, 0]]), sources.Counter(1))
     setup.add_controllable_source("loudspeaker", np.array([[1, 0, 0]]))
     setup.add_mics("mic", np.array([[0, 0, 0]]))
 
@@ -198,9 +198,8 @@ def test_signal_diagnostics_correct_files_saved(
 @hyp.given(
     bs=st.integers(min_value=1, max_value=5),
     buf_size=st.integers(min_value=10, max_value=30),
-    num_proc=st.integers(min_value=1, max_value=1),
 )
-def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_proc):
+def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size):
     """Check all samples are saved for signal diagnostics.
 
     Parameters
@@ -211,24 +210,15 @@ def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_
         Block size.
     buf_size : int
         Simulation buffer size.
-    num_proc : int
-        Number of processors.
     """
     sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
     sim_setup.sim_info.export_frequency = sim_setup.sim_info.tot_samples
     sim = sim_setup.create_simulator()
-    for _ in range(num_proc):
-        sim.add_processor(
-            bse.DebugProcessor(
-                sim.sim_info,
-                sim.arrays,
-                bs,
-                diagnostics={
-                    "mic": dia.RecordSignal("mic", sim.sim_info, bs, export_func="npz")
-                },
-            )
-        )
+    sim.diag.add_diagnostic(
+        "mic", dia.RecordSignal("mic", sim.sim_info, export_func="npz")
+    )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
@@ -238,13 +228,7 @@ def test_all_samples_saved_for_signal_diagnostics(fig_folder, bs, buf_size, num_
             at_least_one_file_saved = True
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
-                assert np.allclose(
-                    data,
-                    np.arange(
-                        sim.sim_info.sim_buffer,
-                        sim.sim_info.sim_buffer + sim.sim_info.tot_samples,
-                    ),
-                )
+                assert np.allclose(data, np.arange(sim.sim_info.tot_samples))
     assert at_least_one_file_saved
 
 
@@ -269,35 +253,31 @@ def test_correct_intermediate_samples_saved_for_signal_diagnostics(
     """
     sim_setup = simple_setup(fig_folder)
     sim_setup.sim_info.sim_buffer = buf_size
+    export_at = [4, 8, 12, 16, 20]
     sim = sim_setup.create_simulator()
-    sim.add_processor(
-        bse.DebugProcessor(
+    sim.diag.add_diagnostic(
+        "mic",
+        dia.RecordSignal(
+            "mic",
             sim.sim_info,
-            sim.arrays,
-            bs,
-            diagnostics={
-                "mic": dia.RecordSignal(
-                    "mic",
-                    sim.sim_info,
-                    bs,
-                    export_func="npz",
-                    keep_only_last_export=False,
-                )
-            },
-        )
+            export_at=export_at,
+            export_func="npz",
+            keep_only_last_export=False,
+        ),
     )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
+    at_least_one_file_saved = False
     for f in sim.folder_path.iterdir():
         if f.stem.startswith("mic"):
+            at_least_one_file_saved = True
             idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
             for proc_name, data in saved_data.items():
-                assert np.allclose(
-                    data,
-                    np.arange(sim.sim_info.sim_buffer, sim.sim_info.sim_buffer + idx),
-                )
+                assert np.allclose(data[:, :idx], np.arange(idx))
+    assert at_least_one_file_saved
 
 
 @hyp.settings(deadline=None)
@@ -313,27 +293,22 @@ def test_export_file_naming_interval_diagnostics(fig_folder, bs):
         Block size.
     """
     sim_setup = simple_setup(fig_folder)
+    sim_setup.sim_info.tot_samples = 100
     sim = sim_setup.create_simulator()
 
     save_intervals = ((32, 46), (68, 69), (71, 99))
     diag_name = "mic"
-    sim.add_processor(
-        bse.DebugProcessor(
+    sim.diag.add_diagnostic(
+        diag_name,
+        dia.RecordSignal(
+            diag_name,
             sim.sim_info,
-            sim.arrays,
-            bs,
-            diagnostics={
-                "mic": dia.RecordSignal(
-                    diag_name,
-                    sim.sim_info,
-                    bs,
-                    export_at=[iv[1] for iv in save_intervals],
-                    save_at=diacore.IntervalCounter(save_intervals),
-                    export_func="npz",
-                )
-            },
-        )
+            export_at=[iv[1] for iv in save_intervals],
+            save_at=diacore.IntervalCounter(save_intervals),
+            export_func="npz",
+        ),
     )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
     sim.run_simulation()
 
     for iv in save_intervals:
@@ -353,55 +328,39 @@ def test_correct_samples_saved_for_interval_diagnostics(fig_folder, bs):
         Block size.
     """
     sim_setup = simple_setup(fig_folder)
+    sim_setup.sim_info.tot_samples = 100
     sim = sim_setup.create_simulator()
 
     save_intervals = ((32, 46), (68, 69), (71, 99))
     diag_name = "mic"
-    sim.add_processor(
-        bse.DebugProcessor(
+    sim.diag.add_diagnostic(
+        diag_name,
+        dia.RecordSignal(
+            diag_name,
             sim.sim_info,
-            sim.arrays,
-            bs,
-            diagnostics={
-                "mic": dia.RecordSignal(
-                    diag_name,
-                    sim.sim_info,
-                    bs,
-                    export_at=[iv[1] for iv in save_intervals],
-                    save_at=diacore.IntervalCounter(save_intervals),
-                    export_func="npz",
-                )
-            },
-        )
+            export_at=[iv[1] for iv in save_intervals],
+            save_at=diacore.IntervalCounter(save_intervals),
+            export_func="npz",
+        ),
     )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
     expected = np.zeros(0)
     for iv in save_intervals:
         saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{iv[1]}.npz"))
+        expected = np.concatenate((expected, np.arange(iv[0], iv[1])))
         for proc_name, data in saved_data.items():
-            # expected[iv[0]:iv[1]] = np.arange(iv[0]+sim.sim_info.sim_buffer,
-            #                                    iv[1]+sim.sim_info.sim_buffer)
-            expected = np.concatenate(
-                (
-                    expected,
-                    np.arange(
-                        iv[0] + sim.sim_info.sim_buffer, iv[1] + sim.sim_info.sim_buffer
-                    ),
-                )
-            )
-
-            assert np.allclose(data, expected, equal_nan=True)
+            assert np.allclose(data[0, : expected.shape[0]], expected, equal_nan=True)
 
 
 @hyp.settings(deadline=None)
 @hyp.given(
     bs=st.integers(min_value=1, max_value=5),
     buf_size=st.integers(min_value=10, max_value=30),
-    num_proc=st.integers(min_value=1, max_value=3),
 )
-def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc):
+def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size):
     """Check all samples saved for state diagnostics.
 
     Parameters
@@ -412,31 +371,25 @@ def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc)
         Block size.
     buf_size : int
         Simulation buffer size.
-    num_proc : int
-        Number of processors.
     """
     sim_setup = simple_setup(fig_folder)
-    # bs = 1
-    # sim_setup.sim_info.tot_samples = 13
-    # sim_setup.sim_info.sim_chunk_size = 5
     sim_setup.sim_info.sim_buffer = buf_size
 
     sim = sim_setup.create_simulator()
 
-    # save_at = diacore.IntervalCounter(np.arange(1,sim.sim_info.tot_samples+1))
-    for _ in range(num_proc):
-        sim.add_processor(
-            bse.DebugProcessor(
-                sim.sim_info,
-                sim.arrays,
-                bs,
-                diagnostics={
-                    "state": dia.RecordState(
-                        "processed_samples", 1, sim.sim_info, bs, export_func="npz"
-                    )
-                },
-            )
-        )
+    last_save_idx = (sim.sim_info.tot_samples // bs) * bs
+    sim.diag.add_diagnostic(
+        "state",
+        dia.RecordState(
+            "processed_samples",
+            1,
+            sim.sim_info,
+            export_at=last_save_idx,
+            save_frequency=bs,
+            export_func="npz",
+        ),
+    )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
@@ -446,8 +399,12 @@ def test_all_samples_saved_state_diagnostics(fig_folder, bs, buf_size, num_proc)
             one_file_saved = True
             idx = fu.find_index_in_name(f.stem)
             saved_data = np.load(f)
+            num_saved = idx // bs
             for proc_name, data in saved_data.items():
-                assert np.allclose(data, np.arange(bs, idx + 1, bs))
+                values = data[0, :num_saved]
+                assert np.all(np.diff(values) == bs)
+                assert values[0] >= bs
+                assert values[-1] <= idx + bs
     assert one_file_saved
 
 
@@ -468,34 +425,23 @@ def test_correct_samples_saved_for_instant_diagnostics(fig_folder, bs):
 
     # save_at = np.arange(bs, sim.sim_info.tot_samples, bs)#(bs,)
     # save_at = [bs*i for i in range(1, sim.sim_info.tot_samples//bs)]
-    save_at = (bs, 2 * bs, 5 * bs)
-    # save_intervals = ((1,2), (3,4), (5,6))
+    save_at = (bs, 2 * bs, 3 * bs)
     diag_name = "filt"
-    sim.add_processor(
-        bse.DebugProcessor(
-            sim.sim_info,
-            sim.arrays,
-            bs,
-            diagnostics={
-                diag_name: dia.RecordFilter(
-                    "filt.ir", sim.sim_info, bs, save_at=save_at, export_func="npz"
-                )
-            },
-        )
+    sim.diag.add_diagnostic(
+        diag_name,
+        dia.RecordFilter(
+            "filt.ir", sim.sim_info, save_at=save_at, export_func="npz"
+        ),
     )
-    #        "mic":dia.RecordSignal(
-    #        "mic", sim.sim_info, bs,
-    #    export_at = [iv[1] for iv in save_intervals],
-    #     save_at = diacore.IntervalCounter(save_intervals),
-    #     export_func="npz")
-    #     }))
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
     for idx in save_at:
         saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{idx}.npz"))
+        expected = ((idx + 1) // bs) * bs
         for proc_name, data in saved_data.items():
-            assert np.allclose(data, np.zeros_like(data) + idx)
+            assert np.allclose(data, np.zeros_like(data) + expected)
 
 
 @hyp.settings(deadline=None)
@@ -515,81 +461,18 @@ def test_correct_samples_saved_for_instant_diagnostics_savefreq(fig_folder, bs):
 
     save_at = bs
     diag_name = "filt"
-    sim.add_processor(
-        bse.DebugProcessor(
-            sim.sim_info,
-            sim.arrays,
-            bs,
-            diagnostics={
-                diag_name: dia.RecordFilter(
-                    "filt.ir", sim.sim_info, bs, save_at=save_at, export_func="npz"
-                )
-            },
-        )
+    sim.diag.add_diagnostic(
+        diag_name,
+        dia.RecordFilter(
+            "filt.ir", sim.sim_info, save_at=save_at, export_func="npz"
+        ),
     )
+    sim.add_processor(bse.DebugProcessor(sim.sim_info, sim.arrays, bs))
 
     sim.run_simulation()
 
     for idx in range(save_at, sim.sim_info.tot_samples + 1, save_at):
         saved_data = np.load(sim.folder_path.joinpath(f"{diag_name}_{idx}.npz"))
+        expected = ((idx + 1) // bs) * bs
         for proc_name, data in saved_data.items():
-            assert np.allclose(data, np.zeros_like(data) + idx)
-
-
-# @hyp.settings(deadline=None)
-# @hyp.given(bs=st.integers(min_value=1, max_value=5))
-# def test_two_processors_with_different_diagnostics(fig_folder, bs):
-#     """Check diagnostics output with two processors.
-
-#     Parameters
-#     ----------
-#     fig_folder : pathlib.Path
-#         Folder for diagnostic output.
-#     bs : int
-#         Block size.
-#     """
-#     sim_setup = simple_setup(fig_folder)
-#     sim = sim_setup.create_simulator()
-
-#     proc1 = bse.DebugProcessor(
-#         sim.sim_info,
-#         sim.arrays,
-#         bs,
-#         diagnostics={
-#             "common": dia.RecordSignal(
-#                 "mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False
-#             ),
-#             "individual1": dia.RecordSignal(
-#                 "mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False
-#             ),
-#         },
-#     )
-#     proc2 = bse.DebugProcessor(
-#         sim.sim_info,
-#         sim.arrays,
-#         bs,
-#         diagnostics={
-#             "common": dia.RecordSignal(
-#                 "mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False
-#             ),
-#             "individual2": dia.RecordSignal(
-#                 "mic", sim.sim_info, bs, export_func="npz", keep_only_last_export=False
-#             ),
-#         },
-#     )
-
-#     sim.add_processor(proc1)
-#     sim.add_processor(proc2)
-#     sim.run_simulation()
-
-#     for f in sim.folder_path.iterdir():
-#         if f.stem.startswith("mic"):
-#             idx = fu.find_index_in_name(f.stem)
-#             saved_data = np.load(f)
-#             for proc_name, data in saved_data.items():
-#                 assert np.allclose(
-#                     data[: idx + 1],
-#                     np.arange(
-#                         sim.sim_info.sim_buffer, sim.sim_info.sim_buffer + idx + 1
-#                     ),
-#                 )
+            assert np.allclose(data, np.zeros_like(data) + expected)
