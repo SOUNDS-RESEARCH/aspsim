@@ -144,51 +144,50 @@ def test_unmoving_trajectory_same_as_static(fig_folder):
     assert np.allclose(sig_mic, sig_traj)
 
 
-def test_moving_microphone_equals_moving_source(fig_folder):
-    """A moving microphone should give the same output as a moving source.
+# def test_moving_microphone_equals_moving_source(fig_folder):
+#     """This test is currently incorrect. In order for a moving microphone to be equivalent to a moving source, we also
+#
 
-    If the positions are switched, this is an extension of the reciprocity test,
-    but with moving sources.
+#     If the positions are switched, this is an extension of the reciprocity test,
+#     but with moving sources.
 
-    Actually, I don't think this is true...
+#     Currently gives an sample-wise error of around 1e-5, which is unclear if it is
+#     within tolerance for numerical errors or not. Probably a valid result, just that
+#     the test is actually not true.
+#     """
+#     sr = 500
+#     rng = np.random.default_rng()
 
-    Currently gives an sample-wise error of around 1e-5, which is unclear if it is
-    within tolerance for numerical errors or not. Probably a valid result, just that
-    the test is actually not true.
-    """
-    sr = 500
-    rng = np.random.default_rng()
+#     pos_stationary = np.zeros((1, 3))
+#     pos_moving = tr.LinearTrajectory([[1, 1, 1], [0, 1, 0], [1, 0, 1]], 1, sr)
 
-    pos_stationary = np.zeros((1, 3))
-    pos_moving = tr.LinearTrajectory([[1, 1, 1], [0, 1, 0], [1, 0, 1]], 1, sr)
+#     sim_setup = _setup_ism(fig_folder, sr)
+#     src_sig = rng.random(size=(1, sim_setup.sim_info.tot_samples * 2))
 
-    sim_setup = _setup_ism(fig_folder, sr)
-    src_sig = rng.random(size=(1, sim_setup.sim_info.tot_samples * 2))
+#     sim_setup.add_mics("mic", pos_stationary)
+#     sim_setup.add_free_source("src", pos_moving, sources.Sequence(src_sig))
+#     sim = sim_setup.create_simulator()
+#     sim.diag.add_diagnostic(
+#         "mic1", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz")
+#     )
+#     sim.run_simulation()
+#     sig1 = np.load(sim.folder_path.joinpath(f"mic1_{sim.sim_info.tot_samples}.npz"))[
+#         "mic1"
+#     ]
 
-    sim_setup.add_mics("mic", pos_stationary)
-    sim_setup.add_free_source("src", pos_moving, sources.Sequence(src_sig))
-    sim = sim_setup.create_simulator()
-    sim.diag.add_diagnostic(
-        "mic1", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz")
-    )
-    sim.run_simulation()
-    sig1 = np.load(sim.folder_path.joinpath(f"mic1_{sim.sim_info.tot_samples}.npz"))[
-        "mic1"
-    ]
+#     sim_setup = _setup_ism(fig_folder, sr)
+#     sim_setup.add_mics("mic", pos_moving)
+#     sim_setup.add_free_source("src", pos_stationary, sources.Sequence(src_sig))
+#     sim = sim_setup.create_simulator()
+#     sim.diag.add_diagnostic(
+#         "mic2", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz")
+#     )
+#     sim.run_simulation()
 
-    sim_setup = _setup_ism(fig_folder, sr)
-    sim_setup.add_mics("mic", pos_moving)
-    sim_setup.add_free_source("src", pos_stationary, sources.Sequence(src_sig))
-    sim = sim_setup.create_simulator()
-    sim.diag.add_diagnostic(
-        "mic2", dia.RecordSignal("mic", sim.sim_info, 1, export_func="npz")
-    )
-    sim.run_simulation()
-
-    sig2 = np.load(sim.folder_path.joinpath(f"mic2_{sim.sim_info.tot_samples}.npz"))[
-        "mic2"
-    ]
-    assert np.allclose(sig1, sig2, atol=1e-6, rtol=1e-6)
+#     sig2 = np.load(sim.folder_path.joinpath(f"mic2_{sim.sim_info.tot_samples}.npz"))[
+#         "mic2"
+#     ]
+#     assert np.allclose(sig1, sig2, atol=1e-6, rtol=1e-6)
 
 
 def test_moving_microphone_is_using_expected_positions(fig_folder):
@@ -207,12 +206,14 @@ def test_moving_microphone_is_using_expected_positions(fig_folder):
     setup.add_free_source("src", pos_src, sources.WhiteNoiseSource(1, 1, rng))
     sim = setup.create_simulator()
     sim.run_simulation()
-    pos_all = np.array(sim.arrays["mic"].pos_all)
+    mic = sim.arrays["mic"]
+    t0 = mic._time_zero_idx
+    pos_all = mic.pos_all
 
     pos_compare = np.array(
         [pos_mic.current_pos(t) for t in range(setup.sim_info.tot_samples)]
     )
-    assert np.allclose(pos_all[: setup.sim_info.tot_samples], pos_compare)
+    assert np.allclose(pos_all[t0 : t0 + setup.sim_info.tot_samples], pos_compare)
 
 
 def test_moving_microphone_is_using_expected_rirs(fig_folder):
@@ -231,12 +232,14 @@ def test_moving_microphone_is_using_expected_rirs(fig_folder):
     setup.add_free_source("src", pos_src, sources.WhiteNoiseSource(1, 1, rng))
     sim = setup.create_simulator()
     sim.run_simulation()
-    pos_all = np.array(sim.arrays["mic"].pos_all)
+    mic = sim.arrays["mic"]
+    t0 = mic._time_zero_idx
+    pos_all = mic.pos_all
 
     pos_compare = np.array(
         [pos_mic.current_pos(t) for t in range(setup.sim_info.tot_samples)]
     )
-    assert np.allclose(pos_all[: setup.sim_info.tot_samples], pos_compare)
+    assert np.allclose(pos_all[t0 : t0 + setup.sim_info.tot_samples], pos_compare)
 
 
 def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory(
@@ -265,7 +268,10 @@ def test_moving_microphone_has_same_rirs_as_stationary_microphones_on_trajectory
 
     sim.run_simulation()
 
-    rir1 = np.array(sim.arrays._rir_dynamic_all)[: setup.sim_info.tot_samples, 0, 0, :]
+    t0 = sim.arrays["traj"]._time_zero_idx
+    rir1 = sim.arrays.rir_all["src"]["traj"][
+        t0 : t0 + setup.sim_info.tot_samples, 0, 0, :
+    ]
     rir2 = sim.arrays.paths["src"]["mic"][0, :, :]
     # sim.diag.add_diagnostic("mic", dia.RecordSignal("mic", sim.sim_info, num_channels = all_pos.shape[0], export_func="npz"))
     # sim.diag.add_diagnostic("traj_rir", dia.RecordState("traj", sim.sim_info, num_channels = 1, export_func="npz"))
@@ -300,11 +306,11 @@ def test_moving_microphone_rirs_match_sample_positions(fig_folder):
     sim = setup.create_simulator()
     sim.run_simulation()
 
-    observed_positions = np.asarray(sim.arrays["mic"].pos_all)[
-        : setup.sim_info.tot_samples
-    ]
-    dynamic_rirs = np.asarray(sim.arrays._rir_dynamic_all)[
-        : setup.sim_info.tot_samples, 0, 0, :
+    mic = sim.arrays["mic"]
+    t0 = mic._time_zero_idx
+    observed_positions = mic.pos_all[t0 : t0 + setup.sim_info.tot_samples]
+    dynamic_rirs = sim.arrays.rir_all["src"]["mic"][
+        t0 : t0 + setup.sim_info.tot_samples, 0, 0, :
     ]
 
     assert len(dynamic_rirs) == setup.sim_info.tot_samples

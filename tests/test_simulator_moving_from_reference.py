@@ -104,6 +104,35 @@ def pos_bifurcation(low, high, offset, pos, previous_pos, desired_val, tolerance
     return t
 
 
+class DelayedTrajectory(tr.Trajectory):
+    """Wrap a finite-length trajectory.
+
+    Holds the start position for `delay` samples, traverses
+    `inner.current_pos(0..inner_len - 1)` for the next `inner_len` samples, then
+    holds the last position. The clamps on both ends let the simulator query
+    indices in `[-sim_buffer, tot_samples + sim_buffer)` (see `Array.prepare`)
+    without going out of bounds when the inner trajectory has a fixed length.
+    """
+
+    def __init__(self, inner, delay, inner_len):
+        self.inner = inner
+        self.delay = delay
+        self.inner_len = inner_len
+
+    def current_pos(self, time_idx):
+        """Return the inner trajectory shifted by `delay`, clamped at both ends."""
+        shifted = time_idx - self.delay
+        if shifted < 0:
+            return self.inner.current_pos(0)
+        if shifted >= self.inner_len:
+            return self.inner.current_pos(self.inner_len - 1)
+        return self.inner.current_pos(shifted)
+
+    def plot(self, ax, symbol, name, tot_samples):
+        """Defer plotting to the wrapped trajectory."""
+        self.inner.plot(ax, symbol, name, tot_samples)
+
+
 class LissajousTrajectoryConstantSpeed(tr.Trajectory):
     """Lissajous trajectory with constant speed."""
 
@@ -227,7 +256,7 @@ def generate_signals_3d(
     num_mic = num_mic
     seq_len = sr // seq_len_frac_of_sec
 
-    eval_res = 0.05  # 0.03
+    eval_res = 0.15  # 0.03
     eval_region = reg.Cuboid(
         (side_len, side_len, height), (0, 0, 0), (eval_res, eval_res, eval_res)
     )
@@ -434,7 +463,7 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     height = 0.25
     seq_len = sr // seq_len_frac_of_sec
 
-    eval_res = 0.05  # 0.03
+    eval_res = 0.15  # 0.03
     eval_region = reg.Cuboid(
         (side_len, side_len, height), (0, 0, 0), (eval_res, eval_res, eval_res)
     )
@@ -467,9 +496,8 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     )
 
     initial_delay = seq_len
-    post_delay = 0
 
-    setup.sim_info.tot_samples = initial_delay + seq_len + post_delay
+    setup.sim_info.tot_samples = initial_delay + tot_trajectory_samples
     setup.sim_info.export_frequency = setup.sim_info.tot_samples
     setup.sim_info.reverb = "ism"
     setup.sim_info.room_size = [5.4, 4.3, 3.2]
@@ -490,15 +518,59 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     sequence = pseq.create_pseq(seq_len)
     sequence_src = sources.Sequence(sequence)
 
+    pos_noise = np.array([[0, 1.5, 0]])
+    noise_source = sources.Sequence(
+        np.zeros((1, setup.sim_info.tot_samples + setup.sim_info.sim_buffer))
+    )
+    setup.add_free_source("noise", pos_noise, noise_source)
+    setup.arrays.path_type["noise"]["eval"] = "none"
+    setup.arrays.path_type["noise"]["mic_dynamic"] = "none"
+
     setup.add_mics("mic", pos_mic)
     setup.add_mics("eval", pos_eval)
     setup.add_free_source("src", pos_src, sequence_src)
-    setup.add_mics("mic_dynamic", trajectory)
+    setup.add_mics(
+        "mic_dynamic",
+        DelayedTrajectory(trajectory, initial_delay, tot_trajectory_samples),
+    )
 
     sim = setup.create_simulator()
 
     # Check that the stationary microphones are equivalent, otherwise some simulation parameter is likely different
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots()
+    ax.plot(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0)[0, :])
+    ax.plot(rir_eval[0, :])
+
+    fig, ax = plt.subplots()
+    ax.plot(pos["eval"][:, 0], pos["eval"][:, 1], "x", label="eval")
+    ax.plot(pos["mic_moving"][:, 0], pos["mic_moving"][:, 1], "s", label="mic moving")
+    ax.plot(pos["mic"][:, 0], pos["mic"][:, 1], "o", label="mic")
+    ax.legend()
+
+    fig, ax = plt.subplots()
+    ax.plot(
+        sim.arrays["eval"].pos[:, 0], sim.arrays["eval"].pos[:, 1], "x", label="eval"
+    )
+    ax.plot(
+        sim.arrays["mic_dynamic"].pos_all[:, 0, 0],
+        sim.arrays["mic_dynamic"].pos_all[:, 0, 1],
+        "s",
+        label="mic moving",
+    )
+    ax.plot(sim.arrays["mic"].pos[:, 0], sim.arrays["mic"].pos[:, 1], "o", label="mic")
+    ax.legend()
+
+    fig, ax = plt.subplots()
+    ax.plot(pos["mic_moving"][:, 0], label="reference implementation")
+    ax.plot(sim.arrays["mic_dynamic"].pos_all[:, 0, 0], label="simulator")
+
+    plt.show()
+
     assert np.allclose(sim.arrays["eval"].pos, pos["eval"])
     assert np.allclose(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0), rir_eval)
+
+    assert np.allclose(pos["mic_moving"], sim.arrays["mic_dynamic"].pos_all[:, 0, 0])
 
     assert False

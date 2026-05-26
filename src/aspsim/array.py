@@ -54,7 +54,10 @@ class ArrayCollection:
 
         self.path_info = {}
 
-        self._rir_dynamic_all = []  # used to save dynamic RIRs. Temporary and for debugging only
+        # rir_all[src_name][mic_name] -> ndarray of shape
+        # (num_updates, num_src, num_mic, ir_len). Populated in setup_ir for
+        # every (src, mic) combo where at least one side is dynamic.
+        self.rir_all = {}
 
     def __getitem__(self, key):
         """Get named array from the collection."""
@@ -264,6 +267,52 @@ class ArrayCollection:
                 for key, val in path_info.items():
                     self.path_info[f"{src.name}->{mic.name}"][key] = val
 
+                if src.dynamic or mic.dynamic:
+                    self._precompute_dynamic_rirs(src, mic, reverb, sim_info)
+
+    def _precompute_dynamic_rirs(self, src, mic, reverb, sim_info):
+        """Precompute RIRs for every update step of a dynamic (src, mic) combo.
+
+        The result is stored in ``self.rir_all[src.name][mic.name]`` as an
+        ndarray of shape ``(num_updates, num_src, num_mic, ir_len)``. The
+        warmup rows (``time_all[i] < 0``) all hold the ``t=0`` RIR.
+
+        ``self.paths[src.name][mic.name]`` (the static RIR at ``t=0`` generated
+        earlier in ``setup_ir``) is reused as the warmup RIR and as the
+        ``t=0`` row, then the array's positions are walked through the
+        post-warmup rows and one RIR per update step is generated.
+
+        Memory note: storage is num_updates * num_src * num_mic * ir_len * 8
+        bytes per dynamic path; for long simulations or long RIRs this can
+        become significant.
+        """
+        time_all = src.time_all if src.dynamic else mic.time_all
+        time_zero_idx = src._time_zero_idx if src.dynamic else mic._time_zero_idx
+        num_updates = len(time_all)
+
+        rir_t0 = self.paths[src.name][mic.name]
+        ir_len = rir_t0.shape[-1]
+
+        rir_all_path = np.empty((num_updates, src.num, mic.num, ir_len))
+        rir_all_path[: time_zero_idx + 1] = rir_t0  # warmup + t=0 row
+
+        original_src_pos = src.pos
+        original_mic_pos = mic.pos
+        try:
+            for i in range(time_zero_idx + 1, num_updates):
+                if src.dynamic:
+                    src.pos = src.pos_all[i]
+                if mic.dynamic:
+                    mic.pos = mic.pos_all[i]
+                rir_all_path[i] = self.path_generator.create_path(
+                    src, mic, reverb, sim_info
+                )
+        finally:
+            src.pos = original_src_pos
+            mic.pos = original_mic_pos
+
+        self.rir_all.setdefault(src.name, {})[mic.name] = rir_all_path
+
     def update_path(self, src, mic):
         """Update the path between a source and a microphone array.
 
@@ -303,24 +352,23 @@ class ArrayCollection:
             if changed:
                 changed_arrays.append(ar_name)
 
-        already_updated = []
-
         for ar_name in changed_arrays:
-            if self.arrays[ar_name].is_mic:
+            changed_ar = self.arrays[ar_name]
+            i = changed_ar.pos_idx_at(glob_idx)
+            if changed_ar.is_mic:
                 for src in self.sources():
-                    if src.name not in already_updated:
-                        self.update_path(src, self.arrays[ar_name])
-                self._rir_dynamic_all.append(
-                    self.paths[src.name][ar_name]
-                )  # for debugging only
-            elif self.arrays[ar_name].is_source:
+                    if src.name in self.rir_all and ar_name in self.rir_all[src.name]:
+                        self.paths[src.name][ar_name] = self.rir_all[src.name][ar_name][
+                            i
+                        ]
+            elif changed_ar.is_source:
                 for mic in self.mics():
-                    if mic.name not in already_updated:
-                        self.update_path(self.arrays[ar_name], mic)
+                    if ar_name in self.rir_all and mic.name in self.rir_all[ar_name]:
+                        self.paths[ar_name][mic.name] = self.rir_all[ar_name][mic.name][
+                            i
+                        ]
             else:
                 raise ValueError("Array must be mic or source")
-
-            already_updated.append(ar_name)
 
     def plot(
         self,
@@ -551,8 +599,7 @@ class Array(ABC):
             self.pos = self.trajectory.current_pos(0)
             self.pos_segments = [pos]
             self.dynamic = True
-            self.pos_all = []
-            self.time_all = []
+            # pos_all, time_all, _time_zero_idx, _array_update_freq are set in prepare()
         else:
             raise ValueError("Incorrect datatype for pos")
 
@@ -595,12 +642,40 @@ class Array(ABC):
 
         This method is called when the user creates the Simulator from the SimulatorSetup. This means that the sim_info is fixed, and the information can be used in the Array.
 
+        For dynamic arrays, this precomputes ``time_all`` (signed sample indices) and
+        ``pos_all`` (positions at each entry) for the whole simulation including the
+        ``sim_buffer`` warmup window at negative time. During the warmup window the
+        array is stationary at ``current_pos(0)``.
+
         Parameters
         ----------
         sim_info : SimulatorInfo
             The simulation info object
         """
-        pass
+        if not self.dynamic:
+            return
+
+        step = sim_info.array_update_freq
+        # smallest multiple of step that is <= -sim_buffer
+        start = -((sim_info.sim_buffer + step - 1) // step) * step
+        stop = sim_info.tot_samples + sim_info.sim_buffer
+        self.time_all = np.arange(start, stop, step)
+        self._array_update_freq = step
+        self._time_zero_idx = int(np.searchsorted(self.time_all, 0))
+
+        positions = [
+            self.trajectory.current_pos(0 if t < 0 else int(t)) for t in self.time_all
+        ]
+        self.pos_all = np.stack(positions, axis=0)
+
+        self.pos = self.pos_all[self._time_zero_idx]
+
+    def pos_idx_at(self, glob_idx: int) -> int:
+        """Return the row in ``pos_all`` / ``rir_all`` corresponding to ``glob_idx``.
+
+        Only valid for dynamic arrays after ``prepare`` has been called.
+        """
+        return self._time_zero_idx + glob_idx // self._array_update_freq
 
     def set_groups(self, group_idxs):
         """Sort each object of the array into groups.
@@ -649,9 +724,9 @@ class Array(ABC):
             True if the array was updated, False otherwise
         """
         if self.dynamic:
-            self.pos = self.trajectory.current_pos(glob_idx)
-            self.time_all.append(glob_idx)
-            self.pos_all.append(self.pos)
+            if glob_idx % self._array_update_freq != 0:
+                return False
+            self.pos = self.pos_all[self.pos_idx_at(glob_idx)]
             return True
         return False
 

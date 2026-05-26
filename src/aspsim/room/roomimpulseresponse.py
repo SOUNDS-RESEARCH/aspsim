@@ -93,9 +93,23 @@ class PathGenerator:
 
         shortest_distance = np.inf
         for src, mic in self.arrays.mic_src_combos():
-            shortest_distance = np.min(
-                (shortest_distance, np.min(distfuncs.cdist(src.pos, mic.pos)))
-            )
+            src_positions = src.pos_all if src.dynamic else src.pos[None, ...]
+            mic_positions = mic.pos_all if mic.dynamic else mic.pos[None, ...]
+            if src.dynamic and mic.dynamic:
+                # Both update synchronously; pair entries by update step.
+                for i in range(src_positions.shape[0]):
+                    shortest_distance = np.minimum(
+                        shortest_distance,
+                        np.min(distfuncs.cdist(src_positions[i], mic_positions[i])),
+                    )
+            else:
+                # One side is stationary (single entry) so the inner loop is cheap.
+                for s_pos in src_positions:
+                    for m_pos in mic_positions:
+                        shortest_distance = np.minimum(
+                            shortest_distance,
+                            np.min(distfuncs.cdist(s_pos, m_pos)),
+                        )
 
         shortest_delay_s = shortest_distance / sim_info.c
         shortest_delay_samples = int(np.ceil(shortest_delay_s * sim_info.samplerate))

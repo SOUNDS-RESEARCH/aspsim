@@ -579,7 +579,7 @@ def attritemgetter(name):
 
 
 def get_values_up_to_idx(signal, max_idx):
-    """Return signal values up to a maximum index.
+    """Return signal values up to a maximum index that are not NaN.
 
     max_idx is exclusive.
     """
@@ -599,7 +599,7 @@ def get_values_up_to_idx(signal, max_idx):
 
 
 def get_values_from_selection(signal, time_indices, max_idx):
-    """Return selected signal values up to a maximum index.
+    """Return selected signal values up to a maximum index that are not NaN.
 
     max_idx is exclusive.
     """
