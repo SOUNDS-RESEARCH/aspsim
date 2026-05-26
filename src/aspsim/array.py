@@ -273,6 +273,8 @@ class ArrayCollection:
     def _precompute_dynamic_rirs(self, src, mic, reverb, sim_info):
         """Precompute RIRs for every update step of a dynamic (src, mic) combo.
 
+        Notes
+        -----
         The result is stored in ``self.rir_all[src.name][mic.name]`` as an
         ndarray of shape ``(num_updates, num_src, num_mic, ir_len)``. The
         warmup rows (``time_all[i] < 0``) all hold the ``t=0`` RIR.
@@ -344,6 +346,8 @@ class ArrayCollection:
         """
         if glob_idx % self.sim_info.array_update_freq != 0:
             return
+        if not 0 <= glob_idx < self.sim_info.tot_samples:
+            return  # Don't update outside of the main simulation time.
 
         changed_arrays = []
 
@@ -657,16 +661,19 @@ class Array(ABC):
 
         step = sim_info.array_update_freq
         # smallest multiple of step that is <= -sim_buffer
-        start = -((sim_info.sim_buffer + step - 1) // step) * step
-        stop = sim_info.tot_samples + sim_info.sim_buffer
+        start = 0  # -((sim_info.sim_buffer + step - 1) // step) * step
+        stop = sim_info.tot_samples
         self.time_all = np.arange(start, stop, step)
         self._array_update_freq = step
-        self._time_zero_idx = int(np.searchsorted(self.time_all, 0))
+        self._time_zero_idx = 0  # int(np.searchsorted(self.time_all, 0))
 
-        positions = [
-            self.trajectory.current_pos(0 if t < 0 else int(t)) for t in self.time_all
-        ]
-        self.pos_all = np.stack(positions, axis=0)
+        # positions = [self.trajectory.current_pos(t) for t in self.time_all]
+        # [
+        # self.trajectory.current_pos(0 if t < 0 else int(t)) for t in self.time_all
+        # ]
+        self.pos_all = np.stack(
+            [self.trajectory.current_pos(t) for t in self.time_all], axis=0
+        )
 
         self.pos = self.pos_all[self._time_zero_idx]
 

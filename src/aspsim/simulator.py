@@ -491,14 +491,16 @@ class Propagator:
         If start_sources_before_0 is True, the source signals will have started sim_buffer samples before time 0. This can be
         useful if you want to have a stationary signal at time 0.
 
-        If start_sources_before_0 is False, the source signals will start at time 0. Therefore this function only generates
-        a single sample of the source signals.
+        If start_sources_before_0 is False, the source signals start at time 0 and the main loop will produce the first
+        sample, so prepare leaves the pre-time-0 buffer at zero.
 
         Currently does not take movement into account. It just propagates from the stationary RIRs associated with the initial position
         """
-        num_samples = (
-            self.sim_info.sim_buffer if self.sim_info.start_sources_before_0 else 1
-        )
+        self.sig.idx = self.sim_info.sim_buffer
+        if not self.sim_info.start_sources_before_0:
+            return
+
+        num_samples = self.sim_info.sim_buffer
         end_sample = self.sim_info.sim_buffer
 
         for src in self.arrays.free_sources():
@@ -515,7 +517,6 @@ class Propagator:
                 self.sig[f"{src.name}~{mic.name}"][
                     :, end_sample - num_samples : end_sample
                 ] = propagated_signal
-        self.sig.idx = self.sim_info.sim_buffer
 
     def propagate(self, num_samples):
         """Propagate signals from their sources to the microphones.

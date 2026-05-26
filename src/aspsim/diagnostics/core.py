@@ -96,15 +96,13 @@ class Logger:
             num_samples = end - start
 
             if global_idx >= end:
-                end_lcl = (
-                    idx - (global_idx - end) - 1
-                )  # or maybe start_lcl should be +1
+                end_lcl = idx - (global_idx - end)
                 start_lcl = end_lcl - num_samples
                 diag.save(processors, sig, (start_lcl, end_lcl), (start, end))
                 diag.progress_save(end)
             elif last_block_on_chunk and global_idx > start:
-                end_lcl = idx - 1
-                start_lcl = idx - (global_idx - start) - 1
+                end_lcl = idx
+                start_lcl = idx - (global_idx - start)
                 diag.save(processors, sig, (start_lcl, end_lcl), (start, global_idx))
                 diag.progress_save(global_idx)
 

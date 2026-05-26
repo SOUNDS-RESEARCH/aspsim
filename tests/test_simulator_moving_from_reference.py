@@ -104,33 +104,33 @@ def pos_bifurcation(low, high, offset, pos, previous_pos, desired_val, tolerance
     return t
 
 
-class DelayedTrajectory(tr.Trajectory):
-    """Wrap a finite-length trajectory.
+# class DelayedTrajectory(tr.Trajectory):
+#     """Wrap a finite-length trajectory.
 
-    Holds the start position for `delay` samples, traverses
-    `inner.current_pos(0..inner_len - 1)` for the next `inner_len` samples, then
-    holds the last position. The clamps on both ends let the simulator query
-    indices in `[-sim_buffer, tot_samples + sim_buffer)` (see `Array.prepare`)
-    without going out of bounds when the inner trajectory has a fixed length.
-    """
+#     Holds the start position for `delay` samples, traverses
+#     `inner.current_pos(0..inner_len - 1)` for the next `inner_len` samples, then
+#     holds the last position. The clamps on both ends let the simulator query
+#     indices in `[-sim_buffer, tot_samples + sim_buffer)` (see `Array.prepare`)
+#     without going out of bounds when the inner trajectory has a fixed length.
+#     """
 
-    def __init__(self, inner, delay, inner_len):
-        self.inner = inner
-        self.delay = delay
-        self.inner_len = inner_len
+#     def __init__(self, inner, delay, inner_len):
+#         self.inner = inner
+#         self.delay = delay
+#         self.inner_len = inner_len
 
-    def current_pos(self, time_idx):
-        """Return the inner trajectory shifted by `delay`, clamped at both ends."""
-        shifted = time_idx - self.delay
-        if shifted < 0:
-            return self.inner.current_pos(0)
-        if shifted >= self.inner_len:
-            return self.inner.current_pos(self.inner_len - 1)
-        return self.inner.current_pos(shifted)
+#     def current_pos(self, time_idx):
+#         """Return the inner trajectory shifted by `delay`, clamped at both ends."""
+#         shifted = time_idx - self.delay
+#         if shifted < 0:
+#             return self.inner.current_pos(0)
+#         if shifted >= self.inner_len:
+#             return self.inner.current_pos(self.inner_len - 1)
+#         return self.inner.current_pos(shifted)
 
-    def plot(self, ax, symbol, name, tot_samples):
-        """Defer plotting to the wrapped trajectory."""
-        self.inner.plot(ax, symbol, name, tot_samples)
+#     def plot(self, ax, symbol, name, tot_samples):
+#         """Defer plotting to the wrapped trajectory."""
+#         self.inner.plot(ax, symbol, name, tot_samples)
 
 
 class LissajousTrajectoryConstantSpeed(tr.Trajectory):
@@ -497,7 +497,7 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
 
     initial_delay = seq_len
 
-    setup.sim_info.tot_samples = initial_delay + tot_trajectory_samples
+    setup.sim_info.tot_samples = tot_trajectory_samples
     setup.sim_info.export_frequency = setup.sim_info.tot_samples
     setup.sim_info.reverb = "ism"
     setup.sim_info.room_size = [5.4, 4.3, 3.2]
@@ -531,14 +531,52 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     setup.add_free_source("src", pos_src, sequence_src)
     setup.add_mics(
         "mic_dynamic",
-        DelayedTrajectory(trajectory, initial_delay, tot_trajectory_samples),
+        trajectory,
     )
 
     sim = setup.create_simulator()
 
+    sim.diag.add_diagnostic(
+        "mic",
+        dg.RecordSignal(
+            "mic", sim.sim_info, num_channels=sim.arrays["mic"].num, export_func="npz"
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "eval",
+        dg.RecordSignal(
+            "eval", sim.sim_info, num_channels=sim.arrays["eval"].num, export_func="npz"
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "mic_dynamic",
+        dg.RecordSignal(
+            "mic_dynamic",
+            sim.sim_info,
+            num_channels=sim.arrays["mic_dynamic"].num,
+            export_func="npz",
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "src",
+        dg.RecordSignal(
+            "src", sim.sim_info, num_channels=sim.arrays["src"].num, export_func="npz"
+        ),
+    )
+
+    sim.run_simulation()
+
+    sim_sig_mic_dynamic = np.load(
+        sim.folder_path / f"mic_dynamic_{sim.sim_info.tot_samples}.npz"
+    )["mic_dynamic"]
+    sim_sig_src = np.load(sim.folder_path / f"src_{sim.sim_info.tot_samples}.npz")[
+        "src"
+    ]
+
     # Check that the stationary microphones are equivalent, otherwise some simulation parameter is likely different
     import matplotlib.pyplot as plt
 
+    # CHECK POSITIONS OF ALL ARRAYS AND RIRS OF STATIONARY MICROPHONES
     fig, ax = plt.subplots()
     ax.plot(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0)[0, :])
     ax.plot(rir_eval[0, :])
@@ -566,11 +604,61 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     ax.plot(pos["mic_moving"][:, 0], label="reference implementation")
     ax.plot(sim.arrays["mic_dynamic"].pos_all[:, 0, 0], label="simulator")
 
-    plt.show()
-
+    # CHECK POSITION AND RIRS OF MOVING MICROPHONE
     assert np.allclose(sim.arrays["eval"].pos, pos["eval"])
     assert np.allclose(np.squeeze(sim.arrays.paths["src"]["eval"], axis=0), rir_eval)
 
-    assert np.allclose(pos["mic_moving"], sim.arrays["mic_dynamic"].pos_all[:, 0, 0])
+    assert np.allclose(pos["mic_moving"], sim.arrays["mic_dynamic"].pos_all[:, 0, :])
 
-    assert False
+    fig, ax = plt.subplots()
+    ax.plot(np.squeeze(arrays.paths["src"]["mic_dynamic"], axis=0)[100, :])
+    ax.plot(np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2))[100, :])
+
+    assert np.allclose(
+        np.squeeze(arrays.paths["src"]["mic_dynamic"], axis=0),
+        np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2)),
+    )
+
+    # signals["loudspeaker_moving"]
+    # signals["mic_moving"]
+
+    # CHECK LOUDSPEAKER SIGNAL
+    fig, ax = plt.subplots()
+    ax.plot(signals["loudspeaker_moving"], label="reference implementation")
+    ax.plot(np.squeeze(sim_sig_src, axis=0), label="simulator")
+    ax.legend()
+    ax.set_title("Loudspeaker signal comparison")
+    print(
+        f"Loudspeaker signal mean abs difference {np.mean(np.abs(signals['loudspeaker_moving'] - np.squeeze(sim_sig_src, axis=0)[:seq_len]))}"
+    )
+
+    # CHECK MOVING MICROPHONE SIGNALS
+
+    # Independent ground-truth: y[n] = sum_j h_{traj_pos[n]}[j] * x[n - j],
+    # built directly from the precomputed per-step RIRs and the recorded
+    # source signal. The source is seq_len-periodic, so the sim_buffer warm-up
+    # samples (sim time -sim_buffer .. -1) can be reconstructed by indexing
+    # the recorded source modulo seq_len.
+    rir_dyn = np.squeeze(sim.arrays.rir_all["src"]["mic_dynamic"], axis=(1, 2))
+    ir_len = rir_dyn.shape[-1]
+    src_signal = np.squeeze(sim_sig_src, axis=0)
+    sim_buffer = sim.sim_info.sim_buffer
+    tot_samples = sim.sim_info.tot_samples
+    warmup = np.array(
+        [src_signal[(t + sim_buffer) % seq_len] for t in range(-sim_buffer, 0)]
+    )
+    x = np.concatenate([warmup, src_signal])
+
+    gt = np.zeros(tot_samples)
+    for n in range(tot_samples):
+        src_window = x[sim_buffer + n - ir_len + 1 : sim_buffer + n + 1][::-1]
+        gt[n] = np.dot(rir_dyn[n], src_window)
+
+    ref = signals["mic_moving"]
+    sim_sig = np.squeeze(sim_sig_mic_dynamic, axis=0)
+
+    # Both implementations must match the textbook time-varying convolution at
+    # machine precision.
+    assert np.allclose(ref, gt)
+    assert np.allclose(sim_sig, gt)
+    assert np.allclose(sim_sig, ref)
