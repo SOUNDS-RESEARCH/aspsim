@@ -309,3 +309,141 @@ class CircularTrajectory(Trajectory):
             label=name,
             alpha=0.8,
         )
+
+
+class LissajousTrajectoryConstantSpeed(Trajectory):
+    """Lissajous trajectory with constant speed."""
+
+    def __init__(self, amplitude, freq, center, samplerate, target_speed, num_samples):
+        """Define a position function from sample index to position.
+
+        Implements a velocity-normalized version of a Lissajous curve, which is defined as
+        pos(t) = amplitude * cos(2 * pi * freq * t + phi) + center
+        where cos is interpreted elementwise.
+
+        Parameters
+        ----------
+        amplitude : array of shape (1,3)
+            amplitude in meters of the oscillation in each dimension
+        freq : array of shape (1,3)
+            frequency in Hz of the oscillation in each dimension
+        center : array of shape (1,3)
+            center of the trajectory
+        samplerate : int
+            samplerate of the simulation, supplied for the units of the periods
+            to make sense
+        target_speed : float
+            target speed of the movement in meters per second
+        num_samples : int
+            number of samples to generate for the trajectory. Does not need to be exact, but should be larger or
+            equal to the number of samples in the simulation, as the trajectory is pre-generated.
+
+        """
+        self.amplitude = amplitude
+        self.freq = freq
+        assert self.freq.shape == (1, 3)
+        # self.period_len = period_len
+        self.center = center
+        assert self.center.shape == (1, 3)
+        self.phase_offset = np.array([[0, np.pi / 2, np.pi / 2]])
+
+        self.samplerate = samplerate
+        self.speed_factor = target_speed
+        self.num_samples = num_samples
+        # self.pos = np.full((1,3), np.nan)
+
+        self.all_pos = _generate_constant_speed_trajectory(
+            self.r, self.velocity, self.samplerate, target_speed, num_samples
+        )
+
+    def r(self, t):
+        """Return the position at time index t."""
+        return self.center + self.amplitude * np.cos(
+            2 * np.pi * t * self.freq / self.samplerate + self.phase_offset
+        )
+
+    def velocity(self, t):
+        """Return the velocity at time index t."""
+        return (
+            -self.amplitude
+            * 2
+            * np.pi
+            * self.freq
+            * np.sin(2 * np.pi * t * self.freq / self.samplerate + self.phase_offset)
+            / self.samplerate
+        )
+
+    def current_pos(self, time_idx):
+        """Return the current position for the given time index."""
+        return self.all_pos[time_idx : time_idx + 1, :]
+
+    def plot(self, ax, symbol, name, tot_samples):
+        """Plot the trajectory if needed."""
+        pass
+
+
+def _generate_constant_speed_trajectory(
+    position, velocity, samplerate, target_speed, num_samples, tolerance=0.05
+):
+    """Generate a constant-speed trajectory.
+
+    Parameters
+    ----------
+    target_speed : int
+        Target speed in meters per second.
+    """
+    all_pos = np.zeros((num_samples, 3))
+    all_pos[0, :] = position(0)
+
+    target_speed_per_sample = target_speed / samplerate
+
+    t = 0
+    for n in range(1, num_samples):
+        last_pos = all_pos[n - 1, :]
+        v = np.linalg.norm(velocity(t))
+        timestep = target_speed_per_sample / v
+
+        candidate_pos = position(t + timestep)
+        speed = np.linalg.norm(candidate_pos - last_pos)
+
+        if (
+            np.abs(speed - target_speed_per_sample) / target_speed_per_sample
+            > tolerance
+        ):
+            if speed > target_speed_per_sample:
+                t_low = 0
+                t_high = timestep
+            else:
+                t_low = timestep
+                t_high = 2 * timestep
+                while (
+                    np.linalg.norm(position(t + t_high) - last_pos)
+                    <= target_speed_per_sample
+                ):
+                    t_high = 2 * t_high
+            timestep = _pos_bifurcation(
+                t_low, t_high, t, position, last_pos, target_speed_per_sample, tolerance
+            )
+            candidate_pos = position(t + timestep)
+
+        t += timestep
+        all_pos[n, :] = candidate_pos
+
+    return all_pos
+
+
+def _pos_bifurcation(low, high, offset, pos, previous_pos, desired_val, tolerance):
+    """Find a time step that achieves a desired displacement."""
+    speed = -1000
+
+    while np.abs(speed - desired_val) / desired_val > tolerance:
+        t = (low + high) / 2
+        p = pos(offset + t)
+
+        speed = np.linalg.norm(p - previous_pos)
+
+        if speed <= desired_val:
+            low = t
+        else:
+            high = t
+    return t
