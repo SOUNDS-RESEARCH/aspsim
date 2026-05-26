@@ -370,3 +370,120 @@ def test_moving_microphone_gives_same_output_as_pointwise_stationary_convolution
     )["traj"]
 
     assert np.allclose(sig_traj, sig_traj_reconstruct)
+
+
+def test_adding_sensor_noise_to_moving_microphone_is_equivalent_to_adding_noise_afterwards(
+    fig_folder,
+):
+    """Confirm that adding noise (without an impulse response) to a moving microphone is the same as adding noise after convolution."""
+    rng = np.random.default_rng()
+    rt60 = 0.0
+    sr = 1000
+    num_mic = 3
+    seq_len_frac_of_sec = 2
+    seq_len = sr // seq_len_frac_of_sec
+
+    pos_src = np.array([[2, 0, 0]])
+
+    setup = SimulatorSetup(fig_folder)
+    setup.sim_info.samplerate = sr
+
+    target_speed = 0.5
+    tot_trajectory_samples = num_mic * seq_len
+    freq_factors = rng.uniform(low=1, high=4, size=(1, 3))
+    traj_amp = np.array([[1.0, 1.0, 0.2]])
+    trajectory = tr.LissajousTrajectoryConstantSpeed(
+        traj_amp,
+        target_speed * freq_factors / sr,
+        np.zeros((1, 3)),
+        sr,
+        target_speed,
+        tot_trajectory_samples,
+    )
+    setup.sim_info.tot_samples = tot_trajectory_samples
+    setup.sim_info.export_frequency = setup.sim_info.tot_samples
+    setup.sim_info.reverb = "ism"
+    setup.sim_info.room_size = [5.4, 4.3, 3.2]
+    setup.sim_info.room_center = [0.8, 0.2, 0.1]
+    setup.sim_info.rt60 = rt60
+    setup.sim_info.max_room_ir_length = seq_len
+    setup.sim_info.array_update_freq = 1
+    setup.sim_info.randomized_ism = False
+    setup.sim_info.auto_save_load = False
+    setup.sim_info.sim_buffer = sr // seq_len_frac_of_sec
+    setup.sim_info.extra_delay = 40
+    setup.sim_info.plot_output = "pdf"
+    setup.sim_info.start_sources_before_0 = False
+    setup.sim_info.save_source_contributions = True
+    setup.sim_info.highpass_cutoff = 0
+
+    seq_len = setup.sim_info.max_room_ir_length
+
+    sequence_src = sources.Sequence(
+        rng.normal(0, 1, size=(1, seq_len)), end_mode="repeat"
+    )
+
+    pos_noise = np.array([[0, 1.5, 0]])
+    noise_data = rng.normal(0, 1, size=(1, tot_trajectory_samples))
+    noise_source = sources.Sequence(noise_data, end_mode="repeat")
+    setup.add_free_source("noise", pos_noise, noise_source)
+    setup.arrays.path_type["noise"]["mic_with_noise"] = "direct"
+    setup.arrays.path_type["noise"]["mic_without_noise"] = "none"
+
+    setup.add_free_source("src", pos_src, sequence_src)
+    setup.add_mics("mic_with_noise", trajectory)
+    setup.add_mics("mic_without_noise", trajectory)
+
+    sim = setup.create_simulator()
+
+    sim.diag.add_diagnostic(
+        "mic_with_noise",
+        dia.RecordSignal(
+            "mic_with_noise",
+            sim.sim_info,
+            num_channels=sim.arrays["mic_with_noise"].num,
+            export_func="npz",
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "mic_without_noise",
+        dia.RecordSignal(
+            "mic_without_noise",
+            sim.sim_info,
+            num_channels=sim.arrays["mic_without_noise"].num,
+            export_func="npz",
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "src",
+        dia.RecordSignal(
+            "src", sim.sim_info, num_channels=sim.arrays["src"].num, export_func="npz"
+        ),
+    )
+    sim.diag.add_diagnostic(
+        "noise",
+        dia.RecordSignal(
+            "noise",
+            sim.sim_info,
+            num_channels=sim.arrays["noise"].num,
+            export_func="npz",
+        ),
+    )
+
+    sim.run_simulation()
+
+    sim_sig_mic_with_noise = np.load(
+        sim.folder_path / f"mic_with_noise_{sim.sim_info.tot_samples}.npz"
+    )["mic_with_noise"]
+    sim_sig_mic_without_noise = np.load(
+        sim.folder_path / f"mic_without_noise_{sim.sim_info.tot_samples}.npz"
+    )["mic_without_noise"]
+    sim_sig_noise = np.load(sim.folder_path / f"noise_{sim.sim_info.tot_samples}.npz")[
+        "noise"
+    ]
+
+    assert np.allclose(sim_sig_noise, noise_data)
+
+    assert np.allclose(
+        sim_sig_mic_with_noise, sim_sig_mic_without_noise + sim_sig_noise
+    )

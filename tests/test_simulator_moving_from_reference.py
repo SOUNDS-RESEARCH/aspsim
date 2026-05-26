@@ -37,150 +37,6 @@ def pow2db(power):
     return 10 * np.log10(power)
 
 
-def generate_constant_speed_trajectory(
-    position, velocity, samplerate, target_speed, num_samples, tolerance=0.05
-):
-    """Generate a constant-speed trajectory.
-
-    Parameters
-    ----------
-    target_speed : int
-        Target speed in meters per second.
-    """
-    all_pos = np.zeros((num_samples, 3))
-    all_pos[0, :] = position(0)
-
-    target_speed_per_sample = target_speed / samplerate
-
-    t = 0
-    for n in range(1, num_samples):
-        last_pos = all_pos[n - 1, :]
-        v = np.linalg.norm(velocity(t))
-        timestep = target_speed_per_sample / v
-
-        candidate_pos = position(t + timestep)
-        speed = np.linalg.norm(candidate_pos - last_pos)
-
-        if (
-            np.abs(speed - target_speed_per_sample) / target_speed_per_sample
-            > tolerance
-        ):
-            if speed > target_speed_per_sample:
-                t_low = 0
-                t_high = timestep
-            else:
-                t_low = timestep
-                t_high = 2 * timestep
-                while (
-                    np.linalg.norm(position(t + t_high) - last_pos)
-                    <= target_speed_per_sample
-                ):
-                    t_high = 2 * t_high
-            timestep = pos_bifurcation(
-                t_low, t_high, t, position, last_pos, target_speed_per_sample, tolerance
-            )
-            candidate_pos = position(t + timestep)
-
-        t += timestep
-        all_pos[n, :] = candidate_pos
-
-    return all_pos
-
-
-def pos_bifurcation(low, high, offset, pos, previous_pos, desired_val, tolerance):
-    """Find a time step that achieves a desired displacement."""
-    speed = -1000
-
-    while np.abs(speed - desired_val) / desired_val > tolerance:
-        t = (low + high) / 2
-        p = pos(offset + t)
-
-        speed = np.linalg.norm(p - previous_pos)
-
-        if speed <= desired_val:
-            low = t
-        else:
-            high = t
-    return t
-
-
-# class DelayedTrajectory(tr.Trajectory):
-#     """Wrap a finite-length trajectory.
-
-#     Holds the start position for `delay` samples, traverses
-#     `inner.current_pos(0..inner_len - 1)` for the next `inner_len` samples, then
-#     holds the last position. The clamps on both ends let the simulator query
-#     indices in `[-sim_buffer, tot_samples + sim_buffer)` (see `Array.prepare`)
-#     without going out of bounds when the inner trajectory has a fixed length.
-#     """
-
-#     def __init__(self, inner, delay, inner_len):
-#         self.inner = inner
-#         self.delay = delay
-#         self.inner_len = inner_len
-
-#     def current_pos(self, time_idx):
-#         """Return the inner trajectory shifted by `delay`, clamped at both ends."""
-#         shifted = time_idx - self.delay
-#         if shifted < 0:
-#             return self.inner.current_pos(0)
-#         if shifted >= self.inner_len:
-#             return self.inner.current_pos(self.inner_len - 1)
-#         return self.inner.current_pos(shifted)
-
-#     def plot(self, ax, symbol, name, tot_samples):
-#         """Defer plotting to the wrapped trajectory."""
-#         self.inner.plot(ax, symbol, name, tot_samples)
-
-
-class LissajousTrajectoryConstantSpeed(tr.Trajectory):
-    """Lissajous trajectory with constant speed."""
-
-    def __init__(self, amplitude, freq, center, samplerate, speed_factor, num_samples):
-        """Define a position function from sample index to position."""
-        self.amplitude = amplitude
-        self.freq = freq
-        assert self.freq.shape == (1, 3)
-        # self.period_len = period_len
-        self.center = center
-        assert self.center.shape == (1, 3)
-        self.phase_offset = np.array([[0, np.pi / 2, np.pi / 2]])
-
-        self.samplerate = samplerate
-        self.speed_factor = speed_factor
-        self.num_samples = num_samples
-        # self.pos = np.full((1,3), np.nan)
-
-        self.all_pos = generate_constant_speed_trajectory(
-            self.r, self.velocity, self.samplerate, speed_factor, num_samples
-        )
-
-    def r(self, t):
-        """Return the position at time index t."""
-        return self.center + self.amplitude * np.cos(
-            2 * np.pi * t * self.freq / self.samplerate + self.phase_offset
-        )
-
-    def velocity(self, t):
-        """Return the velocity at time index t."""
-        return (
-            -self.amplitude
-            * 2
-            * np.pi
-            * self.freq
-            * np.sin(2 * np.pi * t * self.freq / self.samplerate + self.phase_offset)
-            / self.samplerate
-        )
-
-    def current_pos(self, time_idx):
-        """Return the current position for the given time index."""
-        return self.all_pos[time_idx : time_idx + 1, :]
-
-    def plot(self, ax, symbol, name, tot_samples):
-        """Plot the trajectory if needed."""
-        pass
-
-
 def run_and_save(sim):
     """Run the simulation and save signals."""
     sim.diag.add_diagnostic(
@@ -269,16 +125,16 @@ def generate_signals_3d(
     setup = SimulatorSetup(parent_folder)
     setup.sim_info.samplerate = sr
 
-    speed_factor = 0.5
+    target_speed = 0.5
     tot_trajectory_samples = num_mic * seq_len
     freq_factors = np.array([[1.8, 3.8, 2.1]])
     traj_amp = np.array([[side_len / 2, side_len / 2, height / 2]])
-    trajectory = LissajousTrajectoryConstantSpeed(
+    trajectory = tr.LissajousTrajectoryConstantSpeed(
         traj_amp,
-        speed_factor * freq_factors / sr,
+        target_speed * freq_factors / sr,
         np.zeros((1, 3)),
         sr,
-        speed_factor,
+        target_speed,
         tot_trajectory_samples,
     )
     traj_pos = np.concatenate(
@@ -363,7 +219,7 @@ def generate_signals_3d(
                 "max_sweep_freq": sr // 2,
                 "downsampling_factor": 1,
                 "freq_factors": freq_factors.tolist(),
-                "speed_factor": speed_factor,
+                "speed_factor": target_speed,
                 "speed min": np.min(speed),
                 "speed max": np.max(speed),
                 "speed mean": np.mean(speed),
@@ -474,16 +330,16 @@ def test_reference_implementation_equals_simulator_directly(parent_folder):
     setup = SimulatorSetup(parent_folder)
     setup.sim_info.samplerate = sr
 
-    speed_factor = 0.5
+    target_speed = 0.5
     tot_trajectory_samples = num_mic * seq_len
     freq_factors = np.array([[1.8, 3.8, 2.1]])
     traj_amp = np.array([[side_len / 2, side_len / 2, height / 2]])
-    trajectory = LissajousTrajectoryConstantSpeed(
+    trajectory = tr.LissajousTrajectoryConstantSpeed(
         traj_amp,
-        speed_factor * freq_factors / sr,
+        target_speed * freq_factors / sr,
         np.zeros((1, 3)),
         sr,
-        speed_factor,
+        target_speed,
         tot_trajectory_samples,
     )
     traj_pos = np.concatenate(
