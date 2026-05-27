@@ -65,6 +65,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tikzplotlib-patched", git = "https://github.com/JasonGross/tikzplotlib" },
 ]
+provides-extras = ["examples"]
 
 [package.metadata.requires-dev]
 dev = [
