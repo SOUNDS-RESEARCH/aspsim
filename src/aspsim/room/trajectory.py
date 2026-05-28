@@ -375,6 +375,10 @@ class LissajousTrajectoryConstantSpeed(Trajectory):
 
     def current_pos(self, time_idx):
         """Return the current position for the given time index."""
+        if time_idx >= self.num_samples:
+            raise ValueError(
+                f"time_idx {time_idx} is out of bounds for pre-generated trajectory with num_samples {self.num_samples}"
+            )
         return self.all_pos[time_idx : time_idx + 1, :]
 
     def plot(self, ax, symbol, name, tot_samples):

@@ -157,54 +157,77 @@ class PathGenerator:
             about the path. The default is False.
         verbose : bool, optional
             If True, the method will print information about the path generation. The default is False.
+
+        Returns
+        -------
+        path : ndarray of shape (src.num, mic.num, sim_info.max_room_ir_length) if both arrays are static
+            or (num_updates src.num, mic.num, sim_info.max_room_ir_length) if source or microphone array is dynamic
+            Currently does not support the case where both arrays are dynamic.
         """
+        if src.dynamic and mic.dynamic:
+            raise NotImplementedError(
+                "The simulator does not yet support both source and microphone arrays being dynamic."
+            )
+        if src.dynamic:
+            num_updates = src.pos_all.shape[0]
+        if mic.dynamic:
+            num_updates = mic.pos_all.shape[0]
+
         path_info = {}
         if reverb == "none":
             path = np.zeros((src.num, mic.num, 1))
         elif reverb == "direct":
-            assert src.num == mic.num
-            path = np.eye(src.num, mic.num)[..., None]
-        elif reverb == "random":
-            path = np.random.normal(
-                size=(src.num, mic.num, sim_info.max_room_ir_length)
+            assert src.num == mic.num, (
+                "Direct propagation only makes sense between arrays with the same number of elements"
             )
-        elif reverb == "ism":
-            if sim_info.spatial_dims == 3:
-                path = ir_room_image_source_3d(
-                    src.pos,
-                    mic.pos,
-                    sim_info.room_size,
-                    sim_info.room_center,
-                    sim_info.max_room_ir_length,
-                    sim_info.samplerate,
-                    self.e_absorbtion,
-                    self.max_order,
-                    self.num_samples_to_safely_remove,
-                    mic.directivity_type,
-                    mic.directivity_dir,
-                    randomized_ism=sim_info.randomized_ism,
-                    calculate_metadata=return_path_info,
-                    verbose=verbose,
-                )
-                if return_path_info:
-                    path, path_info["ism_info"] = path
+            path = np.eye(src.num, mic.num)[..., None]
+            if src.dynamic or mic.dynamic:
+                path = np.tile(path, (num_updates, 1, 1, 1))
+        elif reverb == "random":
+            if src.dynamic or mic.dynamic:
+                shape = (num_updates, src.num, mic.num, sim_info.max_room_ir_length)
             else:
-                raise ValueError
-        # elif reverb == "modified":
-        #    pass
+                shape = (src.num, mic.num, sim_info.max_room_ir_length)
+
+            path = np.random.normal(size=shape)
+        elif reverb == "ism":
+            pos_src = src.pos_all if src.dynamic else src.pos
+            pos_src = pos_src.reshape(-1, 3)
+            pos_mic = mic.pos_all if mic.dynamic else mic.pos
+            pos_mic = pos_mic.reshape(-1, 3)
+
+            path = ir_room_image_source_3d(
+                pos_src,
+                pos_mic,
+                sim_info.room_size,
+                sim_info.room_center,
+                sim_info.max_room_ir_length,
+                sim_info.samplerate,
+                self.e_absorbtion,
+                self.max_order,
+                self.num_samples_to_safely_remove,
+                mic.directivity_type,
+                mic.directivity_dir,
+                randomized_ism=sim_info.randomized_ism,
+                calculate_metadata=return_path_info,
+                verbose=verbose,
+            )
+            if return_path_info:
+                path, path_info["ism_info"] = path
+
+            if src.dynamic:
+                path = path.reshape(num_updates, src.num, mic.num, -1)
+            if mic.dynamic:
+                path = np.moveaxis(
+                    path.reshape(src.num, num_updates, mic.num, -1), 0, 1
+                )
+
         else:
-            raise ValueError
+            raise ValueError(f"Unknown reverb type: {reverb}")
 
         # ADD POST PROCESSING HERE
         if sim_info.highpass_cutoff > 0:
             path = filter_rirs(path, sim_info.samplerate, sim_info.highpass_cutoff)
-        # if self.filter_below > 0:
-        #     tot_len = path.shape[2] + self.filt_ir.shape[-1] - 1
-        #     path_new = np.zeros((path.shape[0], path.shape[1], tot_len))
-        #     for i in range(path.shape[0]):
-        #         for j in range(path.shape[1]):
-        #             path_new[i,j,:] = spsig.convolve(path[i,j,:], self.filt_ir, mode="full")
-        #     path = path_new[:,:,:path.shape[-1]]
 
         if return_path_info:
             return path, path_info

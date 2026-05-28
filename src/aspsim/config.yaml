@@ -10,7 +10,6 @@ array_update_freq : 1
 #AUDIO PARAMETERS
 samplerate : 2000
 c : 343.0
-spatial_dims : 3
 
 # reverb options: "none", "direct", "random", "ism"
 reverb : ism

@@ -1,9 +1,9 @@
 """In this module are Arrays and collections of arrays, which are used to represent sources and microphones."""
 
-import copy
 import json
 import pathlib
 from abc import ABC
+from ast import Not
 
 import aspcore.utilities as utils
 import dill
@@ -259,61 +259,18 @@ class ArrayCollection:
             self.path_info[f"{src.name}->{mic.name}"]["type"] = reverb
             print(f"{src.name}->{mic.name} has propagation type: {reverb}")
             if reverb != "modified":
-                self.paths[src.name][mic.name], path_info = (
-                    self.path_generator.create_path(
-                        src, mic, reverb, sim_info, True, True
-                    )
+                paths, path_info = self.path_generator.create_path(
+                    src, mic, reverb, sim_info, True, True
                 )
-                for key, val in path_info.items():
-                    self.path_info[f"{src.name}->{mic.name}"][key] = val
 
                 if src.dynamic or mic.dynamic:
-                    self._precompute_dynamic_rirs(src, mic, reverb, sim_info)
+                    self.rir_all.setdefault(src.name, {})[mic.name] = paths
+                    self.paths[src.name][mic.name] = paths[0]
+                else:
+                    self.paths[src.name][mic.name] = paths
 
-    def _precompute_dynamic_rirs(self, src, mic, reverb, sim_info):
-        """Precompute RIRs for every update step of a dynamic (src, mic) combo.
-
-        Notes
-        -----
-        The result is stored in ``self.rir_all[src.name][mic.name]`` as an
-        ndarray of shape ``(num_updates, num_src, num_mic, ir_len)``. The
-        warmup rows (``time_all[i] < 0``) all hold the ``t=0`` RIR.
-
-        ``self.paths[src.name][mic.name]`` (the static RIR at ``t=0`` generated
-        earlier in ``setup_ir``) is reused as the warmup RIR and as the
-        ``t=0`` row, then the array's positions are walked through the
-        post-warmup rows and one RIR per update step is generated.
-
-        Memory note: storage is num_updates * num_src * num_mic * ir_len * 8
-        bytes per dynamic path; for long simulations or long RIRs this can
-        become significant.
-        """
-        time_all = src.time_all if src.dynamic else mic.time_all
-        time_zero_idx = src._time_zero_idx if src.dynamic else mic._time_zero_idx
-        num_updates = len(time_all)
-
-        rir_t0 = self.paths[src.name][mic.name]
-        ir_len = rir_t0.shape[-1]
-
-        rir_all_path = np.empty((num_updates, src.num, mic.num, ir_len))
-        rir_all_path[: time_zero_idx + 1] = rir_t0  # warmup + t=0 row
-
-        original_src_pos = src.pos
-        original_mic_pos = mic.pos
-        try:
-            for i in range(time_zero_idx + 1, num_updates):
-                if src.dynamic:
-                    src.pos = src.pos_all[i]
-                if mic.dynamic:
-                    mic.pos = mic.pos_all[i]
-                rir_all_path[i] = self.path_generator.create_path(
-                    src, mic, reverb, sim_info
-                )
-        finally:
-            src.pos = original_src_pos
-            mic.pos = original_mic_pos
-
-        self.rir_all.setdefault(src.name, {})[mic.name] = rir_all_path
+                for key, val in path_info.items():
+                    self.path_info[f"{src.name}->{mic.name}"][key] = val
 
     def update_path(self, src, mic):
         """Update the path between a source and a microphone array.

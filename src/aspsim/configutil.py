@@ -20,7 +20,6 @@ class SimulatorInfo:
 
     samplerate: int
     c: float
-    spatial_dims: int
     reverb: str
 
     room_size: list[float]
@@ -40,8 +39,6 @@ class SimulatorInfo:
     def __post_init__(self):
         """Validate basic configuration constraints."""
         # Should check here that sim_buffer is large enough that it wont cause errors
-        assert len(self.room_size) == self.spatial_dims
-        assert len(self.room_center) == self.spatial_dims
 
         assert self.reverb in ("none", "direct", "ism")
 
@@ -73,7 +70,6 @@ def equal_audio(info1, info2, path_types):
     same_audio = (
         info1.samplerate == info2.samplerate
         and info1.c == info2.c
-        and info1.spatial_dims == info2.spatial_dims
         and info1.reverb == info2.reverb
     )
 
