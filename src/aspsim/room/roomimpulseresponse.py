@@ -176,6 +176,8 @@ class PathGenerator:
         path_info = {}
         if reverb == "none":
             path = np.zeros((src.num, mic.num, 1))
+            if src.dynamic or mic.dynamic:
+                path = np.tile(path, (num_updates, 1, 1, 1))
         elif reverb == "direct":
             assert src.num == mic.num, (
                 "Direct propagation only makes sense between arrays with the same number of elements"
