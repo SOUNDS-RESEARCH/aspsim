@@ -467,7 +467,7 @@ class Array(ABC):
     is_source = False
     plot_symbol = "."
 
-    def __init__(self, name, pos, directivity_type=None, directivity_dir=None):
+    def __init__(self, name, pos):
         """Abstract base class for all types of arrays.
 
         Parameters
@@ -479,14 +479,6 @@ class Array(ABC):
             or a list of ndarrays of the same shape, which will distribute
                 the objects into groups.
             or a Trajectory object, which will produce a moving array
-        directivity_type : optional, list of str
-            each string is one of "omni", "cardioid", "hypercardioid",
-            "supercardioid", "bidirectional".
-            If supplied, directivity_dir must also be supplied
-            if not supplied, the array will be omnidirectional
-        directivity_dir : optional, ndarray of shape (num_objects, spatial_dim)
-            each row is a unit vector pointing in the direction of the directivity for that object
-            If supplied, directivity_type must also be supplied
 
         Notes
         -----
@@ -519,36 +511,11 @@ class Array(ABC):
             self.pos = self.trajectory.current_pos(0)
             self.pos_segments = [pos]
             self.dynamic = True
-            # pos_all, time_all, _time_zero_idx, _array_update_freq are set in prepare()
         else:
             raise ValueError("Incorrect datatype for pos")
 
         self.num = self.pos.shape[0]
         assert self.pos.ndim == 2
-
-        if directivity_type is None or directivity_dir is None:
-            assert directivity_type is None and directivity_dir is None
-            directivity_type = ["omni" for _ in range(self.num)]
-        else:
-            assert directivity_type is not None and directivity_dir is not None
-            assert len(directivity_type) == self.num
-            assert directivity_dir.shape[0] == self.num
-            assert all(
-                [
-                    d
-                    in [
-                        "omni",
-                        "cardioid",
-                        "hypercardioid",
-                        "supercardioid",
-                        "bidirectional",
-                    ]
-                    for d in directivity_type
-                ]
-            )
-            assert np.allclose(np.linalg.norm(directivity_dir, axis=-1), 1)
-        self.directivity_type = directivity_type
-        self.directivity_dir = directivity_dir
 
         self.metadata = {
             "type": self.__class__.__name__,

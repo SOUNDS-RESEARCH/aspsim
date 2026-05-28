@@ -206,8 +206,6 @@ class PathGenerator:
                 self.e_absorbtion,
                 self.max_order,
                 self.num_samples_to_safely_remove,
-                mic.directivity_type,
-                mic.directivity_dir,
                 randomized_ism=sim_info.randomized_ism,
                 calculate_metadata=return_path_info,
                 verbose=verbose,
@@ -247,45 +245,6 @@ def filter_rirs(rir, sr, cutoff):
     return filtered_rir
 
 
-def _cardoid_to_pyroomacoustics(dir_dir):
-    assert dir_dir.ndim == 2
-    assert dir_dir.shape[1] == 3
-
-    radius, angles = gp.cart2spherical(dir_dir)
-    dir_obj = pradir.CardioidFamily(
-        orientation=pradir.DirectionVector(
-            azimuth=angles[0, 0], colatitude=angles[0, 1], degrees=False
-        ),
-        pattern_enum=pradir.DirectivityPattern.CARDIOID,
-    )
-    return dir_obj
-
-
-def _directionality_arg_to_pyroomacoustics(dir_type, dir_dir):
-    if dir_type is None:
-        assert dir_dir is None
-        return None
-
-    if len(dir_type) > 1:
-        if all([dt == "omni" for dt in dir_type]):
-            return None
-        elif all([dt == "cardioid" for dt in dir_type]):
-            return [
-                _cardoid_to_pyroomacoustics(dir_dir[i : i + 1, :])
-                for i in range(len(dir_type))
-            ]
-        raise NotImplementedError
-
-    if dir_type[0] == "cardioid":
-        dir_obj = [_cardoid_to_pyroomacoustics(dir_dir)]
-
-    elif dir_type[0] == "omni":
-        dir_obj = None
-    else:
-        raise NotImplementedError
-    return dir_obj
-
-
 def ir_room_image_source_3d(
     pos_src,
     pos_mic,
@@ -296,8 +255,6 @@ def ir_room_image_source_3d(
     e_absorbtion,
     max_order,
     num_samples_to_remove,
-    dir_type_mic=None,
-    dir_dir_mic=None,
     randomized_ism=False,
     calculate_metadata=False,
     verbose=False,
@@ -370,24 +327,13 @@ def ir_room_image_source_3d(
 
         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
 
-        if any([dir_type != "omni" for dir_type in dir_type_mic]):
-            raise NotImplementedError("Directional microphones not implemented yet")
-            mics = pra.MicrophoneArray(
-                (
-                    pos_mic[num_computed : num_computed + block_size, :]
-                    + pos_offset[None, :]
-                ).T,
-                samplerate,
-                directivity=dir_arg[num_computed : num_computed + block_size],
-            )
-        else:
-            mics = pra.MicrophoneArray(
-                (
-                    pos_mic[num_computed : num_computed + block_size, :]
-                    + pos_offset[None, :]
-                ).T,
-                samplerate,
-            )
+        mics = pra.MicrophoneArray(
+            (
+                pos_mic[num_computed : num_computed + block_size, :]
+                + pos_offset[None, :]
+            ).T,
+            samplerate,
+        )
         room.add_microphone_array(mics)
 
         if verbose:
@@ -443,119 +389,6 @@ def ir_room_image_source_3d(
         metadata["Energy Absorption"] = e_absorbtion
         return ir, metadata
     return ir
-
-
-# def ir_room_image_source_3d_orig(
-#     pos_from,
-#     pos_to,
-#     room_size,
-#     room_center,
-#     ir_len,
-#     rt60,
-#     samplerate,
-#     c,
-#     randomized_ism=True,
-#     calculate_metadata=False,
-#     verbose=False,
-#     extra_delay=0,  # this is multiplied by two since frac_dly must be even
-# ):
-
-#     num_from = pos_from.shape[0]
-#     num_to = pos_to.shape[0]
-#     ir = np.zeros((num_from, num_to, ir_len))
-#     room_center = np.array(room_center)
-#     room_size = np.array(room_size)
-
-#     pos_offset = room_size / 2 - room_center
-
-#     if rt60 > 0:
-#         e_absorbtion, max_order = pra.inverse_sabine(rt60, room_size)
-#         max_order += 8
-#     else:
-#         e_absorbtion = 0.9
-#         max_order = 0
-#     # print("Energy Absorption: ", eAbsorption)
-#     # print("Max Order: ", maxOrder)
-
-#     pra.constants.set("c", c)
-
-#     shortest_distance = np.min(distfuncs.cdist(pos_from, pos_to))
-#     # min_dly = int(np.ceil(shortest_distance * samplerate / c))
-#     min_dly = 0
-#     frac_dly_len = 2 * (min_dly + extra_delay) + 1
-#     pra.constants.set("frac_delay_length", frac_dly_len)
-#     if verbose:
-#         if frac_dly_len < 20:
-#             print("WARNING: fractional delay length: ", frac_dly_len)
-
-#     max_trunc_error = -np.inf
-#     max_trunc_value = -np.inf
-#     max_num_ir_at_once = 500
-#     num_computed = 0
-#     while num_computed < num_to:
-#         room = pra.ShoeBox(
-#             room_size,
-#             materials=pra.Material(e_absorbtion),
-#             fs=samplerate,
-#             max_order=max_order,
-#             use_rand_ism=randomized_ism,
-#             max_rand_disp=0.05,
-#         )
-#         # room = pra.ShoeBox(roomSim, materials=pra.Material(e_absorption), fs=sampleRate, max_order=max_order)
-
-#         for src_idx in range(num_from):
-#             room.add_source((pos_from[src_idx, :] + pos_offset).T)
-
-#         block_size = np.min((max_num_ir_at_once, num_to - num_computed))
-#         mics = pra.MicrophoneArray(
-#             (
-#                 pos_to[num_computed : num_computed + block_size, :]
-#                 + pos_offset[None, :]
-#             ).T,
-#             room.fs,
-#         )
-#         room.add_microphone_array(mics)
-
-#         if verbose:
-#             print(
-#                 "Computing RIR {} - {} of {}".format(
-#                     num_computed * num_from + 1,
-#                     (num_computed + block_size) * num_from,
-#                     num_to * num_from,
-#                 )
-#             )
-#         room.compute_rir()
-#         for to_idx, receiver in enumerate(room.rir):
-#             for from_idx, single_rir in enumerate(receiver):
-#                 ir_len_to_use = np.min((len(single_rir), ir_len)) - min_dly
-#                 ir[from_idx, num_computed + to_idx, :ir_len_to_use] = np.array(
-#                     single_rir
-#                 )[min_dly : ir_len_to_use + min_dly]
-#         num_computed += block_size
-
-#         if calculate_metadata:
-#             truncError, truncValue = calc_truncation_info(room.rir, ir_len)
-#             max_trunc_error = np.max((max_trunc_error, truncError))
-#             max_trunc_value = np.max((max_trunc_value, truncValue))
-
-#     if calculate_metadata:
-#         metadata = {}
-#         metadata["Max Normalized Truncation Error (dB)"] = max_trunc_error
-#         metadata["Max Normalized Truncated Value (dB)"] = max_trunc_value
-#         if rt60 > 0:
-#             try:
-#                 metadata["Measured RT60 (min)"] = np.min(room.measure_rt60())
-#                 metadata["Measured RT60 (max)"] = np.max(room.measure_rt60())
-#             except ValueError:
-#                 metadata["Measured RT60 (min)"] = "failed"
-#                 metadata["Measured RT60 (max)"] = "failed"
-#         else:
-#             metadata["Measured RT60 (min)"] = 0
-#             metadata["Measured RT60 (max)"] = 0
-#         metadata["Max ISM order"] = max_order
-#         metadata["Energy Absorption"] = e_absorbtion
-#         return ir, metadata
-#     return ir
 
 
 def calc_truncation_info(all_rir, trunc_len):
