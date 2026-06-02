@@ -203,7 +203,9 @@ class SimulatorSetup:
                 )
             except sess.MatchingSessionNotFoundError:
                 print("No matching session found")
-                ir_metadata = finished_arrays.setup_ir(self.sim_info)
+                ir_metadata = finished_arrays.setup_ir(
+                    self.sim_info, rir_dir=folder_path
+                )
                 sess.save_session(
                     self.session_folder,
                     self.sim_info,
@@ -211,7 +213,7 @@ class SimulatorSetup:
                     sim_metadata=ir_metadata,
                 )
         else:
-            finished_arrays.setup_ir(self.sim_info)
+            finished_arrays.setup_ir(self.sim_info, rir_dir=folder_path)
 
         # LOGGING AND DIAGNOSTICS
         self.sim_info.save_to_file(folder_path)

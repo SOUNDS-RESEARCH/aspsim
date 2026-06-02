@@ -2,11 +2,14 @@
 
 import numpy as np
 import pyroomacoustics as pra
-import pyroomacoustics.directivities as pradir
 import scipy.signal as spsig
 import scipy.spatial.distance as distfuncs
 
-import aspsim.room.generatepoints as gp
+# Default number of dynamic-array update steps to generate and high-pass filter at a
+# time when create_path writes into a preallocated ``out`` buffer. Bounds the peak
+# memory of dynamic RIR generation to roughly block_size * ir_len instead of
+# num_updates * ir_len. Override per-simulation with sim_info.rir_gen_block_size.
+DEFAULT_RIR_GEN_BLOCK_SIZE = 2000
 
 # def setup_ir(arrays, sim_info):
 #     """Generates the impulse responses between all sources and microphones
@@ -137,7 +140,14 @@ class PathGenerator:
         )
 
     def create_path(
-        self, src, mic, reverb, sim_info, return_path_info=False, verbose=False
+        self,
+        src,
+        mic,
+        reverb,
+        sim_info,
+        return_path_info=False,
+        verbose=False,
+        out=None,
     ):
         """Generate the impulse response between a source and a microphone array.
 
@@ -157,12 +167,20 @@ class PathGenerator:
             about the path. The default is False.
         verbose : bool, optional
             If True, the method will print information about the path generation. The default is False.
+        out : ndarray or np.memmap, optional
+            A preallocated buffer of shape (num_updates, src.num, mic.num, ir_len) to fill
+            in place. Only valid when exactly one of the arrays is dynamic. When supplied,
+            the impulse responses are generated and high-pass filtered in blocks along the
+            update axis so peak memory stays bounded by the block size (see
+            DEFAULT_RIR_GEN_BLOCK_SIZE / sim_info.rir_gen_block_size). The values written
+            are identical to those produced with out=None.
 
         Returns
         -------
         path : ndarray of shape (src.num, mic.num, sim_info.max_room_ir_length) if both arrays are static
             or (num_updates src.num, mic.num, sim_info.max_room_ir_length) if source or microphone array is dynamic
             Currently does not support the case where both arrays are dynamic.
+            When out is supplied, the returned array is out itself.
         """
         if src.dynamic and mic.dynamic:
             raise NotImplementedError(
@@ -173,6 +191,14 @@ class PathGenerator:
         if mic.dynamic:
             num_updates = mic.pos_all.shape[0]
 
+        if out is not None:
+            assert src.dynamic or mic.dynamic, (
+                "An out buffer is only supported for dynamic paths."
+            )
+            return self._fill_dynamic_path(
+                out, src, mic, reverb, sim_info, num_updates, return_path_info, verbose
+            )
+
         path_info = {}
         if reverb == "none":
             path = np.zeros((src.num, mic.num, 1))
@@ -180,7 +206,7 @@ class PathGenerator:
                 path = np.tile(path, (num_updates, 1, 1, 1))
         elif reverb == "direct":
             assert src.num == mic.num, (
-                "Direct propagation only makes sense between arrays with the same number of elements"
+                f"Direct propagation only makes sense between arrays with the same number of elements. The source {src.name} has {src.num} elements, while the microphone array {mic.name} has {mic.num} elements."
             )
             path = np.eye(src.num, mic.num)[..., None]
             if src.dynamic or mic.dynamic:
@@ -232,6 +258,187 @@ class PathGenerator:
         if return_path_info:
             return path, path_info
         return path
+
+    def _fill_dynamic_path(
+        self, out, src, mic, reverb, sim_info, num_updates, return_path_info, verbose
+    ):
+        """Fill a preallocated dynamic-path buffer block by block.
+
+        The update axis of ``out`` is processed in blocks so the unfiltered RIRs and the
+        ``filter_rirs`` transient are bounded by the block size rather than by the total
+        number of updates. This is value-identical to ``create_path`` with ``out=None``:
+        image-source RIRs are computed per source/mic position pair, ``filter_rirs`` only
+        filters along the time axis, and the "random" draw order is the same row-major
+        global-RNG stream, so none of these depend on how the update axis is partitioned.
+
+        Parameters
+        ----------
+        out : ndarray or np.memmap of shape (num_updates, src.num, mic.num, ir_len)
+            The preallocated buffer to fill in place.
+        src : Array
+            The source array.
+        mic : Array
+            The microphone array. Exactly one of src, mic must be dynamic.
+        reverb : str
+            The propagation type. One of "none", "direct", "random", "ism".
+        sim_info : SimInfo
+            The simulation info object. sim_info.rir_gen_block_size, if present, sets the
+            number of update steps generated per block.
+        num_updates : int
+            The number of update steps along the dynamic axis (out.shape[0]).
+        return_path_info : bool
+            If True, also return a dict of metadata about the generated paths.
+        verbose : bool
+            If True, print progress information during generation.
+
+        Returns
+        -------
+        out : ndarray or np.memmap
+            The same buffer passed in, now filled.
+        path_info : dict
+            Metadata about the path. Only returned if return_path_info is True.
+        """
+        path_info = {}
+        block_size = getattr(sim_info, "rir_gen_block_size", DEFAULT_RIR_GEN_BLOCK_SIZE)
+
+        if reverb == "direct":
+            assert src.num == mic.num, (
+                f"Direct propagation only makes sense between arrays with the same number of elements. The source {src.name} has {src.num} elements, while the microphone array {mic.name} has {mic.num} elements."
+            )
+            direct_block = np.eye(src.num, mic.num)[None, ..., None]
+
+        ism_metadatas = []
+        for b0 in range(0, num_updates, block_size):
+            b1 = min(b0 + block_size, num_updates)
+            n_blk = b1 - b0
+
+            if reverb == "none":
+                block = np.zeros((n_blk, src.num, mic.num, 1))
+            elif reverb == "direct":
+                block = np.tile(direct_block, (n_blk, 1, 1, 1))
+            elif reverb == "random":
+                block = np.random.normal(
+                    size=(n_blk, src.num, mic.num, sim_info.max_room_ir_length)
+                )
+            elif reverb == "ism":
+                calc_meta = return_path_info
+                result = self._generate_ism_block(
+                    src, mic, sim_info, b0, b1, calc_meta, verbose
+                )
+                if calc_meta:
+                    block, md = result
+                    ism_metadatas.append(md)
+                else:
+                    block = result
+            else:
+                raise ValueError(f"Unknown reverb type: {reverb}")
+
+            if sim_info.highpass_cutoff > 0:
+                block = filter_rirs(
+                    block, sim_info.samplerate, sim_info.highpass_cutoff
+                )
+            out[b0:b1] = block
+
+        if return_path_info and ism_metadatas:
+            path_info["ism_info"] = _merge_ism_metadata(ism_metadatas)
+
+        if return_path_info:
+            return out, path_info
+        return out
+
+    def _generate_ism_block(self, src, mic, sim_info, b0, b1, calc_meta, verbose):
+        """Generate the unfiltered ISM RIRs for a block of update steps.
+
+        Parameters
+        ----------
+        src : Array
+            The source array.
+        mic : Array
+            The microphone array. Exactly one of src, mic must be dynamic.
+        sim_info : SimInfo
+            The simulation info object.
+        b0 : int
+            First update index of the block (inclusive).
+        b1 : int
+            Last update index of the block (exclusive).
+        calc_meta : bool
+            If True, also return the ISM metadata dict for the block.
+        verbose : bool
+            If True, print progress information during generation.
+
+        Returns
+        -------
+        block : ndarray of shape (b1 - b0, src.num, mic.num, ir_len)
+            The unfiltered RIRs for the block, laid out to match the update-axis slice
+            of the out=None path.
+        metadata : dict
+            ISM metadata for the block. Only returned if calc_meta is True.
+        """
+        n_blk = b1 - b0
+        if src.dynamic:
+            pos_src = src.pos_all[b0:b1].reshape(-1, 3)
+            pos_mic = mic.pos.reshape(-1, 3)
+        else:  # mic.dynamic
+            pos_src = src.pos.reshape(-1, 3)
+            pos_mic = mic.pos_all[b0:b1].reshape(-1, 3)
+
+        result = ir_room_image_source_3d(
+            pos_src,
+            pos_mic,
+            sim_info.room_size,
+            sim_info.room_center,
+            sim_info.max_room_ir_length,
+            sim_info.samplerate,
+            self.e_absorbtion,
+            self.max_order,
+            self.num_samples_to_safely_remove,
+            randomized_ism=sim_info.randomized_ism,
+            calculate_metadata=calc_meta,
+            verbose=verbose,
+        )
+        if calc_meta:
+            block, md = result
+        else:
+            block = result
+
+        if src.dynamic:
+            block = block.reshape(n_blk, src.num, mic.num, -1)
+        else:  # mic.dynamic
+            block = np.moveaxis(block.reshape(src.num, n_blk, mic.num, -1), 0, 1)
+
+        if calc_meta:
+            return block, md
+        return block
+
+
+def _merge_ism_metadata(metadatas):
+    """Merge the per-block ISM metadata dicts produced during chunked generation.
+
+    The two normalized-truncation fields are reduced with max across blocks (the
+    meaningful worst case); the remaining informational fields are taken from the first
+    block. Dynamic-path metadata is informational only and is not consumed by the
+    estimation code, which reads metadata for the static src->eval path.
+
+    Parameters
+    ----------
+    metadatas : list of dict
+        The per-block metadata dicts, in block order. Must be non-empty.
+
+    Returns
+    -------
+    merged : dict
+        A single metadata dict combining the blocks.
+    """
+    merged = dict(metadatas[0])
+    max_keys = (
+        "Max Normalized Truncation Error (dB)",
+        "Max Normalized Truncated Value (dB)",
+    )
+    for md in metadatas[1:]:
+        for key in max_keys:
+            if key in md and key in merged:
+                merged[key] = max(merged[key], md[key])
+    return merged
 
 
 def filter_rirs(rir, sr, cutoff):
@@ -347,15 +554,17 @@ def ir_room_image_source_3d(
                 )
             )
         room.compute_rir()
-        for to_idx, receiver in enumerate(iterable=room.rir):
+        # rir = room.rir
+        if room.rir is None:
+            raise RuntimeError("Room impulse responses were not computed.")
+        for to_idx, receiver in enumerate(room.rir):
             for from_idx, single_rir in enumerate(receiver):
-                ir_len_to_use = (
-                    np.min((len(single_rir), ir_len)) - num_samples_to_remove
-                )
-                ir[from_idx, num_computed + to_idx, :ir_len_to_use] = np.array(
-                    single_rir
-                )[num_samples_to_remove : ir_len_to_use + num_samples_to_remove]
-                if np.sum(np.abs(np.array(single_rir)[:num_samples_to_remove])) > 0:
+                single_rir_arr = np.asarray(single_rir)
+                ir_len_to_use = min(len(single_rir_arr), ir_len) - num_samples_to_remove
+                ir[from_idx, num_computed + to_idx, :ir_len_to_use] = single_rir_arr[
+                    num_samples_to_remove : ir_len_to_use + num_samples_to_remove
+                ]
+                if np.sum(np.abs(single_rir_arr[:num_samples_to_remove])) > 0:
                     print(
                         "Warning: samples were removed from the beginning of the RIR that were not zero."
                     )
